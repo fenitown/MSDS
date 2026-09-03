@@ -1,0 +1,1508 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>মানবিক সহায়তা ডেইলি শপ (MSDS)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#1c2b28;
+    --paper:#f6f4ee;
+    --line:#d8d2c2;
+    --teal:#1f5f52;
+    --teal-dark:#153f37;
+    --teal-soft:#e6efec;
+    --clay:#b5502f;
+    --muted:#6b7570;
+    --card:#ffffff;
+    --danger:#a3352b;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:'Hind Siliguri','Noto Sans Bengali',system-ui,sans-serif;
+    background:var(--paper);
+    color:var(--ink);
+  }
+  input,select,button,textarea{ font-family:inherit; font-size:1rem; }
+
+  /* ---------- লগইন স্ক্রিন (নতুন ডিজাইন) ---------- */
+  #loginScreen{
+    min-height:100vh;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:24px;
+    background:
+      radial-gradient(circle at 15% 15%, rgba(31,95,82,0.14), transparent 45%),
+      radial-gradient(circle at 85% 85%, rgba(181,80,47,0.12), transparent 45%),
+      var(--paper);
+  }
+  .login-box{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:16px;
+    padding:36px 30px;
+    width:100%;
+    max-width:400px;
+    box-shadow:0 10px 34px rgba(21,63,55,0.10);
+    text-align:center;
+  }
+  .login-avatar{
+    width:64px; height:64px; border-radius:50%;
+    background:linear-gradient(135deg,var(--teal),var(--teal-dark));
+    color:#fff; display:flex; align-items:center; justify-content:center;
+    font-weight:800; font-size:1.05rem; margin:0 auto 14px;
+    letter-spacing:0.5px;
+    box-shadow:0 6px 16px rgba(21,63,55,0.28);
+  }
+  .login-box h1{ font-size:1.4rem; margin:0 0 2px; color:var(--teal-dark); }
+  .login-box .tagline{ font-size:0.86rem; color:var(--clay); font-weight:600; margin:0 0 16px; }
+  .login-box p.sub{ margin:0 0 20px; color:var(--muted); font-size:0.88rem; }
+  .field{ margin-bottom:14px; text-align:left; }
+  .field label{ display:block; margin-bottom:4px; font-size:0.88rem; color:var(--muted); }
+  .field input, .field select, .field textarea{
+    width:100%;
+    padding:10px 12px;
+    border:1px solid var(--line);
+    border-radius:10px;
+    background:#fff;
+    transition:border-color 0.15s;
+  }
+  .field input:focus, .field select:focus, .field textarea:focus{
+    outline:none; border-color:var(--teal);
+  }
+  .btn{
+    display:inline-block;
+    background:var(--teal);
+    color:#fff;
+    border:none;
+    padding:11px 20px;
+    border-radius:10px;
+    cursor:pointer;
+    font-weight:600;
+  }
+  .btn:hover{ background:var(--teal-dark); }
+  .btn.secondary{ background:transparent; color:var(--teal); border:1px solid var(--teal); }
+  .btn.danger{ background:var(--danger); }
+  .btn.small{ padding:6px 12px; font-size:0.85rem; border-radius:8px; }
+  .btn-row{ display:flex; gap:8px; flex-wrap:wrap; margin-top:6px; }
+  .link-btn{ background:none; border:none; color:var(--teal); text-decoration:underline; cursor:pointer; padding:0; font-size:0.88rem; }
+  #loginError{ color:var(--danger); font-size:0.85rem; margin-top:10px; min-height:1.2em; }
+  .login-box .recover-link{ margin-top:14px; }
+
+  /* ---------- অ্যাপ শেল ---------- */
+  #appScreen{ display:none; min-height:100vh; }
+  header.topbar{
+    background:var(--teal-dark);
+    color:#fff;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:12px 16px;
+    position:sticky; top:0; z-index:20;
+  }
+  .brand{ display:flex; align-items:center; gap:10px; }
+  .brand .logo{
+    width:38px; height:38px; border-radius:10px;
+    background:var(--clay);
+    display:flex; align-items:center; justify-content:center;
+    font-weight:800; font-size:0.78rem;
+    overflow:hidden;
+  }
+  .brand .logo img{ width:100%; height:100%; object-fit:cover; }
+  .brand .names{ line-height:1.2; }
+  .brand .names .agency{ font-size:0.95rem; font-weight:700; }
+  .brand .names .dealer{ font-size:0.78rem; opacity:0.85; }
+  .hamburger{
+    background:none; border:none; color:#fff; font-size:1.5rem; cursor:pointer;
+    padding:4px 8px;
+  }
+
+  nav#sideMenu{
+    position:fixed; top:0; right:-280px; width:260px; height:100%;
+    background:var(--teal-dark); color:#fff; padding:60px 0 20px;
+    transition:right 0.25s ease; z-index:30; overflow-y:auto;
+  }
+  nav#sideMenu.open{ right:0; }
+  nav#sideMenu a, nav#sideMenu button.menu-item{
+    display:block; width:100%; text-align:right; background:none; border:none;
+    color:#fff; padding:12px 20px; font-size:0.98rem; cursor:pointer;
+    border-bottom:1px solid rgba(255,255,255,0.08);
+  }
+  nav#sideMenu button.menu-item:hover, nav#sideMenu a:hover{ background:rgba(255,255,255,0.08); }
+  #menuOverlay{ display:none; position:fixed; inset:0; background:rgba(0,0,0,0.35); z-index:25; }
+  #menuOverlay.open{ display:block; }
+
+  main{ max-width:960px; margin:0 auto; padding:18px 16px 60px; }
+  .section{ display:none; }
+  .section.active{ display:block; }
+  .section h2{ color:var(--teal-dark); font-size:1.25rem; margin:0 0 14px; }
+
+  .cards{ display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:10px; margin-bottom:20px; }
+  .card{ background:var(--card); border:1px solid var(--line); border-radius:10px; padding:14px; }
+  .card .num{ font-size:1.6rem; font-weight:700; color:var(--teal-dark); }
+  .card .label{ font-size:0.82rem; color:var(--muted); margin-top:2px; }
+
+  /* ---------- টেবিল অ্যালাইনমেন্ট: হেডার সবসময় সেন্টার,
+     বডি ডিফল্ট সেন্টার, নির্দিষ্ট কলামে (নাম/ঠিকানা ইত্যাদি) রাইট ---------- */
+  table{ width:100%; border-collapse:collapse; background:#fff; }
+  table th, table td{ border:1px solid var(--line); padding:7px 8px; font-size:0.88rem; text-align:center; }
+  table th{ background:#eef0e9; text-align:center; }
+  table td.cell-right { text-align:left; }
+  .table-wrap{ overflow-x:auto; margin-top:10px; }
+
+  .form-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:10px; }
+  fieldset{ border:1px solid var(--line); border-radius:10px; margin:14px 0; padding:12px; }
+  legend{ padding:0 6px; color:var(--teal-dark); font-weight:600; font-size:0.9rem; }
+
+  .item-row-v2{ display:grid; grid-template-columns:2fr 1fr 1fr 1fr auto; gap:8px; margin-bottom:6px; }
+  .expense-row{ display:grid; grid-template-columns:1fr 2fr 1fr auto; gap:8px; margin-bottom:6px; }
+  .toolbar{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:12px; }
+  .msg{ font-size:0.88rem; margin-top:8px; }
+  .msg.ok{ color:var(--teal); }
+  .msg.err{ color:var(--danger); }
+  .tabs{ display:flex; gap:6px; margin-bottom:12px; flex-wrap:wrap; }
+  .tabs button{ background:#fff; border:1px solid var(--line); border-radius:8px; padding:6px 12px; cursor:pointer; }
+  .tabs button.active{ background:var(--teal); color:#fff; border-color:var(--teal); }
+
+  .photo-preview{ width:80px; height:80px; border-radius:10px; object-fit:cover; border:1px solid var(--line); display:block; margin-top:6px; background:#eee; }
+
+  .pkg-click-row{ cursor:pointer; }
+  .pkg-click-row:hover{ background:#f0efe6; }
+  .pkg-detail-box{ background:#fff; border:1px solid var(--line); border-radius:10px; padding:12px; margin-top:10px; }
+
+  footer.appfoot{ text-align:center; padding:18px; color:var(--muted); font-size:0.82rem; }
+
+  /* ---------- জেনেরিক মোডাল (এডিট / পাসওয়ার্ড উদ্ধার) ---------- */
+  .modal-overlay{
+    display:none; position:fixed; inset:0; background:rgba(21,63,55,0.35);
+    z-index:50; align-items:center; justify-content:center; padding:16px;
+  }
+  .modal-box{
+    background:#fff; border-radius:14px; padding:22px; width:100%; max-width:420px;
+    max-height:90vh; overflow-y:auto;
+  }
+  .modal-box h3{ margin:0 0 12px; color:var(--teal-dark); }
+  .modal-actions{ display:flex; gap:8px; justify-content:flex-end; margin-top:14px; }
+
+  @media print{
+    header.topbar, nav#sideMenu, #menuOverlay, .no-print, .modal-overlay{ display:none !important; }
+    body{ background:#fff; }
+    main{ max-width:100%; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ================= লগইন স্ক্রিন ================= -->
+<div id="loginScreen">
+  <div class="login-box">
+    <div class="login-avatar">MSDS</div>
+    <h1>মানবিক সহায়তা ডেইলি শপ</h1>
+    <p class="tagline">সাশ্রয়ী মূল্যে পণ্য বিক্রি সংস্থা</p>
+    <p class="sub">ইউজার, ইউজারনেম ও পাসওয়ার্ড দিয়ে প্রবেশ করুন</p>
+    <div class="field">
+      <label>ইউজার</label>
+      <select id="loginUserType">
+        <option value="agency">সংস্থা (মূল এজেন্সি)</option>
+        <option value="dealer">ডিলার</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>ইউজারনেম</label>
+      <input type="text" id="loginUsername">
+    </div>
+    <div class="field">
+      <label>পাসওয়ার্ড</label>
+      <input type="password" id="loginPassword">
+    </div>
+    <button class="btn" style="width:100%" onclick="doLogin()">লগইন</button>
+    <div id="loginError"></div>
+    <div class="recover-link">
+      <button class="link-btn" onclick="openRecoverModal()">পাসওয়ার্ড উদ্ধার</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= পাসওয়ার্ড উদ্ধার মোডাল ================= -->
+<div class="modal-overlay" id="recoverModal">
+  <div class="modal-box">
+    <h3>পাসওয়ার্ড উদ্ধার</h3>
+    <p style="font-size:0.85rem;color:var(--muted);margin-top:-6px;">ডিলারের NID নং ও মোবাইল নং দিন — মিলে গেলে নতুন পাসওয়ার্ড দেখানো হবে</p>
+    <div class="field"><label>NID/জন্মসনদ নং</label><input id="recNid"></div>
+    <div class="field"><label>মোবাইল নং</label><input id="recMobile" maxlength="11"></div>
+    <div id="recoverResult" class="msg"></div>
+    <div class="modal-actions">
+      <button class="btn secondary" onclick="closeRecoverModal()">বন্ধ করুন</button>
+      <button class="btn" onclick="submitRecoverPassword()">যাচাই করুন</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= জেনেরিক এডিট মোডাল ================= -->
+<div class="modal-overlay" id="editModal">
+  <div class="modal-box">
+    <h3 id="editModalTitle">এডিট করুন</h3>
+    <div id="editModalBody"></div>
+    <div id="editModalMsg" class="msg"></div>
+    <div class="modal-actions">
+      <button class="btn secondary" onclick="closeEditModal()">বাতিল</button>
+      <button class="btn" onclick="window.__editModalSave && window.__editModalSave()">সংরক্ষণ করুন</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= মূল অ্যাপ ================= -->
+<div id="appScreen">
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo" id="hdrLogoBox">MSDS</div>
+      <div class="names">
+        <div class="agency" id="hdrDealerName">—</div>
+        <div class="dealer" id="hdrUserName">—</div>
+      </div>
+    </div>
+    <button class="hamburger" onclick="toggleMenu()">☰</button>
+  </header>
+
+  <div id="menuOverlay" onclick="toggleMenu()"></div>
+  <nav id="sideMenu"><!-- role অনুযায়ী JS দিয়ে ভরা হবে --></nav>
+
+  <main>
+    <!-- ================= এজেন্সি সেকশনসমূহ ================= -->
+    <section class="section" id="sec-agencyDashboard">
+      <h2>ড্যাশবোর্ড</h2>
+      <div class="cards" id="agencyDashboardCards"><p>লোড হচ্ছে...</p></div>
+    </section>
+
+    <section class="section" id="sec-management">
+      <h2>ব্যবস্থাপনা</h2>
+      <div class="tabs no-print">
+        <button class="active" onclick="switchMgmtTab('register', this)">ডিলার রেজিস্ট্রেশন</button>
+        <button onclick="switchMgmtTab('dealerList', this)">ডিলার লিস্ট</button>
+        <button onclick="switchMgmtTab('agencyInfo', this)">এজেন্সি সেটাপ</button>
+      </div>
+      <div id="mgmtContent"></div>
+    </section>
+
+    <section class="section" id="sec-agencyPackages">
+      <h2>প্যাকেজ</h2>
+      <fieldset class="no-print">
+        <legend>নতুন প্যাকেজ</legend>
+        <div class="form-grid">
+          <div class="field"><label>প্যাকেজের নাম</label><input id="pkgNaam"></div>
+          <div class="field"><label>কোম্পানী</label><input id="pkgCompany"></div>
+          <div class="field">
+            <label>ধরন</label>
+            <select id="pkgDhoron">
+              <option value="এক্টিভ">এক্টিভ</option>
+              <option value="প্রক্রিয়াধীন">প্রক্রিয়াধীন</option>
+              <option value="বাতিল">বাতিল</option>
+            </select>
+          </div>
+        </div>
+        <div id="pkgItems"></div>
+        <button class="btn secondary small" onclick="addPkgItemRow()">+ পণ্য যোগ করুন</button>
+        <p style="font-size:0.82rem;color:var(--muted);">পণ্যের নাম ও পরিমাণ একই ঘরে লিখুন — যেমন: "চিনি - ১ কেজি"</p>
+        <div class="btn-row"><button class="btn" onclick="submitPackage()">প্যাকেজ সংরক্ষণ করুন</button></div>
+        <div id="pkgMsg" class="msg"></div>
+      </fieldset>
+      <div class="toolbar no-print">
+        <button class="btn secondary small" onclick="window.print()">🖨 সব প্যাকেজ প্রিন্ট করুন</button>
+      </div>
+      <div class="table-wrap"><table id="agencyPackagesTable"><thead></thead><tbody></tbody></table></div>
+    </section>
+
+    <section class="section" id="sec-commission">
+      <h2>কমিশন</h2>
+      <fieldset class="no-print">
+        <legend>নতুন কমিশন এন্ট্রি</legend>
+        <div class="form-grid">
+          <div class="field"><label>ডিলারের নাম</label><select id="commDealerSelect" onchange="onCommissionDealerChange()"></select></div>
+          <div class="field"><label>মোবাইল নং (অটো)</label><input id="commMobile" readonly></div>
+          <div class="field"><label>ঠিকানা (অটো)</label><input id="commThikana" readonly></div>
+          <div class="field"><label>টাকার পরিমাণ</label><input id="commAmount" type="number" min="0"></div>
+        </div>
+        <div class="btn-row"><button class="btn" onclick="submitCommission()">সংরক্ষণ করুন</button></div>
+        <div id="commMsg" class="msg"></div>
+      </fieldset>
+      <div class="toolbar no-print"><button class="btn secondary small" onclick="window.print()">🖨 প্রিন্ট করুন</button></div>
+      <div class="table-wrap"><table id="commissionTable"><thead></thead><tbody></tbody></table></div>
+    </section>
+
+    <section class="section" id="sec-agencyExpense">
+      <h2>খরচ</h2>
+      <fieldset class="no-print">
+        <legend>নতুন খরচ এন্ট্রি (একাধিক যোগ করা যাবে)</legend>
+        <div id="agencyExpenseRows"></div>
+        <button class="btn secondary small" onclick="addAgencyExpenseRow()">+ আরেকটি সারি</button>
+        <div class="btn-row"><button class="btn" onclick="submitAgencyExpense()">সংরক্ষণ করুন</button></div>
+        <div id="agencyExpenseMsg" class="msg"></div>
+      </fieldset>
+      <div class="toolbar no-print"><button class="btn secondary small" onclick="window.print()">🖨 প্রিন্ট করুন</button></div>
+      <div class="table-wrap"><table id="agencyExpenseTable"><thead></thead><tbody></tbody></table></div>
+    </section>
+
+    <!-- ================= ডিলার সেকশনসমূহ ================= -->
+    <section class="section" id="sec-dashboard">
+      <h2>ড্যাশবোর্ড</h2>
+      <div class="cards" id="dashboardCards"><p>লোড হচ্ছে...</p></div>
+    </section>
+
+    <section class="section" id="sec-about">
+      <h2>সংস্থার তথ্য</h2>
+      <div id="aboutView"></div>
+    </section>
+
+    <section class="section" id="sec-packages">
+      <h2>প্যাকেজ</h2>
+      <div class="table-wrap"><table id="packagesTable"><thead></thead><tbody></tbody></table></div>
+      <div id="pkgDetailBox" class="pkg-detail-box" style="display:none;"></div>
+    </section>
+
+    <section class="section" id="sec-customers">
+      <h2>গ্রাহক</h2>
+      <fieldset class="no-print">
+        <legend>নতুন গ্রাহক</legend>
+        <div class="form-grid">
+          <div class="field"><label>নাম</label><input id="cusNaam"></div>
+          <div class="field"><label>পিতার নাম</label><input id="cusPitarNaam"></div>
+          <div class="field"><label>মোবাইল নং</label><input id="cusMobile" maxlength="11"></div>
+          <div class="field"><label>NID/জন্মসনদ নং</label><input id="cusNid"></div>
+          <div class="field"><label>বাড়ির নাম</label><input id="cusBariNaam"></div>
+          <div class="field"><label>গ্রাম</label><input id="cusGram"></div>
+          <div class="field"><label>ওয়ার্ড নং</label><input id="cusWard"></div>
+          <div class="field"><label>ইউনিয়ন/পৌরসভা</label><input id="cusUnion"></div>
+          <div class="field"><label>প্রাপ্তির স্থান</label><input id="cusPraptirSthan"></div>
+        </div>
+        <div class="btn-row"><button class="btn" onclick="submitCustomer()">গ্রাহক সংরক্ষণ করুন</button></div>
+        <div id="cusMsg" class="msg"></div>
+      </fieldset>
+      <div class="toolbar no-print"><button class="btn secondary small" onclick="window.print()">🖨 সব গ্রাহক প্রিন্ট করুন</button></div>
+      <div class="table-wrap"><table id="customersTable"><thead></thead><tbody></tbody></table></div>
+    </section>
+
+    <section class="section" id="sec-orders">
+      <h2>অর্ডার</h2>
+      <fieldset class="no-print">
+        <legend>নতুন অর্ডার</legend>
+        <div class="form-grid">
+          <div class="field"><label>প্যাকেজ</label><select id="ordPackage"></select></div>
+          <div class="field"><label>সংখ্যা</label><input id="ordQty" type="number" min="1"></div>
+          <div class="field"><label>একক মূল্য</label><input id="ordPrice" type="number" min="0"></div>
+        </div>
+        <div class="btn-row"><button class="btn" onclick="submitOrder()">অর্ডার সংরক্ষণ করুন</button></div>
+        <div id="ordMsg" class="msg"></div>
+      </fieldset>
+      <div class="table-wrap"><table id="ordersTable"><thead></thead><tbody></tbody></table></div>
+    </section>
+
+    <section class="section" id="sec-sales">
+      <h2>বিক্রি</h2>
+      <div class="form-grid no-print">
+        <div class="field"><label>প্যাকেজ সিলেক্ট করুন</label><select id="saleFilterPackage" onchange="loadSalesView()"></select></div>
+        <div class="field"><label>প্রাপ্তির স্থান</label><select id="saleFilterLocation" onchange="loadSalesView()"></select></div>
+      </div>
+      <div class="toolbar no-print"><button class="btn secondary small" onclick="window.print()">🖨 গ্রাহক তালিকা প্রিন্ট করুন</button></div>
+      <div class="table-wrap"><table id="salesTable"><thead></thead><tbody></tbody></table></div>
+      <div id="salesMsg" class="msg"></div>
+    </section>
+
+    <section class="section" id="sec-expenseVoucher">
+      <h2>খরচ ভাউচার</h2>
+      <fieldset class="no-print">
+        <legend>নতুন খরচ এন্ট্রি (একাধিক যোগ করা যাবে)</legend>
+        <div id="dealerExpenseRows"></div>
+        <button class="btn secondary small" onclick="addDealerExpenseRow()">+ আরেকটি সারি</button>
+        <div class="btn-row"><button class="btn" onclick="submitDealerExpense()">সংরক্ষণ করুন</button></div>
+        <div id="dealerExpenseMsg" class="msg"></div>
+      </fieldset>
+      <div class="table-wrap"><table id="dealerExpenseTable"><thead></thead><tbody></tbody></table></div>
+    </section>
+
+    <section class="section" id="sec-reports">
+      <h2>রিপোর্ট</h2>
+      <div class="tabs no-print">
+        <button class="active" onclick="switchReportTab('daily', this)">দৈনিক</button>
+        <button onclick="switchReportTab('monthly', this)">মাসিক</button>
+        <button onclick="switchReportTab('total', this)">সর্বমোট</button>
+      </div>
+      <div id="reportControls" class="form-grid no-print"></div>
+      <div id="reportResult"></div>
+    </section>
+
+    <section class="section" id="sec-dealerAbout">
+      <h2>সংস্থার তথ্য এডিট</h2>
+      <div id="dealerAboutEditBox"></div>
+    </section>
+  </main>
+
+  <footer class="appfoot">@AM Shahed: 01605721296</footer>
+</div>
+
+<script>
+/* ============================================================
+   কনফিগারেশন
+   ============================================================ */
+const API_URL = "https://script.google.com/macros/s/AKfycbxmseU_Vj8xwWzq9rxK6b8NN5ZPvb3GNlc-LNN-hgwa2kr3kS6lAe11ZWseK7qd9PuB-g/exec";
+
+let state = { token:null, role:null, dealerId:null, dealerName:null, name:null };
+
+async function apiCall(action, data){
+  data = data || {};
+  if(state.token && !data.token) data.token = state.token;
+  try{
+    const res = await fetch(API_URL, { method:"POST", body: JSON.stringify({ action, data }) });
+    return await res.json();
+  }catch(err){
+    return { success:false, message:"নেটওয়ার্ক সমস্যা: " + err.toString() };
+  }
+}
+
+function fileToBase64(fileInput){
+  return new Promise((resolve) => {
+    const file = fileInput.files[0];
+    if(!file){ resolve(""); return; }
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.readAsDataURL(file);
+  });
+}
+
+/* ---------------- জেনেরিক এডিট মোডাল ---------------- */
+function openEditModal(title, fields, onSave){
+  document.getElementById("editModalTitle").textContent = title;
+  const body = document.getElementById("editModalBody");
+  body.innerHTML = fields.map(f => `
+    <div class="field">
+      <label>${f.label}</label>
+      <input class="editField" data-key="${f.key}" type="${f.type||'text'}" value="${(f.value===undefined||f.value===null?'':f.value).toString().replace(/"/g,'&quot;')}">
+    </div>`).join("");
+  document.getElementById("editModalMsg").textContent = "";
+  document.getElementById("editModal").style.display = "flex";
+  window.__editModalSave = async function(){
+    const values = {};
+    body.querySelectorAll(".editField").forEach(inp => values[inp.dataset.key] = inp.value);
+    const msgBox = document.getElementById("editModalMsg");
+    msgBox.textContent = "সংরক্ষণ হচ্ছে...";
+    msgBox.className = "msg";
+    const res = await onSave(values);
+    if(res && res.success === false){
+      msgBox.textContent = res.message; msgBox.className = "msg err";
+    } else {
+      closeEditModal();
+    }
+  };
+}
+function closeEditModal(){ document.getElementById("editModal").style.display = "none"; }
+
+/* ---------------- জেনেরিক সিঙ্গেল-রেকর্ড প্রিন্ট ---------------- */
+function printSingleRecord(title, fields){
+  const win = window.open("", "_blank", "width=480,height=640");
+  const rows = fields.map(f => `<tr><th>${f.label}</th><td>${f.value===undefined||f.value===null?'':f.value}</td></tr>`).join("");
+  win.document.write(`<html><head><meta charset="utf-8"><title>${title}</title>
+    <style>
+      body{font-family:'Hind Siliguri',sans-serif;padding:20px;color:#1c2b28;}
+      h2{color:#153f37;} table{width:100%;border-collapse:collapse;margin-top:10px;}
+      th,td{border:1px solid #d8d2c2;padding:8px;text-align:center;}
+      th{background:#eef0e9;width:40%;}
+    </style></head><body>
+    <h2>${title}</h2><table>${rows}</table>
+    <script>window.onload=function(){window.print();}<\/script>
+    </body></html>`);
+  win.document.close();
+}
+
+/* ---------------- পাসওয়ার্ড উদ্ধার ---------------- */
+function openRecoverModal(){
+  document.getElementById("recNid").value = "";
+  document.getElementById("recMobile").value = "";
+  document.getElementById("recoverResult").textContent = "";
+  document.getElementById("recoverModal").style.display = "flex";
+}
+function closeRecoverModal(){ document.getElementById("recoverModal").style.display = "none"; }
+
+async function submitRecoverPassword(){
+  const nid = document.getElementById("recNid").value.trim();
+  const mobile = document.getElementById("recMobile").value.trim();
+  const box = document.getElementById("recoverResult");
+  if(!nid || !mobile){ box.textContent = "NID ও মোবাইল নং দিন"; box.className="msg err"; return; }
+
+  box.textContent = "যাচাই হচ্ছে..."; box.className = "msg";
+  const res = await apiCall("recoverPassword", { nid, mobile });
+  if(!res.success){ box.textContent = res.message; box.className = "msg err"; return; }
+  box.innerHTML = `ইউজারনেম: <b>${res.username}</b><br>নতুন পাসওয়ার্ড: <b>${res.newPassword}</b><br>${res.message}`;
+  box.className = "msg ok";
+}
+
+/* ---------------- লগইন ---------------- */
+async function doLogin(){
+  const username = document.getElementById("loginUsername").value.trim();
+  const password = document.getElementById("loginPassword").value;
+  const userType = document.getElementById("loginUserType").value;
+  const errBox = document.getElementById("loginError");
+  errBox.textContent = "";
+
+  if(!username || !password){ errBox.textContent = "ইউজারনেম ও পাসওয়ার্ড দিন"; return; }
+
+  const res = await apiCall("login", { username, password });
+  if(!res.success){ errBox.textContent = res.message; return; }
+
+  if(userType === "agency" && res.dealerId !== "AGENCY"){
+    errBox.textContent = "এই লগইন সংস্থার নয় — 'ডিলার' সিলেক্ট করে চেষ্টা করুন";
+    return;
+  }
+  if(userType === "dealer" && res.dealerId === "AGENCY"){
+    errBox.textContent = "এই লগইন ডিলারের নয় — 'সংস্থা' সিলেক্ট করে চেষ্টা করুন";
+    return;
+  }
+
+  state.token = res.token;
+  state.role = res.role;
+  state.dealerId = res.dealerId;
+  state.dealerName = res.dealerName;
+  state.name = res.name;
+
+  document.getElementById("hdrDealerName").textContent = state.dealerId === "AGENCY" ? "মানবিক সহায়তা ডেইলি শপ" : state.dealerName;
+  document.getElementById("hdrUserName").textContent = state.name + " (" + state.role + ")";
+
+  document.getElementById("loginScreen").style.display = "none";
+  document.getElementById("appScreen").style.display = "block";
+
+  buildSideMenu();
+  if(state.dealerId === "AGENCY"){ showSection("agencyDashboard"); }
+  else { showSection("dashboard"); }
+}
+
+function doLogout(){
+  state = { token:null, role:null, dealerId:null, dealerName:null, name:null };
+  document.getElementById("appScreen").style.display = "none";
+  document.getElementById("loginScreen").style.display = "flex";
+  document.getElementById("loginUsername").value = "";
+  document.getElementById("loginPassword").value = "";
+}
+
+/* ---------------- সাইড মেনু ---------------- */
+function buildSideMenu(){
+  const nav = document.getElementById("sideMenu");
+  if(state.dealerId === "AGENCY"){
+    nav.innerHTML = `
+      <button class="menu-item" onclick="showSection('agencyDashboard')">ড্যাশবোর্ড</button>
+      <button class="menu-item" onclick="showSection('management')">ব্যবস্থাপনা</button>
+      <button class="menu-item" onclick="showSection('agencyPackages')">প্যাকেজ</button>
+      <button class="menu-item" onclick="showSection('commission')">কমিশন</button>
+      <button class="menu-item" onclick="showSection('agencyExpense')">খরচ</button>
+      <button class="menu-item" onclick="doLogout()">লগআউট</button>`;
+  } else {
+    nav.innerHTML = `
+      <button class="menu-item" onclick="showSection('dashboard')">ড্যাশবোর্ড</button>
+      <button class="menu-item" onclick="showSection('about')">আমাদের সম্পর্কে</button>
+      <button class="menu-item" onclick="showSection('packages')">প্যাকেজ</button>
+      <button class="menu-item" onclick="showSection('customers')">গ্রাহক</button>
+      <button class="menu-item" onclick="showSection('orders')">অর্ডার</button>
+      <button class="menu-item" onclick="showSection('sales')">বিক্রি</button>
+      <button class="menu-item" onclick="showSection('expenseVoucher')">খরচ ভাউচার</button>
+      <button class="menu-item" onclick="showSection('reports')">রিপোর্ট</button>
+      ${state.role === 'Admin' ? `<button class="menu-item" onclick="showSection('dealerAbout')">সংস্থার তথ্য এডিট</button>` : ``}
+      <button class="menu-item" onclick="doLogout()">লগআউট</button>`;
+  }
+}
+
+function toggleMenu(){
+  document.getElementById("sideMenu").classList.toggle("open");
+  document.getElementById("menuOverlay").classList.toggle("open");
+}
+
+function showSection(name){
+  document.querySelectorAll(".section").forEach(s => s.classList.remove("active"));
+  document.getElementById("sec-" + name).classList.add("active");
+  document.getElementById("sideMenu").classList.remove("open");
+  document.getElementById("menuOverlay").classList.remove("open");
+
+  if(name === "agencyDashboard") loadAgencyDashboard();
+  if(name === "management") switchMgmtTab("register", document.querySelector("#sec-management .tabs button"));
+  if(name === "agencyPackages") loadAgencyPackages();
+  if(name === "commission") loadCommissionSetup();
+  if(name === "agencyExpense") loadAgencyExpenses();
+
+  if(name === "dashboard") loadDashboard();
+  if(name === "about") loadAboutView();
+  if(name === "packages") loadDealerPackages();
+  if(name === "customers") loadCustomers();
+  if(name === "orders") loadOrders();
+  if(name === "sales") loadSalesSetup();
+  if(name === "expenseVoucher") loadDealerExpenseVouchers();
+  if(name === "reports") switchReportTab("daily", document.querySelector("#sec-reports .tabs button"));
+  if(name === "dealerAbout") loadDealerAboutEdit();
+}
+
+/* ================= এজেন্সি: ড্যাশবোর্ড ================= */
+async function loadAgencyDashboard(){
+  const box = document.getElementById("agencyDashboardCards");
+  box.innerHTML = "<p>লোড হচ্ছে...</p>";
+  const res = await apiCall("agencyDashboardSummary", {});
+  if(!res.success){ box.innerHTML = "<p>"+res.message+"</p>"; return; }
+  const s = res.summary;
+  box.innerHTML = `
+    <div class="card"><div class="num">${s.totalDealers}</div><div class="label">মোট ডিলার</div></div>
+    <div class="card"><div class="num">${s.totalUsers}</div><div class="label">সফটওয়্যার ব্যবহারকারী</div></div>
+    <div class="card"><div class="num">${s.totalMoney}</div><div class="label">মোট টাকা</div></div>
+    <div class="card"><div class="num">${s.totalCommission}</div><div class="label">কমিশন</div></div>
+    <div class="card"><div class="num">${s.totalExpense}</div><div class="label">মোট খরচ</div></div>`;
+}
+
+/* ================= এজেন্সি: ব্যবস্থাপনা ================= */
+function switchMgmtTab(tab, btn){
+  document.querySelectorAll("#sec-management .tabs button").forEach(b => b.classList.remove("active"));
+  if(btn) btn.classList.add("active");
+  const box = document.getElementById("mgmtContent");
+  if(tab === "register") renderRegisterForm(box);
+  else if(tab === "dealerList") renderDealersList(box);
+  else renderAgencyInfoEdit(box);
+}
+
+function renderRegisterForm(box){
+  box.innerHTML = `
+    <div class="form-grid">
+      <div class="field"><label>ডিলারের নাম</label><input id="rNaam"></div>
+      <div class="field"><label>পিতার নাম</label><input id="rPitarNaam"></div>
+      <div class="field"><label>মোবাইল নং</label><input id="rMobile" maxlength="11"></div>
+      <div class="field"><label>Gmail (ঐচ্ছিক — শীট শেয়ার হবে)</label><input id="rGmail" type="email"></div>
+      <div class="field"><label>NID/জন্মসনদ নং</label><input id="rNid"></div>
+      <div class="field"><label>ট্রেড লাইসেন্স নং</label><input id="rTrade"></div>
+      <div class="field" style="grid-column:1/-1;"><label>ঠিকানা</label><input id="rThikana"></div>
+      <div class="field">
+        <label>ডিলারের ছবি</label>
+        <input type="file" id="rDealerPhoto" accept="image/*" onchange="previewImg('rDealerPhoto','rDealerPhotoPreview')">
+        <img id="rDealerPhotoPreview" class="photo-preview" style="display:none;">
+      </div>
+    </div>
+    <fieldset>
+      <legend>নমিনি তথ্য</legend>
+      <div class="form-grid">
+        <div class="field"><label>নমিনির নাম</label><input id="rNomNaam"></div>
+        <div class="field"><label>NID নং</label><input id="rNomNid"></div>
+        <div class="field"><label>মোবাইল নং</label><input id="rNomMobile" maxlength="11"></div>
+        <div class="field"><label>সম্পর্ক</label><input id="rNomSomporko"></div>
+        <div class="field">
+          <label>নমিনির ছবি</label>
+          <input type="file" id="rNomPhoto" accept="image/*" onchange="previewImg('rNomPhoto','rNomPhotoPreview')">
+          <img id="rNomPhotoPreview" class="photo-preview" style="display:none;">
+        </div>
+      </div>
+    </fieldset>
+    <fieldset>
+      <legend>প্রথম এডমিন লগইন</legend>
+      <div class="form-grid">
+        <div class="field"><label>ইউজারনেম</label><input id="rAdminUser"></div>
+        <div class="field"><label>পাসওয়ার্ড</label><input id="rAdminPass" type="password"></div>
+        <div class="field"><label>এডমিনের নাম</label><input id="rAdminName"></div>
+      </div>
+    </fieldset>
+    <div class="btn-row"><button class="btn" onclick="submitRegister()">রেজিস্ট্রেশন সম্পন্ন করুন</button></div>
+    <div id="registerMsg" class="msg"></div>`;
+}
+
+function previewImg(inputId, imgId){
+  const input = document.getElementById(inputId);
+  const img = document.getElementById(imgId);
+  if(input.files && input.files[0]){
+    const reader = new FileReader();
+    reader.onload = e => { img.src = e.target.result; img.style.display = "block"; };
+    reader.readAsDataURL(input.files[0]);
+  }
+}
+
+async function submitRegister(){
+  const msgBox = document.getElementById("registerMsg");
+  msgBox.textContent = "রেজিস্ট্রেশন হচ্ছে..."; msgBox.className = "msg";
+
+  const dealerPhotoBase64 = await fileToBase64(document.getElementById("rDealerPhoto"));
+  const nomineePhotoBase64 = await fileToBase64(document.getElementById("rNomPhoto"));
+
+  const data = {
+    "নাম": document.getElementById("rNaam").value.trim(),
+    "পিতারনাম": document.getElementById("rPitarNaam").value.trim(),
+    "mobile": document.getElementById("rMobile").value.trim(),
+    "gmail": document.getElementById("rGmail").value.trim(),
+    "nid": document.getElementById("rNid").value.trim(),
+    "tradeLicense": document.getElementById("rTrade").value.trim(),
+    "thikana": document.getElementById("rThikana").value.trim(),
+    "dealerPhotoBase64": dealerPhotoBase64,
+    "adminUsername": document.getElementById("rAdminUser").value.trim(),
+    "adminPassword": document.getElementById("rAdminPass").value,
+    "adminName": document.getElementById("rAdminName").value.trim(),
+    "nominee": {
+      "নাম": document.getElementById("rNomNaam").value.trim(),
+      "nid": document.getElementById("rNomNid").value.trim(),
+      "mobile": document.getElementById("rNomMobile").value.trim(),
+      "somporko": document.getElementById("rNomSomporko").value.trim(),
+      "photoBase64": nomineePhotoBase64
+    }
+  };
+
+  const res = await apiCall("registerDealer", data);
+  msgBox.textContent = res.message;
+  msgBox.className = "msg " + (res.success ? "ok" : "err");
+  if(res.success){ switchMgmtTab("dealerList", document.querySelectorAll("#sec-management .tabs button")[1]); }
+}
+
+async function renderDealersList(box){
+  box.innerHTML = "লোড হচ্ছে...";
+  const res = await apiCall("listDealers", {});
+  if(!res.success){ box.innerHTML = "<p>"+res.message+"</p>"; return; }
+
+  let html = `<div class="toolbar no-print"><button class="btn secondary small" onclick="window.print()">🖨 প্রিন্ট করুন</button></div>
+    <div class="table-wrap"><table><thead><tr>
+    <th>আইডি</th><th class="cell-right">নাম</th><th>মোবাইল</th><th class="cell-right">ঠিকানা</th><th>স্ট্যাটাস</th><th class="no-print">একশন</th>
+    </tr></thead><tbody>`;
+  res.dealers.forEach(d => {
+    const dJson = JSON.stringify(d).replace(/'/g, "&#39;");
+    html += `<tr>
+      <td>${d["DealerID"]}</td><td class="cell-right">${d["নাম"]}</td><td>${d["মোবাইল"]}</td>
+      <td class="cell-right">${d["ঠিকানা"]||""}</td><td>${d["স্ট্যাটাস"]}</td>
+      <td class="no-print">
+        <button class="btn small" onclick="toggleDealerStatus('${d["DealerID"]}','${d["স্ট্যাটাস"]}')">${d["স্ট্যাটাস"]==="সক্রিয়" ? "নিষ্ক্রিয়" : "সক্রিয়"}</button>
+        <button class="btn small secondary" onclick='editDealerRow(${dJson})'>এডিট</button>
+        <button class="btn small secondary" onclick='printDealerRow(${dJson})'>প্রিন্ট</button>
+      </td></tr>`;
+  });
+  html += `</tbody></table></div>`;
+  box.innerHTML = html;
+}
+
+async function toggleDealerStatus(dealerId, currentStatus){
+  const newStatus = currentStatus === "সক্রিয়" ? "নিষ্ক্রিয়" : "সক্রিয়";
+  const res = await apiCall("setDealerStatus", { dealerId, status:newStatus });
+  if(res.success) renderDealersList(document.getElementById("mgmtContent"));
+  else alert(res.message);
+}
+
+function editDealerRow(d){
+  openEditModal("ডিলার এডিট — " + d["নাম"], [
+    { key:"নাম", label:"নাম", value:d["নাম"] },
+    { key:"পিতার নাম", label:"পিতার নাম", value:d["পিতার নাম"] },
+    { key:"মোবাইল", label:"মোবাইল নং", value:d["মোবাইল"] },
+    { key:"ঠিকানা", label:"ঠিকানা", value:d["ঠিকানা"] },
+    { key:"ট্রেড লাইসেন্স নং", label:"ট্রেড লাইসেন্স নং", value:d["ট্রেড লাইসেন্স নং"] }
+  ], async (values) => {
+    const res = await apiCall("updateDealerInfo", { dealerId: d["DealerID"], fields: values });
+    if(res.success) renderDealersList(document.getElementById("mgmtContent"));
+    return res;
+  });
+}
+
+function printDealerRow(d){
+  printSingleRecord("ডিলার তথ্য — " + d["নাম"], [
+    { label:"আইডি", value:d["DealerID"] },
+    { label:"নাম", value:d["নাম"] },
+    { label:"পিতার নাম", value:d["পিতার নাম"] },
+    { label:"মোবাইল", value:d["মোবাইল"] },
+    { label:"ঠিকানা", value:d["ঠিকানা"] },
+    { label:"ট্রেড লাইসেন্স নং", value:d["ট্রেড লাইসেন্স নং"] },
+    { label:"স্ট্যাটাস", value:d["স্ট্যাটাস"] }
+  ]);
+}
+
+async function renderAgencyInfoEdit(box){
+  box.innerHTML = "লোড হচ্ছে...";
+  const res = await apiCall("getAgencyInfo", {});
+  if(!res.success){ box.innerHTML = "<p>"+res.message+"</p>"; return; }
+  const a = res.agency;
+  box.innerHTML = `
+    <div class="form-grid">
+      <div class="field"><label>নাম</label><input id="mAgencyNaam" value="${a['নাম']||''}"></div>
+      <div class="field"><label>মোবাইল নং</label><input id="mAgencyMobile" value="${a['মোবাইল']||''}"></div>
+      <div class="field"><label>লোগো URL</label><input id="mAgencyLogo" value="${a['লোগো(URL)']||''}"></div>
+    </div>
+    <button class="btn" onclick="saveAgency()">সংরক্ষণ করুন</button>
+    <div id="mAgencyMsg" class="msg"></div>`;
+}
+
+async function saveAgency(){
+  const data = {
+    "নাম": document.getElementById("mAgencyNaam").value.trim(),
+    "mobile": document.getElementById("mAgencyMobile").value.trim(),
+    "logoUrl": document.getElementById("mAgencyLogo").value.trim()
+  };
+  const res = await apiCall("updateAgencyInfo", data);
+  const msgBox = document.getElementById("mAgencyMsg");
+  msgBox.textContent = res.message;
+  msgBox.className = "msg " + (res.success?"ok":"err");
+}
+
+/* ================= এজেন্সি: প্যাকেজ ================= */
+function addPkgItemRow(){
+  const wrap = document.getElementById("pkgItems");
+  const row = document.createElement("div");
+  row.className = "item-row-v2";
+  row.innerHTML = `
+    <input placeholder="পণ্যের নাম ও পরিমাণ (যেমন: চিনি - ১ কেজি)" class="itemNaamPoriman">
+    <input placeholder="বাজার মূল্য" type="number" min="0" class="itemBazar" oninput="updateItemSaving(this)">
+    <input placeholder="কম্বো মূল্য" type="number" min="0" class="itemCombo" oninput="updateItemSaving(this)">
+    <input placeholder="সাশ্রয়" type="number" class="itemSashroy" readonly>
+    <button type="button" class="btn secondary small" onclick="this.parentElement.remove()">✕</button>`;
+  wrap.appendChild(row);
+}
+
+function updateItemSaving(el){
+  const row = el.closest(".item-row-v2");
+  const bazar = Number(row.querySelector(".itemBazar").value) || 0;
+  const combo = Number(row.querySelector(".itemCombo").value) || 0;
+  row.querySelector(".itemSashroy").value = bazar - combo;
+}
+
+async function submitPackage(){
+  const items = [...document.querySelectorAll("#pkgItems .item-row-v2")].map(r => ({
+    "naamPoriman": r.querySelector(".itemNaamPoriman").value.trim(),
+    "bazarMulyo": r.querySelector(".itemBazar").value,
+    "comboMulyo": r.querySelector(".itemCombo").value
+  })).filter(i => i["naamPoriman"]);
+
+  const data = {
+    "নাম": document.getElementById("pkgNaam").value.trim(),
+    "কোম্পানী": document.getElementById("pkgCompany").value.trim(),
+    "ধরন": document.getElementById("pkgDhoron").value,
+    "items": items
+  };
+
+  const res = await apiCall("addPackage", data);
+  const msgBox = document.getElementById("pkgMsg");
+  msgBox.textContent = res.message + (res.success ? " (কম্বো সর্বমোট মূল্য: " + res.total + ")" : "");
+  msgBox.className = "msg " + (res.success?"ok":"err");
+  if(res.success){
+    document.getElementById("pkgNaam").value = "";
+    document.getElementById("pkgCompany").value = "";
+    document.getElementById("pkgItems").innerHTML = "";
+    loadAgencyPackages();
+  }
+}
+
+async function loadAgencyPackages(){
+  const res = await apiCall("listPackages", {});
+  const table = document.getElementById("agencyPackagesTable");
+  if(!res.success){ table.innerHTML = res.message; return; }
+  table.innerHTML = "<thead><tr><th class='cell-right'>নাম</th><th>তারিখ</th><th>পণ্য সংখ্যা</th><th>সর্বমোট মূল্য</th><th class='no-print'>একশন</th></tr></thead><tbody></tbody>";
+  const tbody = table.querySelector("tbody");
+  res.packages.forEach(p => {
+    const dt = p["তারিখ"] ? new Date(p["তারিখ"]).toLocaleDateString("bn-BD") : "";
+    const pJson = JSON.stringify(p).replace(/'/g, "&#39;");
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td class="cell-right">${p["নাম"]}</td><td>${dt}</td><td>${p.itemCount}</td><td>${p["সর্বমোট মূল্য"]}</td>
+      <td class="no-print">
+        <button class="btn small secondary" onclick='editAgencyPackage(${pJson})'>এডিট</button>
+        <button class="btn small secondary" onclick='printAgencyPackage(${pJson})'>প্রিন্ট</button>
+        <button class="btn small danger" onclick="deletePkg('${p['PackageID']}')">ডিলিট</button>
+      </td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+function editAgencyPackage(p){
+  openEditModal("প্যাকেজ এডিট — " + p["নাম"], [
+    { key:"নাম", label:"প্যাকেজের নাম", value:p["নাম"] },
+    { key:"কোম্পানী", label:"কোম্পানী", value:p["কোম্পানী"] },
+    { key:"ধরন", label:"ধরন (এক্টিভ/প্রক্রিয়াধীন/বাতিল)", value:p["ধরন"] }
+  ], async (values) => {
+    const res = await apiCall("updatePackage", { packageId: p["PackageID"], fields: values });
+    if(res.success) loadAgencyPackages();
+    return res;
+  });
+}
+
+function printAgencyPackage(p){
+  const itemLines = (p.items||[]).map(it =>
+    `${it["পণ্যের নাম ও পরিমাণ"]} — বাজার: ${it["বাজার মূল্য"]}, কম্বো: ${it["কম্বো মূল্য"]}, সাশ্রয়: ${it["সাশ্রয়"]}`
+  ).join("<br>");
+  printSingleRecord("প্যাকেজ — " + p["নাম"], [
+    { label:"কোম্পানী", value:p["কোম্পানী"] },
+    { label:"ধরন", value:p["ধরন"] },
+    { label:"সর্বমোট মূল্য", value:p["সর্বমোট মূল্য"] },
+    { label:"পণ্য তালিকা", value:itemLines }
+  ]);
+}
+
+async function deletePkg(id){
+  if(!confirm("এই প্যাকেজ ডিলিট করবেন?")) return;
+  const res = await apiCall("deletePackage", { packageId:id });
+  if(res.success) loadAgencyPackages(); else alert(res.message);
+}
+
+/* ================= এজেন্সি: কমিশন ================= */
+let dealerListCache = [];
+async function loadCommissionSetup(){
+  const res = await apiCall("listDealers", {});
+  dealerListCache = res.success ? res.dealers : [];
+  const sel = document.getElementById("commDealerSelect");
+  sel.innerHTML = "<option value=''>-- সিলেক্ট করুন --</option>" +
+    dealerListCache.map(d => `<option value="${d['DealerID']}">${d['নাম']}</option>`).join("");
+  onCommissionDealerChange();
+  loadCommissionList();
+}
+
+function onCommissionDealerChange(){
+  const id = document.getElementById("commDealerSelect").value;
+  const d = dealerListCache.find(x => x["DealerID"] === id);
+  document.getElementById("commMobile").value = d ? d["মোবাইল"] : "";
+  document.getElementById("commThikana").value = d ? (d["ঠিকানা"]||"") : "";
+}
+
+async function submitCommission(){
+  const data = {
+    dealerId: document.getElementById("commDealerSelect").value,
+    amount: document.getElementById("commAmount").value
+  };
+  const res = await apiCall("addCommission", data);
+  const msgBox = document.getElementById("commMsg");
+  msgBox.textContent = res.message;
+  msgBox.className = "msg " + (res.success?"ok":"err");
+  if(res.success){ document.getElementById("commAmount").value=""; loadCommissionList(); }
+}
+
+async function loadCommissionList(){
+  const res = await apiCall("listCommissions", {});
+  const table = document.getElementById("commissionTable");
+  if(!res.success){ table.innerHTML = res.message; return; }
+  table.innerHTML = "<thead><tr><th class='cell-right'>ডিলারের নাম</th><th>মোবাইল</th><th class='cell-right'>ঠিকানা</th><th>টাকার পরিমাণ</th><th>তারিখ</th><th class='no-print'>একশন</th></tr></thead><tbody></tbody>";
+  const tbody = table.querySelector("tbody");
+  res.commissions.forEach(c => {
+    const dt = c["তারিখ"] ? new Date(c["তারিখ"]).toLocaleDateString("bn-BD") : "";
+    const cJson = JSON.stringify(c).replace(/'/g, "&#39;");
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td class="cell-right">${c["ডিলারের নাম"]}</td><td>${c["মোবাইল নং"]}</td><td class="cell-right">${c["ঠিকানা"]||""}</td><td>${c["টাকার পরিমাণ"]}</td><td>${dt}</td>
+      <td class="no-print">
+        <button class="btn small secondary" onclick='editCommissionRow(${cJson})'>এডিট</button>
+        <button class="btn small secondary" onclick='printCommissionRow(${cJson})'>প্রিন্ট</button>
+        <button class="btn small danger" onclick="deleteCommissionRow('${c['CommissionID']}')">ডিলিট</button>
+      </td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+function editCommissionRow(c){
+  openEditModal("কমিশন এডিট", [
+    { key:"টাকার পরিমাণ", label:"টাকার পরিমাণ", value:c["টাকার পরিমাণ"] }
+  ], async (values) => {
+    const res = await apiCall("updateCommission", { commissionId: c["CommissionID"], fields: values });
+    if(res.success) loadCommissionList();
+    return res;
+  });
+}
+
+function printCommissionRow(c){
+  printSingleRecord("কমিশন — " + c["ডিলারের নাম"], [
+    { label:"মোবাইল নং", value:c["মোবাইল নং"] },
+    { label:"ঠিকানা", value:c["ঠিকানা"] },
+    { label:"টাকার পরিমাণ", value:c["টাকার পরিমাণ"] },
+    { label:"তারিখ", value:c["তারিখ"] ? new Date(c["তারিখ"]).toLocaleDateString("bn-BD") : "" }
+  ]);
+}
+
+async function deleteCommissionRow(id){
+  if(!confirm("এই কমিশন এন্ট্রি ডিলিট করবেন?")) return;
+  const res = await apiCall("deleteCommission", { commissionId:id });
+  if(res.success) loadCommissionList(); else alert(res.message);
+}
+
+/* ================= এজেন্সি: খরচ ================= */
+function addAgencyExpenseRow(){
+  const wrap = document.getElementById("agencyExpenseRows");
+  const row = document.createElement("div");
+  row.className = "expense-row";
+  row.innerHTML = `
+    <input type="date" class="expDate">
+    <input placeholder="বিবরণ" class="expDesc">
+    <input placeholder="পরিমাণ" type="number" min="0" class="expAmount">
+    <button type="button" class="btn secondary small" onclick="this.parentElement.remove()">✕</button>`;
+  wrap.appendChild(row);
+}
+
+async function submitAgencyExpense(){
+  const entries = [...document.querySelectorAll("#agencyExpenseRows .expense-row")].map(r => ({
+    "তারিখ": r.querySelector(".expDate").value,
+    "বিবরণ": r.querySelector(".expDesc").value.trim(),
+    "পরিমাণ": r.querySelector(".expAmount").value
+  })).filter(e => e["বিবরণ"]);
+
+  const res = await apiCall("addExpense", { entries });
+  const msgBox = document.getElementById("agencyExpenseMsg");
+  msgBox.textContent = res.message;
+  msgBox.className = "msg " + (res.success?"ok":"err");
+  if(res.success){ document.getElementById("agencyExpenseRows").innerHTML=""; loadAgencyExpenses(); }
+}
+
+async function loadAgencyExpenses(){
+  if(!document.getElementById("agencyExpenseRows").children.length) addAgencyExpenseRow();
+  const res = await apiCall("listExpenses", {});
+  const table = document.getElementById("agencyExpenseTable");
+  if(!res.success){ table.innerHTML = res.message; return; }
+  table.innerHTML = "<thead><tr><th>তারিখ</th><th>বিবরণ</th><th>পরিমাণ</th><th class='no-print'>একশন</th></tr></thead><tbody></tbody>";
+  const tbody = table.querySelector("tbody");
+  res.expenses.forEach(e => {
+    const dt = e["তারিখ"] ? new Date(e["তারিখ"]).toLocaleDateString("bn-BD") : "";
+    const eJson = JSON.stringify(e).replace(/'/g, "&#39;");
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td>${dt}</td><td>${e["বিবরণ"]}</td><td>${e["পরিমাণ"]}</td>
+      <td class="no-print">
+        <button class="btn small secondary" onclick='editAgencyExpenseRow(${eJson})'>এডিট</button>
+        <button class="btn small secondary" onclick='printAgencyExpenseRow(${eJson})'>প্রিন্ট</button>
+        <button class="btn small danger" onclick="deleteAgencyExpenseRow('${e['ExpenseID']}')">ডিলিট</button>
+      </td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+function editAgencyExpenseRow(e){
+  openEditModal("খরচ এডিট", [
+    { key:"বিবরণ", label:"বিবরণ", value:e["বিবরণ"] },
+    { key:"পরিমাণ", label:"পরিমাণ", value:e["পরিমাণ"] }
+  ], async (values) => {
+    const res = await apiCall("updateExpense", { expenseId: e["ExpenseID"], fields: values });
+    if(res.success) loadAgencyExpenses();
+    return res;
+  });
+}
+
+function printAgencyExpenseRow(e){
+  printSingleRecord("খরচ", [
+    { label:"তারিখ", value:e["তারিখ"] ? new Date(e["তারিখ"]).toLocaleDateString("bn-BD") : "" },
+    { label:"বিবরণ", value:e["বিবরণ"] },
+    { label:"পরিমাণ", value:e["পরিমাণ"] }
+  ]);
+}
+
+async function deleteAgencyExpenseRow(id){
+  if(!confirm("এই খরচ এন্ট্রি ডিলিট করবেন?")) return;
+  const res = await apiCall("deleteExpense", { expenseId:id });
+  if(res.success) loadAgencyExpenses(); else alert(res.message);
+}
+
+/* ================= ডিলার: ড্যাশবোর্ড ================= */
+async function loadDashboard(){
+  const box = document.getElementById("dashboardCards");
+  box.innerHTML = "<p>লোড হচ্ছে...</p>";
+  const res = await apiCall("dashboardSummary", {});
+  if(!res.success){ box.innerHTML = "<p>"+res.message+"</p>"; return; }
+  const s = res.summary;
+  box.innerHTML = `
+    <div class="card"><div class="num">${s.totalPackages}</div><div class="label">মোট প্যাকেজ</div></div>
+    <div class="card"><div class="num">${s.runningPackages}</div><div class="label">চলমান প্যাকেজ</div></div>
+    <div class="card"><div class="num">${s.totalCustomers}</div><div class="label">মোট গ্রাহক</div></div>
+    <div class="card"><div class="num">${s.totalOrders}</div><div class="label">মোট অর্ডার</div></div>
+    <div class="card"><div class="num">${s.totalSales}</div><div class="label">মোট বিক্রি</div></div>`;
+}
+
+/* ================= ডিলার: সংস্থার তথ্য (ভিউ) ================= */
+async function loadAboutView(){
+  const box = document.getElementById("aboutView");
+  box.innerHTML = "লোড হচ্ছে...";
+  const res = await apiCall("getAbout", {});
+  if(!res.success){ box.innerHTML = res.message; return; }
+  const a = res.about;
+  box.innerHTML = `<table>
+    <tr><th>সংস্থার নাম</th><td class="cell-right">${a["সংস্থার নাম"]||""}</td></tr>
+    <tr><th>জেলা ডিপুর নাম</th><td>${a["জেলা ডিপুর নাম"]||""}</td></tr>
+    <tr><th>ঠিকানা</th><td class="cell-right">${a["ঠিকানা"]||""}</td></tr>
+    <tr><th>বিবরণ</th><td>${a["বিবরণ"]||""}</td></tr></table>`;
+}
+
+async function loadDealerAboutEdit(){
+  const box = document.getElementById("dealerAboutEditBox");
+  box.innerHTML = "লোড হচ্ছে...";
+  const res = await apiCall("getAbout", {});
+  const a = res.success ? res.about : {};
+  box.innerHTML = `
+    <div class="form-grid">
+      <div class="field"><label>সংস্থার নাম</label><input id="mAboutSongsthar" value="${a['সংস্থার নাম']||''}"></div>
+      <div class="field"><label>জেলা ডিপুর নাম</label><input id="mAboutJela" value="${a['জেলা ডিপুর নাম']||''}"></div>
+      <div class="field"><label>ঠিকানা</label><input id="mAboutThikana" value="${a['ঠিকানা']||''}"></div>
+      <div class="field" style="grid-column:1/-1;"><label>বিবরণ</label><textarea id="mAboutBiboron" rows="3">${a['বিবরণ']||''}</textarea></div>
+    </div>
+    <button class="btn" onclick="saveDealerAbout()">সংরক্ষণ করুন</button>
+    <div id="mAboutMsg" class="msg"></div>`;
+}
+
+async function saveDealerAbout(){
+  const data = {
+    "সংস্থারনাম": document.getElementById("mAboutSongsthar").value.trim(),
+    "জেলাডিপুরনাম": document.getElementById("mAboutJela").value.trim(),
+    "thikana": document.getElementById("mAboutThikana").value.trim(),
+    "biboron": document.getElementById("mAboutBiboron").value.trim()
+  };
+  const res = await apiCall("updateAbout", data);
+  const msgBox = document.getElementById("mAboutMsg");
+  msgBox.textContent = res.message;
+  msgBox.className = "msg " + (res.success?"ok":"err");
+}
+
+/* ================= ডিলার: প্যাকেজ (ভিউ) ================= */
+let dealerPackagesCache = [];
+async function loadDealerPackages(){
+  const res = await apiCall("listPackages", {});
+  const table = document.getElementById("packagesTable");
+  document.getElementById("pkgDetailBox").style.display = "none";
+  if(!res.success){ table.innerHTML = res.message; return; }
+  dealerPackagesCache = res.packages;
+  table.innerHTML = "<thead><tr><th class='cell-right'>নাম</th><th>কোম্পানী</th><th>ধরন</th><th>সর্বমোট মূল্য</th></tr></thead><tbody></tbody>";
+  const tbody = table.querySelector("tbody");
+  res.packages.forEach(p => {
+    const tr = document.createElement("tr");
+    tr.className = "pkg-click-row";
+    tr.onclick = () => showPkgDetail(p["PackageID"]);
+    tr.innerHTML = `<td class="cell-right">${p["নাম"]}</td><td>${p["কোম্পানী"]}</td><td>${p["ধরন"]}</td><td>${p["সর্বমোট মূল্য"]}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+function showPkgDetail(packageId){
+  const pkg = dealerPackagesCache.find(p => p["PackageID"] === packageId);
+  const box = document.getElementById("pkgDetailBox");
+  if(!pkg){ box.style.display = "none"; return; }
+  let html = `<h3 style="margin-top:0;color:var(--teal-dark);">${pkg["নাম"]} — পণ্য তালিকা</h3>
+    <table><thead><tr><th class="cell-right">পণ্যের নাম ও পরিমাণ</th><th>বাজার মূল্য</th><th>কম্বো মূল্য</th><th>সাশ্রয়</th></tr></thead><tbody>`;
+  pkg.items.forEach(it => {
+    html += `<tr><td class="cell-right">${it["পণ্যের নাম ও পরিমাণ"]}</td><td>${it["বাজার মূল্য"]}</td><td>${it["কম্বো মূল্য"]}</td><td>${it["সাশ্রয়"]}</td></tr>`;
+  });
+  html += `</tbody></table>`;
+  box.innerHTML = html;
+  box.style.display = "block";
+}
+
+/* ================= ডিলার: গ্রাহক ================= */
+async function submitCustomer(){
+  const data = {
+    "নাম": document.getElementById("cusNaam").value.trim(),
+    "পিতারনাম": document.getElementById("cusPitarNaam").value.trim(),
+    "mobile": document.getElementById("cusMobile").value.trim(),
+    "nid": document.getElementById("cusNid").value.trim(),
+    "বাড়িরনাম": document.getElementById("cusBariNaam").value.trim(),
+    "গ্রাম": document.getElementById("cusGram").value.trim(),
+    "ward": document.getElementById("cusWard").value.trim(),
+    "union": document.getElementById("cusUnion").value.trim(),
+    "praptirsthan": document.getElementById("cusPraptirSthan").value.trim()
+  };
+  const res = await apiCall("addCustomer", data);
+  const msgBox = document.getElementById("cusMsg");
+  msgBox.textContent = res.message;
+  msgBox.className = "msg " + (res.success?"ok":"err");
+  if(res.success){
+    ["cusNaam","cusPitarNaam","cusMobile","cusNid","cusBariNaam","cusGram","cusWard","cusUnion","cusPraptirSthan"]
+      .forEach(id => document.getElementById(id).value = "");
+    loadCustomers();
+  }
+}
+
+async function loadCustomers(){
+  const res = await apiCall("listCustomers", {});
+  const table = document.getElementById("customersTable");
+  if(!res.success){ table.innerHTML = res.message; return; }
+  table.innerHTML = "<thead><tr><th>আইডি</th><th class='cell-right'>নাম</th><th>মোবাইল</th><th>প্রাপ্তির স্থান</th><th class='no-print'>একশন</th></tr></thead><tbody></tbody>";
+  const tbody = table.querySelector("tbody");
+  res.customers.forEach(c => {
+    const cJson = JSON.stringify(c).replace(/'/g, "&#39;");
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td>${c["CustomerID"]}</td><td class="cell-right">${c["নাম"]}</td><td>${c["মোবাইল নং"]}</td><td>${c["প্রাপ্তির স্থান"]||""}</td>
+      <td class="no-print">
+        <button class="btn small secondary" onclick='editCustomerRow(${cJson})'>এডিট</button>
+        <button class="btn small secondary" onclick='printCustomerRow(${cJson})'>প্রিন্ট</button>
+        <button class="btn small danger" onclick="deleteCustomerRow('${c['CustomerID']}')">ডিলিট</button>
+      </td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+function editCustomerRow(c){
+  openEditModal("গ্রাহক এডিট — " + c["নাম"], [
+    { key:"নাম", label:"নাম", value:c["নাম"] },
+    { key:"পিতার নাম", label:"পিতার নাম", value:c["পিতার নাম"] },
+    { key:"মোবাইল নং", label:"মোবাইল নং", value:c["মোবাইল নং"] },
+    { key:"NID/জন্মসনদ নং", label:"NID/জন্মসনদ নং", value:c["NID/জন্মসনদ নং"] },
+    { key:"বাড়ির নাম", label:"বাড়ির নাম", value:c["বাড়ির নাম"] },
+    { key:"গ্রাম", label:"গ্রাম", value:c["গ্রাম"] },
+    { key:"ওয়ার্ড নং", label:"ওয়ার্ড নং", value:c["ওয়ার্ড নং"] },
+    { key:"ইউনিয়ন/পৌরসভা", label:"ইউনিয়ন/পৌরসভা", value:c["ইউনিয়ন/পৌরসভা"] },
+    { key:"প্রাপ্তির স্থান", label:"প্রাপ্তির স্থান", value:c["প্রাপ্তির স্থান"] }
+  ], async (values) => {
+    const res = await apiCall("updateCustomer", { customerId: c["CustomerID"], fields: values });
+    if(res.success) loadCustomers();
+    return res;
+  });
+}
+
+function printCustomerRow(c){
+  printSingleRecord("গ্রাহক — " + c["নাম"], [
+    { label:"পিতার নাম", value:c["পিতার নাম"] },
+    { label:"মোবাইল নং", value:c["মোবাইল নং"] },
+    { label:"NID/জন্মসনদ নং", value:c["NID/জন্মসনদ নং"] },
+    { label:"বাড়ির নাম", value:c["বাড়ির নাম"] },
+    { label:"গ্রাম", value:c["গ্রাম"] },
+    { label:"ওয়ার্ড নং", value:c["ওয়ার্ড নং"] },
+    { label:"ইউনিয়ন/পৌরসভা", value:c["ইউনিয়ন/পৌরসভা"] },
+    { label:"প্রাপ্তির স্থান", value:c["প্রাপ্তির স্থান"] }
+  ]);
+}
+
+async function deleteCustomerRow(id){
+  if(!confirm("এই গ্রাহক ডিলিট করবেন?")) return;
+  const res = await apiCall("deleteCustomer", { customerId:id });
+  if(res.success) loadCustomers(); else alert(res.message);
+}
+
+/* ================= ডিলার: অর্ডার ================= */
+async function loadOrders(){
+  const res = await apiCall("getOrdersPageData", {});
+  const sel = document.getElementById("ordPackage");
+  const table = document.getElementById("ordersTable");
+  if(!res.success){ table.innerHTML = res.message; return; }
+
+  sel.innerHTML = res.packages.map(p => `<option value="${p['PackageID']}">${p['নাম']}</option>`).join("");
+
+  table.innerHTML = "<thead><tr><th>ক্রম</th><th>তারিখ</th><th>সংখ্যা</th><th>একক মূল্য</th><th>মোট মূল্য</th><th class='no-print'>একশন</th></tr></thead><tbody></tbody>";
+  const tbody = table.querySelector("tbody");
+  res.orders.forEach(o => {
+    const dt = o["তারিখ"] ? new Date(o["তারিখ"]).toLocaleDateString("bn-BD") : "";
+    const oJson = JSON.stringify(o).replace(/'/g, "&#39;");
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td>${o["OrderID"]}</td><td>${dt}</td><td>${o["সংখ্যা"]}</td><td>${o["একক মূল্য"]}</td><td>${o["মোট মূল্য"]}</td>
+      <td class="no-print">
+        <button class="btn small secondary" onclick='editOrderRow(${oJson})'>এডিট</button>
+        <button class="btn small secondary" onclick='printOrderRow(${oJson})'>প্রিন্ট</button>
+        <button class="btn small danger" onclick="deleteOrderRow('${o['OrderID']}')">ডিলিট</button>
+      </td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+function editOrderRow(o){
+  openEditModal("অর্ডার এডিট — " + o["OrderID"], [
+    { key:"সংখ্যা", label:"সংখ্যা", value:o["সংখ্যা"] },
+    { key:"একক মূল্য", label:"একক মূল্য", value:o["একক মূল্য"] },
+    { key:"মোট মূল্য", label:"মোট মূল্য", value:o["মোট মূল্য"] }
+  ], async (values) => {
+    const res = await apiCall("updateOrder", { orderId: o["OrderID"], fields: values });
+    if(res.success) loadOrders();
+    return res;
+  });
+}
+
+function printOrderRow(o){
+  printSingleRecord("অর্ডার — " + o["OrderID"], [
+    { label:"তারিখ", value:o["তারিখ"] ? new Date(o["তারিখ"]).toLocaleDateString("bn-BD") : "" },
+    { label:"সংখ্যা", value:o["সংখ্যা"] },
+    { label:"একক মূল্য", value:o["একক মূল্য"] },
+    { label:"মোট মূল্য", value:o["মোট মূল্য"] }
+  ]);
+}
+
+async function submitOrder(){
+  const data = {
+    packageId: document.getElementById("ordPackage").value,
+    quantity: document.getElementById("ordQty").value,
+    unitPrice: document.getElementById("ordPrice").value
+  };
+  const res = await apiCall("addOrder", data);
+  const msgBox = document.getElementById("ordMsg");
+  msgBox.textContent = res.message;
+  msgBox.className = "msg " + (res.success?"ok":"err");
+  if(res.success){ loadOrders(); }
+}
+
+async function deleteOrderRow(id){
+  if(!confirm("এই অর্ডার ডিলিট করবেন?")) return;
+  const res = await apiCall("deleteOrder", { orderId:id });
+  if(res.success) loadOrders(); else alert(res.message);
+}
+
+/* ================= ডিলার: বিক্রি ================= */
+let allPackagesCache = [];
+let allCustomersCache = [];
+let allSalesCache = [];
+
+async function loadSalesSetup(){
+  const res = await apiCall("getSalesPageData", {});
+  allPackagesCache = res.success ? res.packages : [];
+  allCustomersCache = res.success ? res.customers : [];
+  allSalesCache = res.success ? res.sales : [];
+
+  const pkgSel = document.getElementById("saleFilterPackage");
+  pkgSel.innerHTML = "<option value=''>-- সিলেক্ট করুন --</option>" +
+    allPackagesCache.map(p => `<option value="${p['PackageID']}">${p['নাম']}</option>`).join("");
+
+  const locations = [...new Set(allCustomersCache.map(c => c["প্রাপ্তির স্থান"]).filter(Boolean))];
+  const locSel = document.getElementById("saleFilterLocation");
+  locSel.innerHTML = "<option value=''>-- সকল --</option>" + locations.map(l => `<option value="${l}">${l}</option>`).join("");
+
+  renderSalesTable();
+}
+
+async function loadSalesView(){
+  // ফিল্টার পরিবর্তনের সময় নতুন করে সার্ভার কল না করে ক্যাশ থেকেই রেন্ডার করা (দ্রুত)
+  renderSalesTable();
+}
+
+function renderSalesTable(){
+  const pkgId = document.getElementById("saleFilterPackage").value;
+  const loc = document.getElementById("saleFilterLocation").value;
+  const table = document.getElementById("salesTable");
+
+  let customers = allCustomersCache;
+  if(loc) customers = customers.filter(c => c["প্রাপ্তির স্থান"] === loc);
+
+  table.innerHTML = "<thead><tr><th class='cell-right'>নাম</th><th>মোবাইল</th><th>প্রাপ্তির স্থান</th><th>স্ট্যাটাস</th><th class='no-print'>একশন</th></tr></thead><tbody></tbody>";
+  const tbody = table.querySelector("tbody");
+
+  customers.forEach(c => {
+    const sale = allSalesCache.find(s => s["CustomerID"] === c["CustomerID"] && s["PackageID"] === pkgId && s["স্ট্যাটাস"] === "বিক্রিত");
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td class="cell-right">${c["নাম"]}</td><td>${c["মোবাইল নং"]}</td><td>${c["প্রাপ্তির স্থান"]||""}</td>
+      <td>${sale ? "বিক্রিত" : "—"}</td>
+      <td class="no-print">
+        ${!sale
+          ? `<button class="btn small" ${!pkgId?"disabled":""} onclick="makeSale('${c['CustomerID']}','${pkgId}')">বিক্রয়</button>`
+          : `<button class="btn small danger" onclick="undoSale('${sale['SaleID']}')">বাতিল</button>`}
+      </td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+async function makeSale(customerId, packageId){
+  if(!packageId){ alert("আগে প্যাকেজ সিলেক্ট করুন"); return; }
+  const res = await apiCall("addSale", { customerId, packageId });
+  document.getElementById("salesMsg").textContent = res.message;
+  document.getElementById("salesMsg").className = "msg " + (res.success?"ok":"err");
+  if(res.success){
+    allSalesCache.push({ SaleID:"tmp", CustomerID:customerId, PackageID:packageId, "স্ট্যাটাস":"বিক্রিত" });
+    loadSalesSetup(); // তালিকা নির্ভুলভাবে রিফ্রেশ করতে সার্ভার থেকে আবার লোড
+  }
+}
+
+async function undoSale(saleId){
+  const res = await apiCall("cancelSale", { saleId });
+  document.getElementById("salesMsg").textContent = res.message;
+  document.getElementById("salesMsg").className = "msg " + (res.success?"ok":"err");
+  if(res.success) loadSalesSetup();
+}
+
+/* ================= ডিলার: খরচ ভাউচার ================= */
+function addDealerExpenseRow(){
+  const wrap = document.getElementById("dealerExpenseRows");
+  const row = document.createElement("div");
+  row.className = "expense-row";
+  row.innerHTML = `
+    <input type="date" class="expDate">
+    <input placeholder="বিবরণ" class="expDesc">
+    <input placeholder="পরিমাণ" type="number" min="0" class="expAmount">
+    <button type="button" class="btn secondary small" onclick="this.parentElement.remove()">✕</button>`;
+  wrap.appendChild(row);
+}
+
+async function submitDealerExpense(){
+  const entries = [...document.querySelectorAll("#dealerExpenseRows .expense-row")].map(r => ({
+    "তারিখ": r.querySelector(".expDate").value,
+    "বিবরণ": r.querySelector(".expDesc").value.trim(),
+    "পরিমাণ": r.querySelector(".expAmount").value
+  })).filter(e => e["বিবরণ"]);
+
+  const res = await apiCall("addExpenseVoucher", { entries });
+  const msgBox = document.getElementById("dealerExpenseMsg");
+  msgBox.textContent = res.message;
+  msgBox.className = "msg " + (res.success?"ok":"err");
+  if(res.success){ document.getElementById("dealerExpenseRows").innerHTML=""; loadDealerExpenseVouchers(); }
+}
+
+async function loadDealerExpenseVouchers(){
+  if(!document.getElementById("dealerExpenseRows").children.length) addDealerExpenseRow();
+  const res = await apiCall("listExpenseVouchers", {});
+  const table = document.getElementById("dealerExpenseTable");
+  if(!res.success){ table.innerHTML = res.message; return; }
+  table.innerHTML = "<thead><tr><th>তারিখ</th><th>বিবরণ</th><th>পরিমাণ</th><th class='no-print'>একশন</th></tr></thead><tbody></tbody>";
+  const tbody = table.querySelector("tbody");
+  res.vouchers.forEach(v => {
+    const dt = v["তারিখ"] ? new Date(v["তারিখ"]).toLocaleDateString("bn-BD") : "";
+    const vJson = JSON.stringify(v).replace(/'/g, "&#39;");
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td>${dt}</td><td>${v["বিবরণ"]}</td><td>${v["পরিমাণ"]}</td>
+      <td class="no-print">
+        <button class="btn small secondary" onclick='editDealerExpenseRow(${vJson})'>এডিট</button>
+        <button class="btn small secondary" onclick='printDealerExpenseRow(${vJson})'>প্রিন্ট</button>
+        <button class="btn small danger" onclick="deleteDealerExpenseRow('${v['VoucherID']}')">ডিলিট</button>
+      </td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+function editDealerExpenseRow(v){
+  openEditModal("খরচ ভাউচার এডিট", [
+    { key:"বিবরণ", label:"বিবরণ", value:v["বিবরণ"] },
+    { key:"পরিমাণ", label:"পরিমাণ", value:v["পরিমাণ"] }
+  ], async (values) => {
+    const res = await apiCall("updateExpenseVoucher", { voucherId: v["VoucherID"], fields: values });
+    if(res.success) loadDealerExpenseVouchers();
+    return res;
+  });
+}
+
+function printDealerExpenseRow(v){
+  printSingleRecord("খরচ ভাউচার", [
+    { label:"তারিখ", value:v["তারিখ"] ? new Date(v["তারিখ"]).toLocaleDateString("bn-BD") : "" },
+    { label:"বিবরণ", value:v["বিবরণ"] },
+    { label:"পরিমাণ", value:v["পরিমাণ"] }
+  ]);
+}
+
+async function deleteDealerExpenseRow(id){
+  if(!confirm("এই খরচ এন্ট্রি ডিলিট করবেন?")) return;
+  const res = await apiCall("deleteExpenseVoucher", { voucherId:id });
+  if(res.success) loadDealerExpenseVouchers(); else alert(res.message);
+}
+
+/* ================= ডিলার: রিপোর্ট ================= */
+function switchReportTab(tab, btn){
+  document.querySelectorAll("#sec-reports .tabs button").forEach(b => b.classList.remove("active"));
+  if(btn) btn.classList.add("active");
+  const controls = document.getElementById("reportControls");
+  const today = new Date();
+  if(tab === "daily"){
+    controls.innerHTML = `
+      <div class="field"><label>তারিখ</label><input type="date" id="reportDate" value="${today.toISOString().slice(0,10)}"></div>
+      <div class="field" style="align-self:end;"><button class="btn" onclick="runReport('daily')">দেখুন</button></div>`;
+  } else if(tab === "monthly"){
+    controls.innerHTML = `
+      <div class="field"><label>বছর</label><input type="number" id="reportYear" value="${today.getFullYear()}"></div>
+      <div class="field"><label>মাস (১-১২)</label><input type="number" id="reportMonth" min="1" max="12" value="${today.getMonth()+1}"></div>
+      <div class="field" style="align-self:end;"><button class="btn" onclick="runReport('monthly')">দেখুন</button></div>`;
+  } else {
+    controls.innerHTML = `<div class="field" style="align-self:end;"><button class="btn" onclick="runReport('total')">দেখুন</button></div>`;
+  }
+  document.getElementById("reportResult").innerHTML = "";
+}
+
+async function runReport(tab){
+  let action, data = {};
+  if(tab === "daily"){ action = "dailyReport"; data.date = document.getElementById("reportDate").value; }
+  else if(tab === "monthly"){ action = "monthlyReport"; data.year = document.getElementById("reportYear").value; data.month = document.getElementById("reportMonth").value; }
+  else { action = "totalReport"; }
+
+  const res = await apiCall(action, data);
+  const box = document.getElementById("reportResult");
+  if(!res.success){ box.innerHTML = res.message; return; }
+
+  const r = res.report;
+  let html = `<div class="cards">
+      <div class="card"><div class="num">${r.totalCount}</div><div class="label">মোট বিক্রি</div></div>
+      <div class="card"><div class="num">${r.grandTotal}</div><div class="label">সর্বমোট মূল্য</div></div>
+    </div>
+    <div class="toolbar no-print"><button class="btn secondary small" onclick="window.print()">🖨 রিপোর্ট প্রিন্ট করুন</button></div>
+    <div class="table-wrap"><table><thead><tr><th class="cell-right">প্যাকেজ</th><th>সংখ্যা</th><th>মোট মূল্য</th></tr></thead><tbody>`;
+  r.byPackage.forEach(p => { html += `<tr><td class="cell-right">${p.packageName}</td><td>${p.count}</td><td>${p.total}</td></tr>`; });
+  html += `</tbody></table></div>`;
+  box.innerHTML = html;
+}
+</script>
+</body>
+</html>
