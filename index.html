@@ -61,7 +61,7 @@
   .login-box h1{ font-size:1.4rem; margin:0 0 2px; color:var(--teal-dark); }
   .login-box .tagline{ font-size:0.86rem; color:var(--clay); font-weight:600; margin:0 0 16px; }
   .login-box p.sub{ margin:0 0 20px; color:var(--muted); font-size:0.88rem; }
-  .field{ margin-bottom:14px; text-align:left; }
+  .field{ margin-bottom:14px; text-align:right; }
   .field label{ display:block; margin-bottom:4px; font-size:0.88rem; color:var(--muted); }
   .field input, .field select, .field textarea{
     width:100%;
@@ -151,7 +151,7 @@
   table{ width:100%; border-collapse:collapse; background:#fff; }
   table th, table td{ border:1px solid var(--line); padding:7px 8px; font-size:0.88rem; text-align:center; }
   table th{ background:#eef0e9; text-align:center; }
-  table td.cell-right { text-align:left; }
+  table td.cell-left, table th.cell-left{ text-align:left; }
   .table-wrap{ overflow-x:auto; margin-top:10px; }
 
   .form-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:10px; }
@@ -284,6 +284,7 @@
         <button class="active" onclick="switchMgmtTab('register', this)">ডিলার রেজিস্ট্রেশন</button>
         <button onclick="switchMgmtTab('dealerList', this)">ডিলার লিস্ট</button>
         <button onclick="switchMgmtTab('agencyInfo', this)">এজেন্সি সেটাপ</button>
+        <button onclick="switchMgmtTab('aboutInfo', this)">সংস্থার তথ্য</button>
       </div>
       <div id="mgmtContent"></div>
     </section>
@@ -291,7 +292,7 @@
     <section class="section" id="sec-agencyPackages">
       <h2>প্যাকেজ</h2>
       <fieldset class="no-print">
-        <legend>নতুন প্যাকেজ</legend>
+        <legend id="pkgFormLegend">নতুন প্যাকেজ</legend>
         <div class="form-grid">
           <div class="field"><label>প্যাকেজের নাম</label><input id="pkgNaam"></div>
           <div class="field"><label>কোম্পানী</label><input id="pkgCompany"></div>
@@ -307,7 +308,10 @@
         <div id="pkgItems"></div>
         <button class="btn secondary small" onclick="addPkgItemRow()">+ পণ্য যোগ করুন</button>
         <p style="font-size:0.82rem;color:var(--muted);">পণ্যের নাম ও পরিমাণ একই ঘরে লিখুন — যেমন: "চিনি - ১ কেজি"</p>
-        <div class="btn-row"><button class="btn" onclick="submitPackage()">প্যাকেজ সংরক্ষণ করুন</button></div>
+        <div class="btn-row">
+          <button class="btn" id="pkgSubmitBtn" onclick="submitPackage()">প্যাকেজ সংরক্ষণ করুন</button>
+          <button class="btn secondary" id="pkgCancelBtn" style="display:none;" onclick="cancelPkgEdit()">বাতিল</button>
+        </div>
         <div id="pkgMsg" class="msg"></div>
       </fieldset>
       <div class="toolbar no-print">
@@ -346,6 +350,26 @@
       <div class="table-wrap"><table id="agencyExpenseTable"><thead></thead><tbody></tbody></table></div>
     </section>
 
+    <section class="section" id="sec-customerCards">
+      <h2>গ্রাহক কার্ড</h2>
+      <div class="form-grid no-print">
+        <div class="field">
+          <label>ডিলার সিলেক্ট করুন</label>
+          <select id="ccDealerSelect" onchange="onCcDealerChange()"><option value="">-- সিলেক্ট করুন --</option></select>
+        </div>
+      </div>
+      <div class="tabs no-print">
+        <button class="active" onclick="switchCcTab('specific', this)">নির্দিষ্ট গ্রাহক</button>
+        <button onclick="switchCcTab('location', this)">প্রাপ্তির স্থান ভিত্তিক</button>
+        <button onclick="switchCcTab('all', this)">সকল গ্রাহক</button>
+      </div>
+      <div id="ccControls" class="no-print"></div>
+      <div class="btn-row no-print">
+        <button class="btn" onclick="generateCustomerCards()">কার্ড তৈরি ও প্রিন্ট করুন</button>
+      </div>
+      <div id="ccMsg" class="msg"></div>
+    </section>
+
     <!-- ================= ডিলার সেকশনসমূহ ================= -->
     <section class="section" id="sec-dashboard">
       <h2>ড্যাশবোর্ড</h2>
@@ -366,7 +390,7 @@
     <section class="section" id="sec-customers">
       <h2>গ্রাহক</h2>
       <fieldset class="no-print">
-        <legend>নতুন গ্রাহক</legend>
+        <legend id="cusFormLegend">নতুন গ্রাহক</legend>
         <div class="form-grid">
           <div class="field"><label>নাম</label><input id="cusNaam"></div>
           <div class="field"><label>পিতার নাম</label><input id="cusPitarNaam"></div>
@@ -378,7 +402,10 @@
           <div class="field"><label>ইউনিয়ন/পৌরসভা</label><input id="cusUnion"></div>
           <div class="field"><label>প্রাপ্তির স্থান</label><input id="cusPraptirSthan"></div>
         </div>
-        <div class="btn-row"><button class="btn" onclick="submitCustomer()">গ্রাহক সংরক্ষণ করুন</button></div>
+        <div class="btn-row">
+          <button class="btn" id="cusSubmitBtn" onclick="submitCustomer()">গ্রাহক সংরক্ষণ করুন</button>
+          <button class="btn secondary" id="cusCancelBtn" style="display:none;" onclick="cancelCusEdit()">বাতিল</button>
+        </div>
         <div id="cusMsg" class="msg"></div>
       </fieldset>
       <div class="toolbar no-print"><button class="btn secondary small" onclick="window.print()">🖨 সব গ্রাহক প্রিন্ট করুন</button></div>
@@ -388,13 +415,16 @@
     <section class="section" id="sec-orders">
       <h2>অর্ডার</h2>
       <fieldset class="no-print">
-        <legend>নতুন অর্ডার</legend>
+        <legend id="ordFormLegend">নতুন অর্ডার</legend>
         <div class="form-grid">
           <div class="field"><label>প্যাকেজ</label><select id="ordPackage"></select></div>
           <div class="field"><label>সংখ্যা</label><input id="ordQty" type="number" min="1"></div>
           <div class="field"><label>একক মূল্য</label><input id="ordPrice" type="number" min="0"></div>
         </div>
-        <div class="btn-row"><button class="btn" onclick="submitOrder()">অর্ডার সংরক্ষণ করুন</button></div>
+        <div class="btn-row">
+          <button class="btn" id="ordSubmitBtn" onclick="submitOrder()">অর্ডার সংরক্ষণ করুন</button>
+          <button class="btn secondary" id="ordCancelBtn" style="display:none;" onclick="cancelOrdEdit()">বাতিল</button>
+        </div>
         <div id="ordMsg" class="msg"></div>
       </fieldset>
       <div class="table-wrap"><table id="ordersTable"><thead></thead><tbody></tbody></table></div>
@@ -434,10 +464,6 @@
       <div id="reportResult"></div>
     </section>
 
-    <section class="section" id="sec-dealerAbout">
-      <h2>সংস্থার তথ্য এডিট</h2>
-      <div id="dealerAboutEditBox"></div>
-    </section>
   </main>
 
   <footer class="appfoot">@AM Shahed: 01605721296</footer>
@@ -534,7 +560,7 @@ async function submitRecoverPassword(){
   box.textContent = "যাচাই হচ্ছে..."; box.className = "msg";
   const res = await apiCall("recoverPassword", { nid, mobile });
   if(!res.success){ box.textContent = res.message; box.className = "msg err"; return; }
-  box.innerHTML = `ইউজারনেম: <b>${res.username}</b><br>নতুন পাসওয়ার্ড: <b>${res.newPassword}</b><br>${res.message}`;
+  box.innerHTML = `ইউজারনেম: <b>${res.username}</b><br>পাসওয়ার্ড: <b>${res.newPassword}</b><br>${res.message}`;
   box.className = "msg ok";
 }
 
@@ -595,6 +621,7 @@ function buildSideMenu(){
       <button class="menu-item" onclick="showSection('agencyPackages')">প্যাকেজ</button>
       <button class="menu-item" onclick="showSection('commission')">কমিশন</button>
       <button class="menu-item" onclick="showSection('agencyExpense')">খরচ</button>
+      <button class="menu-item" onclick="showSection('customerCards')">গ্রাহক কার্ড</button>
       <button class="menu-item" onclick="doLogout()">লগআউট</button>`;
   } else {
     nav.innerHTML = `
@@ -606,7 +633,7 @@ function buildSideMenu(){
       <button class="menu-item" onclick="showSection('sales')">বিক্রি</button>
       <button class="menu-item" onclick="showSection('expenseVoucher')">খরচ ভাউচার</button>
       <button class="menu-item" onclick="showSection('reports')">রিপোর্ট</button>
-      ${state.role === 'Admin' ? `<button class="menu-item" onclick="showSection('dealerAbout')">সংস্থার তথ্য এডিট</button>` : ``}
+      ${state.role === 'Admin' ? `` : ``}
       <button class="menu-item" onclick="doLogout()">লগআউট</button>`;
   }
 }
@@ -627,6 +654,7 @@ function showSection(name){
   if(name === "agencyPackages") loadAgencyPackages();
   if(name === "commission") loadCommissionSetup();
   if(name === "agencyExpense") loadAgencyExpenses();
+  if(name === "customerCards") loadCustomerCardsSetup();
 
   if(name === "dashboard") loadDashboard();
   if(name === "about") loadAboutView();
@@ -636,7 +664,6 @@ function showSection(name){
   if(name === "sales") loadSalesSetup();
   if(name === "expenseVoucher") loadDealerExpenseVouchers();
   if(name === "reports") switchReportTab("daily", document.querySelector("#sec-reports .tabs button"));
-  if(name === "dealerAbout") loadDealerAboutEdit();
 }
 
 /* ================= এজেন্সি: ড্যাশবোর্ড ================= */
@@ -661,7 +688,40 @@ function switchMgmtTab(tab, btn){
   const box = document.getElementById("mgmtContent");
   if(tab === "register") renderRegisterForm(box);
   else if(tab === "dealerList") renderDealersList(box);
+  else if(tab === "aboutInfo") renderAboutInfoEdit(box);
   else renderAgencyInfoEdit(box);
+}
+
+async function renderAboutInfoEdit(box){
+  box.innerHTML = "লোড হচ্ছে...";
+  const res = await apiCall("getAbout", {});
+  const a = res.success ? res.about : {};
+  box.innerHTML = `
+    <div class="form-grid">
+      <div class="field"><label>সংস্থার প্রতিষ্ঠাকাল</label><input id="aiProtisthakal" value="${a['প্রতিষ্ঠাকাল']||''}"></div>
+      <div class="field" style="grid-column:1/-1;"><label>উদ্দেশ্য</label><textarea id="aiUddessho" rows="2">${a['উদ্দেশ্য']||''}</textarea></div>
+      <div class="field" style="grid-column:1/-1;"><label>প্রধান কার্যালয়ের ঠিকানা</label><input id="aiProdhanKaryaloy" value="${a['প্রধান কার্যালয়ের ঠিকানা']||''}"></div>
+      <div class="field" style="grid-column:1/-1;"><label>জেলা ডিপুর ঠিকানা</label><input id="aiJelaDipur" value="${a['জেলা ডিপুর ঠিকানা']||''}"></div>
+      <div class="field" style="grid-column:1/-1;"><label>নিয়মাবলি</label><textarea id="aiNiyomaboli" rows="3">${a['নিয়মাবলি']||''}</textarea></div>
+      <div class="field" style="grid-column:1/-1;"><label>সংক্ষিপ্ত বিবরণ</label><textarea id="aiSongkhipto" rows="3">${a['সংক্ষিপ্ত বিবরণ']||''}</textarea></div>
+    </div>
+    <button class="btn" onclick="saveAboutInfo()">সংরক্ষণ করুন</button>
+    <div id="aiMsg" class="msg"></div>`;
+}
+
+async function saveAboutInfo(){
+  const data = {
+    protisthakal: document.getElementById("aiProtisthakal").value.trim(),
+    uddessho: document.getElementById("aiUddessho").value.trim(),
+    prodhanKaryaloy: document.getElementById("aiProdhanKaryaloy").value.trim(),
+    jelaDipur: document.getElementById("aiJelaDipur").value.trim(),
+    niyomaboli: document.getElementById("aiNiyomaboli").value.trim(),
+    songkhiptoBiboron: document.getElementById("aiSongkhipto").value.trim()
+  };
+  const res = await apiCall("updateAbout", data);
+  const msgBox = document.getElementById("aiMsg");
+  msgBox.textContent = res.message;
+  msgBox.className = "msg " + (res.success?"ok":"err");
 }
 
 function renderRegisterForm(box){
@@ -702,7 +762,10 @@ function renderRegisterForm(box){
         <div class="field"><label>এডমিনের নাম</label><input id="rAdminName"></div>
       </div>
     </fieldset>
-    <div class="btn-row"><button class="btn" onclick="submitRegister()">রেজিস্ট্রেশন সম্পন্ন করুন</button></div>
+    <div class="btn-row">
+      <button class="btn" onclick="submitRegister()">রেজিস্ট্রেশন সম্পন্ন করুন</button>
+      <button class="btn secondary" onclick="printRegistrationForm()">🖨 ফরম প্রিন্ট করুন</button>
+    </div>
     <div id="registerMsg" class="msg"></div>`;
 }
 
@@ -757,13 +820,13 @@ async function renderDealersList(box){
 
   let html = `<div class="toolbar no-print"><button class="btn secondary small" onclick="window.print()">🖨 প্রিন্ট করুন</button></div>
     <div class="table-wrap"><table><thead><tr>
-    <th>আইডি</th><th class="cell-right">নাম</th><th>মোবাইল</th><th class="cell-right">ঠিকানা</th><th>স্ট্যাটাস</th><th class="no-print">একশন</th>
+    <th>আইডি</th><th class="cell-left">নাম</th><th>মোবাইল</th><th class="cell-left">ঠিকানা</th><th>স্ট্যাটাস</th><th class="no-print">একশন</th>
     </tr></thead><tbody>`;
   res.dealers.forEach(d => {
     const dJson = JSON.stringify(d).replace(/'/g, "&#39;");
     html += `<tr>
-      <td>${d["DealerID"]}</td><td class="cell-right">${d["নাম"]}</td><td>${d["মোবাইল"]}</td>
-      <td class="cell-right">${d["ঠিকানা"]||""}</td><td>${d["স্ট্যাটাস"]}</td>
+      <td>${d["DealerID"]}</td><td class="cell-left">${d["নাম"]}</td><td>${d["মোবাইল"]}</td>
+      <td class="cell-left">${d["ঠিকানা"]||""}</td><td>${d["স্ট্যাটাস"]}</td>
       <td class="no-print">
         <button class="btn small" onclick="toggleDealerStatus('${d["DealerID"]}','${d["স্ট্যাটাস"]}')">${d["স্ট্যাটাস"]==="সক্রিয়" ? "নিষ্ক্রিয়" : "সক্রিয়"}</button>
         <button class="btn small secondary" onclick='editDealerRow(${dJson})'>এডিট</button>
@@ -796,15 +859,118 @@ function editDealerRow(d){
 }
 
 function printDealerRow(d){
-  printSingleRecord("ডিলার তথ্য — " + d["নাম"], [
-    { label:"আইডি", value:d["DealerID"] },
-    { label:"নাম", value:d["নাম"] },
-    { label:"পিতার নাম", value:d["পিতার নাম"] },
-    { label:"মোবাইল", value:d["মোবাইল"] },
-    { label:"ঠিকানা", value:d["ঠিকানা"] },
-    { label:"ট্রেড লাইসেন্স নং", value:d["ট্রেড লাইসেন্স নং"] },
-    { label:"স্ট্যাটাস", value:d["স্ট্যাটাস"] }
-  ]);
+  printOfficialDealerForm({
+    dealerId: d["DealerID"], status: d["স্ট্যাটাস"],
+    naam: d["নাম"], pitarNaam: d["পিতার নাম"], mobile: d["মোবাইল"], gmail: d["Gmail"],
+    nid: d["NID/জন্মসনদ"], trade: d["ট্রেড লাইসেন্স নং"], thikana: d["ঠিকানা"],
+    dealerPhotoSrc: d["ডিলারের ছবি(URL)"] || "",
+    nomNaam: d.nominee ? d.nominee["নমিনির নাম"] : "",
+    nomNid: d.nominee ? d.nominee["NID নং"] : "",
+    nomMobile: d.nominee ? d.nominee["মোবাইল নং"] : "",
+    nomSomporko: d.nominee ? d.nominee["সম্পর্ক"] : "",
+    nomPhotoSrc: d.nominee ? (d.nominee["নমিনির ছবি(URL)"] || "") : ""
+  });
+}
+
+/*******************************************************
+ * রেজিস্ট্রেশন ফরম পূরণ করা অবস্থাতেই অফিসিয়াল ফরম্যাটে প্রিন্ট করা
+ *******************************************************/
+async function printRegistrationForm(){
+  const dealerPhotoSrc = await fileToBase64(document.getElementById("rDealerPhoto"));
+  const nomPhotoSrc = await fileToBase64(document.getElementById("rNomPhoto"));
+  printOfficialDealerForm({
+    dealerId: "", status: "নতুন আবেদন",
+    naam: document.getElementById("rNaam").value.trim(),
+    pitarNaam: document.getElementById("rPitarNaam").value.trim(),
+    mobile: document.getElementById("rMobile").value.trim(),
+    gmail: document.getElementById("rGmail").value.trim(),
+    nid: document.getElementById("rNid").value.trim(),
+    trade: document.getElementById("rTrade").value.trim(),
+    thikana: document.getElementById("rThikana").value.trim(),
+    dealerPhotoSrc: dealerPhotoSrc,
+    adminUsername: document.getElementById("rAdminUser").value.trim(),
+    adminPassword: document.getElementById("rAdminPass").value,
+    nomNaam: document.getElementById("rNomNaam").value.trim(),
+    nomNid: document.getElementById("rNomNid").value.trim(),
+    nomMobile: document.getElementById("rNomMobile").value.trim(),
+    nomSomporko: document.getElementById("rNomSomporko").value.trim(),
+    nomPhotoSrc: nomPhotoSrc
+  });
+}
+
+/*******************************************************
+ * অফিসিয়াল ফরম্যাটে ডিলার নিয়োগ/রেজিস্ট্রেশন ফরম প্রিন্ট
+ *******************************************************/
+function printOfficialDealerForm(d){
+  const win = window.open("", "_blank", "width=850,height=1000");
+  const photoBox = (src) => src
+    ? `<img src="${src}" style="width:100%;height:100%;object-fit:cover;">`
+    : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#999;font-size:11px;">ছবি নেই</div>`;
+
+  win.document.write(`<html><head><meta charset="utf-8"><title>ডিলার নিয়োগ ফরম</title>
+    <style>
+      @page{ size:A4; margin:16mm; }
+      body{ font-family:'Hind Siliguri',sans-serif; color:#1c2b28; }
+      .letterhead{ text-align:center; border-bottom:3px solid #153f37; padding-bottom:10px; margin-bottom:16px; }
+      .letterhead h1{ margin:0; color:#153f37; font-size:22px; }
+      .letterhead p{ margin:4px 0 0; color:#b5502f; font-weight:600; font-size:13px; }
+      .form-title{ text-align:center; font-size:16px; font-weight:700; margin:14px 0; text-decoration:underline; }
+      .top-row{ display:flex; justify-content:space-between; align-items:flex-start; gap:16px; }
+      .photo-slot{ width:100px; height:120px; border:1px solid #999; flex-shrink:0; }
+      table.info{ width:100%; border-collapse:collapse; margin-top:10px; }
+      table.info td{ border:1px solid #999; padding:7px 10px; font-size:13px; }
+      table.info td.label{ background:#eef0e9; font-weight:600; width:35%; }
+      .section-title{ font-weight:700; color:#153f37; margin:18px 0 6px; font-size:14px; border-bottom:1px solid #d8d2c2; padding-bottom:4px; }
+      .sign-row{ display:flex; justify-content:space-between; margin-top:60px; }
+      .sign-box{ text-align:center; width:45%; }
+      .sign-line{ border-top:1px solid #333; margin-top:40px; padding-top:4px; font-size:12px; }
+    </style></head><body>
+    <div class="letterhead">
+      <h1>মানবিক সহায়তা ডেইলি শপ</h1>
+      <p>সাশ্রয়ী মূল্যে পণ্য বিক্রি সংস্থা</p>
+    </div>
+    <div class="form-title">ডিলার নিয়োগ / রেজিস্ট্রেশন ফরম</div>
+
+    <div class="top-row">
+      <table class="info" style="flex:1;">
+        <tr><td class="label">ডিলার আইডি</td><td>${d.dealerId||"—"}</td></tr>
+        <tr><td class="label">নাম</td><td>${d.naam||""}</td></tr>
+        <tr><td class="label">পিতার নাম</td><td>${d.pitarNaam||""}</td></tr>
+        <tr><td class="label">মোবাইল নং</td><td>${d.mobile||""}</td></tr>
+      </table>
+      <div class="photo-slot">${photoBox(d.dealerPhotoSrc)}</div>
+    </div>
+
+    <table class="info">
+      <tr><td class="label">Gmail</td><td>${d.gmail||""}</td></tr>
+      <tr><td class="label">NID/জন্মসনদ নং</td><td>${d.nid||""}</td></tr>
+      <tr><td class="label">ট্রেড লাইসেন্স নং</td><td>${d.trade||""}</td></tr>
+      <tr><td class="label">ঠিকানা</td><td>${d.thikana||""}</td></tr>
+      ${d.adminUsername!==undefined ? `
+      <tr><td class="label">লগইন ইউজারনেম</td><td>${d.adminUsername||""}</td></tr>
+      <tr><td class="label">লগইন পাসওয়ার্ড</td><td>${d.adminPassword||""}</td></tr>` : ``}
+      <tr><td class="label">স্ট্যাটাস</td><td>${d.status||""}</td></tr>
+    </table>
+
+    <div class="section-title">নমিনি তথ্য</div>
+    <div class="top-row">
+      <table class="info" style="flex:1;">
+        <tr><td class="label">নমিনির নাম</td><td>${d.nomNaam||""}</td></tr>
+        <tr><td class="label">NID নং</td><td>${d.nomNid||""}</td></tr>
+        <tr><td class="label">মোবাইল নং</td><td>${d.nomMobile||""}</td></tr>
+        <tr><td class="label">সম্পর্ক</td><td>${d.nomSomporko||""}</td></tr>
+      </table>
+      <div class="photo-slot">${photoBox(d.nomPhotoSrc)}</div>
+    </div>
+
+    <div class="sign-row">
+      <div class="sign-box"><div class="sign-line">ডিলারের স্বাক্ষর ও তারিখ</div></div>
+      <div class="sign-box"><div class="sign-line">কর্তৃপক্ষের স্বাক্ষর ও তারিখ</div></div>
+    </div>
+
+    <script>window.onload=function(){window.print();}<\/script>
+    </body></html>`);
+  win.document.close();
 }
 
 async function renderAgencyInfoEdit(box){
@@ -835,15 +1001,17 @@ async function saveAgency(){
 }
 
 /* ================= এজেন্সি: প্যাকেজ ================= */
-function addPkgItemRow(){
+let editingPackageId = null;
+
+function addPkgItemRow(prefill){
   const wrap = document.getElementById("pkgItems");
   const row = document.createElement("div");
   row.className = "item-row-v2";
   row.innerHTML = `
-    <input placeholder="পণ্যের নাম ও পরিমাণ (যেমন: চিনি - ১ কেজি)" class="itemNaamPoriman">
-    <input placeholder="বাজার মূল্য" type="number" min="0" class="itemBazar" oninput="updateItemSaving(this)">
-    <input placeholder="কম্বো মূল্য" type="number" min="0" class="itemCombo" oninput="updateItemSaving(this)">
-    <input placeholder="সাশ্রয়" type="number" class="itemSashroy" readonly>
+    <input placeholder="পণ্যের নাম ও পরিমাণ (যেমন: চিনি - ১ কেজি)" class="itemNaamPoriman" value="${prefill?(prefill.naamPoriman||''):''}">
+    <input placeholder="বাজার মূল্য" type="number" min="0" class="itemBazar" oninput="updateItemSaving(this)" value="${prefill?(prefill.bazarMulyo||''):''}">
+    <input placeholder="কম্বো মূল্য" type="number" min="0" class="itemCombo" oninput="updateItemSaving(this)" value="${prefill?(prefill.comboMulyo||''):''}">
+    <input placeholder="সাশ্রয়" type="number" class="itemSashroy" readonly value="${prefill?((Number(prefill.bazarMulyo)||0)-(Number(prefill.comboMulyo)||0)):''}">
     <button type="button" class="btn secondary small" onclick="this.parentElement.remove()">✕</button>`;
   wrap.appendChild(row);
 }
@@ -862,6 +1030,21 @@ async function submitPackage(){
     "comboMulyo": r.querySelector(".itemCombo").value
   })).filter(i => i["naamPoriman"]);
 
+  const msgBox = document.getElementById("pkgMsg");
+
+  if(editingPackageId){
+    const fields = {
+      "নাম": document.getElementById("pkgNaam").value.trim(),
+      "কোম্পানী": document.getElementById("pkgCompany").value.trim(),
+      "ধরন": document.getElementById("pkgDhoron").value
+    };
+    const res = await apiCall("updatePackage", { packageId: editingPackageId, fields: fields, items: items });
+    msgBox.textContent = res.message;
+    msgBox.className = "msg " + (res.success?"ok":"err");
+    if(res.success){ cancelPkgEdit(); loadAgencyPackages(); }
+    return;
+  }
+
   const data = {
     "নাম": document.getElementById("pkgNaam").value.trim(),
     "কোম্পানী": document.getElementById("pkgCompany").value.trim(),
@@ -870,7 +1053,6 @@ async function submitPackage(){
   };
 
   const res = await apiCall("addPackage", data);
-  const msgBox = document.getElementById("pkgMsg");
   msgBox.textContent = res.message + (res.success ? " (কম্বো সর্বমোট মূল্য: " + res.total + ")" : "");
   msgBox.className = "msg " + (res.success?"ok":"err");
   if(res.success){
@@ -881,40 +1063,69 @@ async function submitPackage(){
   }
 }
 
+function cancelPkgEdit(){
+  editingPackageId = null;
+  document.getElementById("pkgFormLegend").textContent = "নতুন প্যাকেজ";
+  document.getElementById("pkgSubmitBtn").textContent = "প্যাকেজ সংরক্ষণ করুন";
+  document.getElementById("pkgCancelBtn").style.display = "none";
+  document.getElementById("pkgNaam").value = "";
+  document.getElementById("pkgCompany").value = "";
+  document.getElementById("pkgDhoron").value = "এক্টিভ";
+  document.getElementById("pkgItems").innerHTML = "";
+  document.getElementById("pkgMsg").textContent = "";
+}
+
 async function loadAgencyPackages(){
   const res = await apiCall("listPackages", {});
   const table = document.getElementById("agencyPackagesTable");
   if(!res.success){ table.innerHTML = res.message; return; }
-  table.innerHTML = "<thead><tr><th class='cell-right'>নাম</th><th>তারিখ</th><th>পণ্য সংখ্যা</th><th>সর্বমোট মূল্য</th><th class='no-print'>একশন</th></tr></thead><tbody></tbody>";
+  window.__packagesCache = res.packages;
+  table.innerHTML = "<thead><tr><th class='cell-left'>নাম</th><th>তারিখ</th><th>পণ্য সংখ্যা</th><th>সর্বমোট মূল্য</th><th class='no-print'>একশন</th></tr></thead><tbody></tbody>";
   const tbody = table.querySelector("tbody");
   res.packages.forEach(p => {
     const dt = p["তারিখ"] ? new Date(p["তারিখ"]).toLocaleDateString("bn-BD") : "";
-    const pJson = JSON.stringify(p).replace(/'/g, "&#39;");
     const tr = document.createElement("tr");
     tr.innerHTML = `
-      <td class="cell-right">${p["নাম"]}</td><td>${dt}</td><td>${p.itemCount}</td><td>${p["সর্বমোট মূল্য"]}</td>
+      <td class="cell-left">${p["নাম"]}</td><td>${dt}</td><td>${p.itemCount}</td><td>${p["সর্বমোট মূল্য"]}</td>
       <td class="no-print">
-        <button class="btn small secondary" onclick='editAgencyPackage(${pJson})'>এডিট</button>
-        <button class="btn small secondary" onclick='printAgencyPackage(${pJson})'>প্রিন্ট</button>
+        <button class="btn small secondary" onclick="editAgencyPackage('${p['PackageID']}')">এডিট</button>
+        <button class="btn small secondary" onclick="printAgencyPackageById('${p['PackageID']}')">প্রিন্ট</button>
         <button class="btn small danger" onclick="deletePkg('${p['PackageID']}')">ডিলিট</button>
       </td>`;
     tbody.appendChild(tr);
   });
 }
 
-function editAgencyPackage(p){
-  openEditModal("প্যাকেজ এডিট — " + p["নাম"], [
-    { key:"নাম", label:"প্যাকেজের নাম", value:p["নাম"] },
-    { key:"কোম্পানী", label:"কোম্পানী", value:p["কোম্পানী"] },
-    { key:"ধরন", label:"ধরন (এক্টিভ/প্রক্রিয়াধীন/বাতিল)", value:p["ধরন"] }
-  ], async (values) => {
-    const res = await apiCall("updatePackage", { packageId: p["PackageID"], fields: values });
-    if(res.success) loadAgencyPackages();
-    return res;
-  });
+/*******************************************************
+ * প্যাকেজ এডিট — মডেলের বদলে সরাসরি উপরের ফরমেই সব তথ্য (নাম,
+ * কোম্পানী, ধরন, এবং প্রতিটি পণ্যের সারি) লোড হয়ে যাবে
+ *******************************************************/
+function editAgencyPackage(packageId){
+  const p = (window.__packagesCache||[]).find(x => x["PackageID"] === packageId);
+  if(!p) return;
+
+  editingPackageId = packageId;
+  document.getElementById("pkgFormLegend").textContent = "প্যাকেজ এডিট — " + p["নাম"];
+  document.getElementById("pkgSubmitBtn").textContent = "আপডেট করুন";
+  document.getElementById("pkgCancelBtn").style.display = "inline-block";
+
+  document.getElementById("pkgNaam").value = p["নাম"] || "";
+  document.getElementById("pkgCompany").value = p["কোম্পানী"] || "";
+  document.getElementById("pkgDhoron").value = p["ধরন"] || "এক্টিভ";
+
+  document.getElementById("pkgItems").innerHTML = "";
+  (p.items || []).forEach(it => addPkgItemRow({
+    naamPoriman: it["পণ্যের নাম ও পরিমাণ"],
+    bazarMulyo: it["বাজার মূল্য"],
+    comboMulyo: it["কম্বো মূল্য"]
+  }));
+
+  document.getElementById("sec-agencyPackages").scrollIntoView({ behavior:"smooth" });
 }
 
-function printAgencyPackage(p){
+function printAgencyPackageById(packageId){
+  const p = (window.__packagesCache||[]).find(x => x["PackageID"] === packageId);
+  if(!p) return;
   const itemLines = (p.items||[]).map(it =>
     `${it["পণ্যের নাম ও পরিমাণ"]} — বাজার: ${it["বাজার মূল্য"]}, কম্বো: ${it["কম্বো মূল্য"]}, সাশ্রয়: ${it["সাশ্রয়"]}`
   ).join("<br>");
@@ -967,13 +1178,13 @@ async function loadCommissionList(){
   const res = await apiCall("listCommissions", {});
   const table = document.getElementById("commissionTable");
   if(!res.success){ table.innerHTML = res.message; return; }
-  table.innerHTML = "<thead><tr><th class='cell-right'>ডিলারের নাম</th><th>মোবাইল</th><th class='cell-right'>ঠিকানা</th><th>টাকার পরিমাণ</th><th>তারিখ</th><th class='no-print'>একশন</th></tr></thead><tbody></tbody>";
+  table.innerHTML = "<thead><tr><th class='cell-left'>ডিলারের নাম</th><th>মোবাইল</th><th class='cell-left'>ঠিকানা</th><th>টাকার পরিমাণ</th><th>তারিখ</th><th class='no-print'>একশন</th></tr></thead><tbody></tbody>";
   const tbody = table.querySelector("tbody");
   res.commissions.forEach(c => {
     const dt = c["তারিখ"] ? new Date(c["তারিখ"]).toLocaleDateString("bn-BD") : "";
     const cJson = JSON.stringify(c).replace(/'/g, "&#39;");
     const tr = document.createElement("tr");
-    tr.innerHTML = `<td class="cell-right">${c["ডিলারের নাম"]}</td><td>${c["মোবাইল নং"]}</td><td class="cell-right">${c["ঠিকানা"]||""}</td><td>${c["টাকার পরিমাণ"]}</td><td>${dt}</td>
+    tr.innerHTML = `<td class="cell-left">${c["ডিলারের নাম"]}</td><td>${c["মোবাইল নং"]}</td><td class="cell-left">${c["ঠিকানা"]||""}</td><td>${c["টাকার পরিমাণ"]}</td><td>${dt}</td>
       <td class="no-print">
         <button class="btn small secondary" onclick='editCommissionRow(${cJson})'>এডিট</button>
         <button class="btn small secondary" onclick='printCommissionRow(${cJson})'>প্রিন্ট</button>
@@ -1081,6 +1292,155 @@ async function deleteAgencyExpenseRow(id){
   if(res.success) loadAgencyExpenses(); else alert(res.message);
 }
 
+/* ================= এজেন্সি: গ্রাহক কার্ড ================= */
+let ccCustomersCache = [];
+let ccCurrentTab = "specific";
+
+async function loadCustomerCardsSetup(){
+  const res = await apiCall("listDealers", {});
+  const sel = document.getElementById("ccDealerSelect");
+  if(res.success){
+    dealerListCache = res.dealers; // শেয়ার্ড ক্যাশ, কমিশন ট্যাবেও ব্যবহৃত
+    sel.innerHTML = "<option value=''>-- সিলেক্ট করুন --</option>" +
+      res.dealers.map(d => `<option value="${d['DealerID']}">${d['নাম']}</option>`).join("");
+  }
+  ccCustomersCache = [];
+  document.getElementById("ccControls").innerHTML = "";
+  document.getElementById("ccMsg").textContent = "";
+}
+
+async function onCcDealerChange(){
+  const dealerId = document.getElementById("ccDealerSelect").value;
+  document.getElementById("ccMsg").textContent = "";
+  if(!dealerId){ ccCustomersCache = []; document.getElementById("ccControls").innerHTML = ""; return; }
+
+  document.getElementById("ccControls").innerHTML = "লোড হচ্ছে...";
+  const res = await apiCall("listCustomersForDealer", { dealerId });
+  ccCustomersCache = res.success ? res.customers : [];
+  renderCcControls();
+}
+
+function switchCcTab(tab, btn){
+  ccCurrentTab = tab;
+  document.querySelectorAll("#sec-customerCards .tabs button").forEach(b => b.classList.remove("active"));
+  if(btn) btn.classList.add("active");
+  renderCcControls();
+}
+
+function renderCcControls(){
+  const box = document.getElementById("ccControls");
+  if(!document.getElementById("ccDealerSelect").value){
+    box.innerHTML = `<p style="color:var(--muted);font-size:0.85rem;">আগে একজন ডিলার সিলেক্ট করুন</p>`;
+    return;
+  }
+
+  if(ccCurrentTab === "specific"){
+    if(ccCustomersCache.length === 0){ box.innerHTML = "<p>কোনো গ্রাহক পাওয়া যায়নি</p>"; return; }
+    box.innerHTML = `<div class="table-wrap" style="max-height:260px;overflow-y:auto;"><table>
+      <thead><tr><th style="width:10%;">✓</th><th class="cell-left">নাম</th><th>মোবাইল</th><th>প্রাপ্তির স্থান</th></tr></thead>
+      <tbody>` + ccCustomersCache.map(c => `
+        <tr>
+          <td><input type="checkbox" class="ccCustomerCheck" value="${c['CustomerID']}"></td>
+          <td class="cell-left">${c["নাম"]}</td><td>${c["মোবাইল নং"]}</td><td>${c["প্রাপ্তির স্থান"]||""}</td>
+        </tr>`).join("") + `</tbody></table></div>`;
+  } else if(ccCurrentTab === "location"){
+    const locations = [...new Set(ccCustomersCache.map(c => c["প্রাপ্তির স্থান"]).filter(Boolean))];
+    box.innerHTML = `<div class="field"><label>প্রাপ্তির স্থান</label>
+      <select id="ccLocationSelect"><option value="">-- সিলেক্ট করুন --</option>
+      ${locations.map(l => `<option value="${l}">${l}</option>`).join("")}</select></div>`;
+  } else {
+    box.innerHTML = `<p style="color:var(--muted);font-size:0.85rem;">এই ডিলারের মোট ${ccCustomersCache.length} জন গ্রাহকের কার্ড তৈরি হবে</p>`;
+  }
+}
+
+function generateCustomerCards(){
+  const dealerId = document.getElementById("ccDealerSelect").value;
+  const msgBox = document.getElementById("ccMsg");
+  if(!dealerId){ msgBox.textContent = "আগে ডিলার সিলেক্ট করুন"; msgBox.className = "msg err"; return; }
+
+  let selectedCustomers = [];
+  if(ccCurrentTab === "specific"){
+    const ids = [...document.querySelectorAll(".ccCustomerCheck:checked")].map(el => el.value);
+    if(ids.length === 0){ msgBox.textContent = "অন্তত একজন গ্রাহক সিলেক্ট করুন"; msgBox.className = "msg err"; return; }
+    selectedCustomers = ccCustomersCache.filter(c => ids.includes(c["CustomerID"]));
+  } else if(ccCurrentTab === "location"){
+    const loc = document.getElementById("ccLocationSelect").value;
+    if(!loc){ msgBox.textContent = "প্রাপ্তির স্থান সিলেক্ট করুন"; msgBox.className = "msg err"; return; }
+    selectedCustomers = ccCustomersCache.filter(c => c["প্রাপ্তির স্থান"] === loc);
+  } else {
+    selectedCustomers = ccCustomersCache;
+  }
+
+  if(selectedCustomers.length === 0){ msgBox.textContent = "কোনো গ্রাহক পাওয়া যায়নি"; msgBox.className = "msg err"; return; }
+  msgBox.textContent = "";
+  printCustomerCardsWindow(dealerId, selectedCustomers);
+}
+
+/*******************************************************
+ * গ্রাহক আইডি কার্ড প্রিন্ট (৩.২in x ২.২in, প্রফেশনাল কালার ডিজাইন, QR সহ)
+ *******************************************************/
+function printCustomerCardsWindow(dealerId, customers){
+  const dealer = (dealerListCache||[]).find(d => d["DealerID"] === dealerId) ||
+    { "নাম": "", "মোবাইল": "" };
+
+  const cardsHtml = customers.map(c => {
+    const qrData = encodeURIComponent(API_URL + "?view=customer&dealerId=" + dealerId + "&customerId=" + c["CustomerID"]);
+    const qrImgUrl = "https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=" + qrData;
+    return `
+      <div class="id-card">
+        <div class="card-header">
+          <div class="org-name">${dealer["নাম"]||""}</div>
+          <div class="org-mobile">${dealer["মোবাইল"]||""}</div>
+        </div>
+        <div class="card-divider"></div>
+        <div class="card-body">
+          <div class="card-fields">
+            <div class="cf-name">${c["নাম"]||""}</div>
+            <div><span class="cf-label">পিতা:</span> ${c["পিতার নাম"]||""}</div>
+            <div><span class="cf-label">NID:</span> ${c["NID/জন্মসনদ নং"]||""}</div>
+            <div><span class="cf-label">মোবাইল:</span> ${c["মোবাইল নং"]||""}</div>
+            <div><span class="cf-label">ঠিকানা:</span> ${(c["গ্রাম"]||"")}${c["ইউনিয়ন/পৌরসভা"]?(", "+c["ইউনিয়ন/পৌরসভা"]):""}</div>
+            <div><span class="cf-label">প্রাপ্তির স্থান:</span> ${c["প্রাপ্তির স্থান"]||""}</div>
+          </div>
+          <div class="card-qr"><img src="${qrImgUrl}"></div>
+        </div>
+      </div>`;
+  }).join("");
+
+  const win = window.open("", "_blank", "width=900,height=700");
+  win.document.write(`<html><head><meta charset="utf-8"><title>গ্রাহক কার্ড</title>
+    <style>
+      @page{ margin:6mm; }
+      *{ box-sizing:border-box; }
+      body{ font-family:'Hind Siliguri',sans-serif; margin:0; background:#fff; }
+      .cards-wrap{ display:flex; flex-wrap:wrap; gap:6mm; padding:4mm; }
+      .id-card{
+        width:3.2in; height:2.2in;
+        border:1px solid #b7c9c2; border-radius:10px; overflow:hidden;
+        display:flex; flex-direction:column;
+        box-shadow:0 1px 3px rgba(0,0,0,0.15);
+        page-break-inside:avoid;
+      }
+      .card-header{
+        background:linear-gradient(135deg,#1f5f52,#153f37);
+        color:#fff; padding:6px 10px;
+      }
+      .org-name{ font-size:12px; font-weight:700; }
+      .org-mobile{ font-size:10px; opacity:0.9; }
+      .card-divider{ height:2px; background:#b5502f; }
+      .card-body{ display:flex; flex:1; padding:6px 8px; gap:6px; }
+      .card-fields{ flex:1; font-size:9.5px; line-height:1.55; color:#1c2b28; }
+      .cf-name{ font-size:12px; font-weight:700; color:#153f37; margin-bottom:2px; }
+      .cf-label{ font-weight:600; color:#b5502f; }
+      .card-qr{ width:60px; display:flex; align-items:center; justify-content:center; }
+      .card-qr img{ width:56px; height:56px; }
+    </style></head><body>
+    <div class="cards-wrap">${cardsHtml}</div>
+    <script>window.onload=function(){window.print();}<\/script>
+    </body></html>`);
+  win.document.close();
+}
+
 /* ================= ডিলার: ড্যাশবোর্ড ================= */
 async function loadDashboard(){
   const box = document.getElementById("dashboardCards");
@@ -1096,47 +1456,55 @@ async function loadDashboard(){
     <div class="card"><div class="num">${s.totalSales}</div><div class="label">মোট বিক্রি</div></div>`;
 }
 
-/* ================= ডিলার: সংস্থার তথ্য (ভিউ) ================= */
+/* ================= ডিলার: সংস্থার তথ্য (শুধু ভিউ + A4 প্রিন্ট) ================= */
 async function loadAboutView(){
   const box = document.getElementById("aboutView");
   box.innerHTML = "লোড হচ্ছে...";
   const res = await apiCall("getAbout", {});
   if(!res.success){ box.innerHTML = res.message; return; }
-  const a = res.about;
-  box.innerHTML = `<table>
-    <tr><th>সংস্থার নাম</th><td class="cell-right">${a["সংস্থার নাম"]||""}</td></tr>
-    <tr><th>জেলা ডিপুর নাম</th><td>${a["জেলা ডিপুর নাম"]||""}</td></tr>
-    <tr><th>ঠিকানা</th><td class="cell-right">${a["ঠিকানা"]||""}</td></tr>
-    <tr><th>বিবরণ</th><td>${a["বিবরণ"]||""}</td></tr></table>`;
+  window.__aboutCache = res.about;
+  box.innerHTML = renderAboutBoxes(res.about) +
+    `<div class="toolbar no-print" style="margin-top:14px;"><button class="btn secondary small" onclick="printAboutA4()">🖨 প্রিন্ট করুন (A4)</button></div>`;
 }
 
-async function loadDealerAboutEdit(){
-  const box = document.getElementById("dealerAboutEditBox");
-  box.innerHTML = "লোড হচ্ছে...";
-  const res = await apiCall("getAbout", {});
-  const a = res.success ? res.about : {};
-  box.innerHTML = `
-    <div class="form-grid">
-      <div class="field"><label>সংস্থার নাম</label><input id="mAboutSongsthar" value="${a['সংস্থার নাম']||''}"></div>
-      <div class="field"><label>জেলা ডিপুর নাম</label><input id="mAboutJela" value="${a['জেলা ডিপুর নাম']||''}"></div>
-      <div class="field"><label>ঠিকানা</label><input id="mAboutThikana" value="${a['ঠিকানা']||''}"></div>
-      <div class="field" style="grid-column:1/-1;"><label>বিবরণ</label><textarea id="mAboutBiboron" rows="3">${a['বিবরণ']||''}</textarea></div>
-    </div>
-    <button class="btn" onclick="saveDealerAbout()">সংরক্ষণ করুন</button>
-    <div id="mAboutMsg" class="msg"></div>`;
+function renderAboutBoxes(a){
+  const items = [
+    ["সংস্থার প্রতিষ্ঠাকাল", a["প্রতিষ্ঠাকাল"]],
+    ["উদ্দেশ্য", a["উদ্দেশ্য"]],
+    ["প্রধান কার্যালয়ের ঠিকানা", a["প্রধান কার্যালয়ের ঠিকানা"]],
+    ["জেলা ডিপুর ঠিকানা", a["জেলা ডিপুর ঠিকানা"]],
+    ["নিয়মাবলি", a["নিয়মাবলি"]],
+    ["সংক্ষিপ্ত বিবরণ", a["সংক্ষিপ্ত বিবরণ"]]
+  ];
+  return `<div style="display:grid;gap:12px;">` + items.map(it => `
+    <div class="pkg-detail-box">
+      <div style="font-weight:700;color:var(--teal-dark);margin-bottom:4px;">${it[0]}</div>
+      <div style="white-space:pre-wrap;">${it[1]||"—"}</div>
+    </div>`).join("") + `</div>`;
 }
 
-async function saveDealerAbout(){
-  const data = {
-    "সংস্থারনাম": document.getElementById("mAboutSongsthar").value.trim(),
-    "জেলাডিপুরনাম": document.getElementById("mAboutJela").value.trim(),
-    "thikana": document.getElementById("mAboutThikana").value.trim(),
-    "biboron": document.getElementById("mAboutBiboron").value.trim()
-  };
-  const res = await apiCall("updateAbout", data);
-  const msgBox = document.getElementById("mAboutMsg");
-  msgBox.textContent = res.message;
-  msgBox.className = "msg " + (res.success?"ok":"err");
+function printAboutA4(){
+  const a = window.__aboutCache || {};
+  const win = window.open("", "_blank", "width=800,height=900");
+  win.document.write(`<html><head><meta charset="utf-8"><title>সংস্থার তথ্য</title>
+    <style>
+      @page{ size:A4; margin:20mm; }
+      body{ font-family:'Hind Siliguri',sans-serif; color:#1c2b28; }
+      h1{ text-align:center; color:#153f37; font-size:20px; margin-bottom:24px; }
+      .box{ border:1px solid #d8d2c2; border-radius:8px; padding:14px 16px; margin-bottom:14px; }
+      .box .title{ font-weight:700; color:#153f37; margin-bottom:6px; font-size:14px; }
+      .box .content{ white-space:pre-wrap; font-size:13px; line-height:1.6; }
+    </style></head><body>
+    <h1>সংস্থার তথ্য</h1>
+    <div class="box"><div class="title">সংস্থার প্রতিষ্ঠাকাল</div><div class="content">${a["প্রতিষ্ঠাকাল"]||""}</div></div>
+    <div class="box"><div class="title">উদ্দেশ্য</div><div class="content">${a["উদ্দেশ্য"]||""}</div></div>
+    <div class="box"><div class="title">প্রধান কার্যালয়ের ঠিকানা</div><div class="content">${a["প্রধান কার্যালয়ের ঠিকানা"]||""}</div></div>
+    <div class="box"><div class="title">জেলা ডিপুর ঠিকানা</div><div class="content">${a["জেলা ডিপুর ঠিকানা"]||""}</div></div>
+    <div class="box"><div class="title">নিয়মাবলি</div><div class="content">${a["নিয়মাবলি"]||""}</div></div>
+    <div class="box"><div class="title">সংক্ষিপ্ত বিবরণ</div><div class="content">${a["সংক্ষিপ্ত বিবরণ"]||""}</div></div>
+    <script>window.onload=function(){window.print();}<\/script>
+    </body></html>`);
+  win.document.close();
 }
 
 /* ================= ডিলার: প্যাকেজ (ভিউ) ================= */
@@ -1147,13 +1515,13 @@ async function loadDealerPackages(){
   document.getElementById("pkgDetailBox").style.display = "none";
   if(!res.success){ table.innerHTML = res.message; return; }
   dealerPackagesCache = res.packages;
-  table.innerHTML = "<thead><tr><th class='cell-right'>নাম</th><th>কোম্পানী</th><th>ধরন</th><th>সর্বমোট মূল্য</th></tr></thead><tbody></tbody>";
+  table.innerHTML = "<thead><tr><th class='cell-left'>নাম</th><th>কোম্পানী</th><th>ধরন</th><th>সর্বমোট মূল্য</th></tr></thead><tbody></tbody>";
   const tbody = table.querySelector("tbody");
   res.packages.forEach(p => {
     const tr = document.createElement("tr");
     tr.className = "pkg-click-row";
     tr.onclick = () => showPkgDetail(p["PackageID"]);
-    tr.innerHTML = `<td class="cell-right">${p["নাম"]}</td><td>${p["কোম্পানী"]}</td><td>${p["ধরন"]}</td><td>${p["সর্বমোট মূল্য"]}</td>`;
+    tr.innerHTML = `<td class="cell-left">${p["নাম"]}</td><td>${p["কোম্পানী"]}</td><td>${p["ধরন"]}</td><td>${p["সর্বমোট মূল্য"]}</td>`;
     tbody.appendChild(tr);
   });
 }
@@ -1163,9 +1531,9 @@ function showPkgDetail(packageId){
   const box = document.getElementById("pkgDetailBox");
   if(!pkg){ box.style.display = "none"; return; }
   let html = `<h3 style="margin-top:0;color:var(--teal-dark);">${pkg["নাম"]} — পণ্য তালিকা</h3>
-    <table><thead><tr><th class="cell-right">পণ্যের নাম ও পরিমাণ</th><th>বাজার মূল্য</th><th>কম্বো মূল্য</th><th>সাশ্রয়</th></tr></thead><tbody>`;
+    <table><thead><tr><th class="cell-left">পণ্যের নাম ও পরিমাণ</th><th>বাজার মূল্য</th><th>কম্বো মূল্য</th><th>সাশ্রয়</th></tr></thead><tbody>`;
   pkg.items.forEach(it => {
-    html += `<tr><td class="cell-right">${it["পণ্যের নাম ও পরিমাণ"]}</td><td>${it["বাজার মূল্য"]}</td><td>${it["কম্বো মূল্য"]}</td><td>${it["সাশ্রয়"]}</td></tr>`;
+    html += `<tr><td class="cell-left">${it["পণ্যের নাম ও পরিমাণ"]}</td><td>${it["বাজার মূল্য"]}</td><td>${it["কম্বো মূল্য"]}</td><td>${it["সাশ্রয়"]}</td></tr>`;
   });
   html += `</tbody></table>`;
   box.innerHTML = html;
@@ -1185,8 +1553,22 @@ async function submitCustomer(){
     "union": document.getElementById("cusUnion").value.trim(),
     "praptirsthan": document.getElementById("cusPraptirSthan").value.trim()
   };
-  const res = await apiCall("addCustomer", data);
   const msgBox = document.getElementById("cusMsg");
+
+  if(editingCustomerId){
+    const fields = {
+      "নাম": data["নাম"], "পিতার নাম": data["পিতারনাম"], "মোবাইল নং": data["mobile"],
+      "NID/জন্মসনদ নং": data["nid"], "বাড়ির নাম": data["বাড়িরনাম"], "গ্রাম": data["গ্রাম"],
+      "ওয়ার্ড নং": data["ward"], "ইউনিয়ন/পৌরসভা": data["union"], "প্রাপ্তির স্থান": data["praptirsthan"]
+    };
+    const res = await apiCall("updateCustomer", { customerId: editingCustomerId, fields: fields });
+    msgBox.textContent = res.message;
+    msgBox.className = "msg " + (res.success?"ok":"err");
+    if(res.success){ cancelCusEdit(); loadCustomers(); }
+    return;
+  }
+
+  const res = await apiCall("addCustomer", data);
   msgBox.textContent = res.message;
   msgBox.className = "msg " + (res.success?"ok":"err");
   if(res.success){
@@ -1196,44 +1578,65 @@ async function submitCustomer(){
   }
 }
 
+let editingCustomerId = null;
+
+function cancelCusEdit(){
+  editingCustomerId = null;
+  document.getElementById("cusFormLegend").textContent = "নতুন গ্রাহক";
+  document.getElementById("cusSubmitBtn").textContent = "গ্রাহক সংরক্ষণ করুন";
+  document.getElementById("cusCancelBtn").style.display = "none";
+  ["cusNaam","cusPitarNaam","cusMobile","cusNid","cusBariNaam","cusGram","cusWard","cusUnion","cusPraptirSthan"]
+    .forEach(id => document.getElementById(id).value = "");
+  document.getElementById("cusMsg").textContent = "";
+}
+
 async function loadCustomers(){
   const res = await apiCall("listCustomers", {});
   const table = document.getElementById("customersTable");
   if(!res.success){ table.innerHTML = res.message; return; }
-  table.innerHTML = "<thead><tr><th>আইডি</th><th class='cell-right'>নাম</th><th>মোবাইল</th><th>প্রাপ্তির স্থান</th><th class='no-print'>একশন</th></tr></thead><tbody></tbody>";
+  window.__customersCache = res.customers;
+  table.innerHTML = "<thead><tr><th>আইডি</th><th class='cell-left'>নাম</th><th>মোবাইল</th><th>প্রাপ্তির স্থান</th><th class='no-print'>একশন</th></tr></thead><tbody></tbody>";
   const tbody = table.querySelector("tbody");
   res.customers.forEach(c => {
-    const cJson = JSON.stringify(c).replace(/'/g, "&#39;");
     const tr = document.createElement("tr");
-    tr.innerHTML = `<td>${c["CustomerID"]}</td><td class="cell-right">${c["নাম"]}</td><td>${c["মোবাইল নং"]}</td><td>${c["প্রাপ্তির স্থান"]||""}</td>
+    tr.innerHTML = `<td>${c["CustomerID"]}</td><td class="cell-left">${c["নাম"]}</td><td>${c["মোবাইল নং"]}</td><td>${c["প্রাপ্তির স্থান"]||""}</td>
       <td class="no-print">
-        <button class="btn small secondary" onclick='editCustomerRow(${cJson})'>এডিট</button>
-        <button class="btn small secondary" onclick='printCustomerRow(${cJson})'>প্রিন্ট</button>
+        <button class="btn small secondary" onclick="editCustomerRow('${c['CustomerID']}')">এডিট</button>
+        <button class="btn small secondary" onclick="printCustomerRowById('${c['CustomerID']}')">প্রিন্ট</button>
         <button class="btn small danger" onclick="deleteCustomerRow('${c['CustomerID']}')">ডিলিট</button>
       </td>`;
     tbody.appendChild(tr);
   });
 }
 
-function editCustomerRow(c){
-  openEditModal("গ্রাহক এডিট — " + c["নাম"], [
-    { key:"নাম", label:"নাম", value:c["নাম"] },
-    { key:"পিতার নাম", label:"পিতার নাম", value:c["পিতার নাম"] },
-    { key:"মোবাইল নং", label:"মোবাইল নং", value:c["মোবাইল নং"] },
-    { key:"NID/জন্মসনদ নং", label:"NID/জন্মসনদ নং", value:c["NID/জন্মসনদ নং"] },
-    { key:"বাড়ির নাম", label:"বাড়ির নাম", value:c["বাড়ির নাম"] },
-    { key:"গ্রাম", label:"গ্রাম", value:c["গ্রাম"] },
-    { key:"ওয়ার্ড নং", label:"ওয়ার্ড নং", value:c["ওয়ার্ড নং"] },
-    { key:"ইউনিয়ন/পৌরসভা", label:"ইউনিয়ন/পৌরসভা", value:c["ইউনিয়ন/পৌরসভা"] },
-    { key:"প্রাপ্তির স্থান", label:"প্রাপ্তির স্থান", value:c["প্রাপ্তির স্থান"] }
-  ], async (values) => {
-    const res = await apiCall("updateCustomer", { customerId: c["CustomerID"], fields: values });
-    if(res.success) loadCustomers();
-    return res;
-  });
+/*******************************************************
+ * গ্রাহক এডিট — মোডালের বদলে সরাসরি উপরের ফরমেই সব তথ্য লোড হয়ে যাবে
+ *******************************************************/
+function editCustomerRow(customerId){
+  const c = (window.__customersCache||[]).find(x => x["CustomerID"] === customerId);
+  if(!c) return;
+
+  editingCustomerId = customerId;
+  document.getElementById("cusFormLegend").textContent = "গ্রাহক এডিট — " + c["নাম"];
+  document.getElementById("cusSubmitBtn").textContent = "আপডেট করুন";
+  document.getElementById("cusCancelBtn").style.display = "inline-block";
+
+  document.getElementById("cusNaam").value = c["নাম"] || "";
+  document.getElementById("cusPitarNaam").value = c["পিতার নাম"] || "";
+  document.getElementById("cusMobile").value = c["মোবাইল নং"] || "";
+  document.getElementById("cusNid").value = c["NID/জন্মসনদ নং"] || "";
+  document.getElementById("cusBariNaam").value = c["বাড়ির নাম"] || "";
+  document.getElementById("cusGram").value = c["গ্রাম"] || "";
+  document.getElementById("cusWard").value = c["ওয়ার্ড নং"] || "";
+  document.getElementById("cusUnion").value = c["ইউনিয়ন/পৌরসভা"] || "";
+  document.getElementById("cusPraptirSthan").value = c["প্রাপ্তির স্থান"] || "";
+
+  document.getElementById("sec-customers").scrollIntoView({ behavior:"smooth" });
 }
 
-function printCustomerRow(c){
+function printCustomerRowById(customerId){
+  const c = (window.__customersCache||[]).find(x => x["CustomerID"] === customerId);
+  if(!c) return;
   printSingleRecord("গ্রাহক — " + c["নাম"], [
     { label:"পিতার নাম", value:c["পিতার নাম"] },
     { label:"মোবাইল নং", value:c["মোবাইল নং"] },
@@ -1253,43 +1656,64 @@ async function deleteCustomerRow(id){
 }
 
 /* ================= ডিলার: অর্ডার ================= */
+let editingOrderId = null;
+
 async function loadOrders(){
   const res = await apiCall("getOrdersPageData", {});
   const sel = document.getElementById("ordPackage");
   const table = document.getElementById("ordersTable");
   if(!res.success){ table.innerHTML = res.message; return; }
 
+  window.__ordersCache = res.orders;
   sel.innerHTML = res.packages.map(p => `<option value="${p['PackageID']}">${p['নাম']}</option>`).join("");
 
   table.innerHTML = "<thead><tr><th>ক্রম</th><th>তারিখ</th><th>সংখ্যা</th><th>একক মূল্য</th><th>মোট মূল্য</th><th class='no-print'>একশন</th></tr></thead><tbody></tbody>";
   const tbody = table.querySelector("tbody");
   res.orders.forEach(o => {
     const dt = o["তারিখ"] ? new Date(o["তারিখ"]).toLocaleDateString("bn-BD") : "";
-    const oJson = JSON.stringify(o).replace(/'/g, "&#39;");
     const tr = document.createElement("tr");
     tr.innerHTML = `<td>${o["OrderID"]}</td><td>${dt}</td><td>${o["সংখ্যা"]}</td><td>${o["একক মূল্য"]}</td><td>${o["মোট মূল্য"]}</td>
       <td class="no-print">
-        <button class="btn small secondary" onclick='editOrderRow(${oJson})'>এডিট</button>
-        <button class="btn small secondary" onclick='printOrderRow(${oJson})'>প্রিন্ট</button>
+        <button class="btn small secondary" onclick="editOrderRow('${o['OrderID']}')">এডিট</button>
+        <button class="btn small secondary" onclick="printOrderRowById('${o['OrderID']}')">প্রিন্ট</button>
         <button class="btn small danger" onclick="deleteOrderRow('${o['OrderID']}')">ডিলিট</button>
       </td>`;
     tbody.appendChild(tr);
   });
 }
 
-function editOrderRow(o){
-  openEditModal("অর্ডার এডিট — " + o["OrderID"], [
-    { key:"সংখ্যা", label:"সংখ্যা", value:o["সংখ্যা"] },
-    { key:"একক মূল্য", label:"একক মূল্য", value:o["একক মূল্য"] },
-    { key:"মোট মূল্য", label:"মোট মূল্য", value:o["মোট মূল্য"] }
-  ], async (values) => {
-    const res = await apiCall("updateOrder", { orderId: o["OrderID"], fields: values });
-    if(res.success) loadOrders();
-    return res;
-  });
+/*******************************************************
+ * অর্ডার এডিট — মোডালের বদলে সরাসরি উপরের ফরমেই সব তথ্য লোড হয়ে যাবে
+ *******************************************************/
+function editOrderRow(orderId){
+  const o = (window.__ordersCache||[]).find(x => x["OrderID"] === orderId);
+  if(!o) return;
+
+  editingOrderId = orderId;
+  document.getElementById("ordFormLegend").textContent = "অর্ডার এডিট — " + o["OrderID"];
+  document.getElementById("ordSubmitBtn").textContent = "আপডেট করুন";
+  document.getElementById("ordCancelBtn").style.display = "inline-block";
+
+  document.getElementById("ordPackage").value = o["PackageID"] || "";
+  document.getElementById("ordQty").value = o["সংখ্যা"] || "";
+  document.getElementById("ordPrice").value = o["একক মূল্য"] || "";
+
+  document.getElementById("sec-orders").scrollIntoView({ behavior:"smooth" });
 }
 
-function printOrderRow(o){
+function cancelOrdEdit(){
+  editingOrderId = null;
+  document.getElementById("ordFormLegend").textContent = "নতুন অর্ডার";
+  document.getElementById("ordSubmitBtn").textContent = "অর্ডার সংরক্ষণ করুন";
+  document.getElementById("ordCancelBtn").style.display = "none";
+  document.getElementById("ordQty").value = "";
+  document.getElementById("ordPrice").value = "";
+  document.getElementById("ordMsg").textContent = "";
+}
+
+function printOrderRowById(orderId){
+  const o = (window.__ordersCache||[]).find(x => x["OrderID"] === orderId);
+  if(!o) return;
   printSingleRecord("অর্ডার — " + o["OrderID"], [
     { label:"তারিখ", value:o["তারিখ"] ? new Date(o["তারিখ"]).toLocaleDateString("bn-BD") : "" },
     { label:"সংখ্যা", value:o["সংখ্যা"] },
@@ -1299,16 +1723,29 @@ function printOrderRow(o){
 }
 
 async function submitOrder(){
+  const qty = document.getElementById("ordQty").value;
+  const price = document.getElementById("ordPrice").value;
+  const msgBox = document.getElementById("ordMsg");
+
+  if(editingOrderId){
+    const total = (Number(qty)||0) * (Number(price)||0);
+    const fields = { "সংখ্যা": qty, "একক মূল্য": price, "মোট মূল্য": total };
+    const res = await apiCall("updateOrder", { orderId: editingOrderId, fields: fields });
+    msgBox.textContent = res.message;
+    msgBox.className = "msg " + (res.success?"ok":"err");
+    if(res.success){ cancelOrdEdit(); loadOrders(); }
+    return;
+  }
+
   const data = {
     packageId: document.getElementById("ordPackage").value,
-    quantity: document.getElementById("ordQty").value,
-    unitPrice: document.getElementById("ordPrice").value
+    quantity: qty,
+    unitPrice: price
   };
   const res = await apiCall("addOrder", data);
-  const msgBox = document.getElementById("ordMsg");
   msgBox.textContent = res.message;
   msgBox.className = "msg " + (res.success?"ok":"err");
-  if(res.success){ loadOrders(); }
+  if(res.success){ document.getElementById("ordQty").value=""; document.getElementById("ordPrice").value=""; loadOrders(); }
 }
 
 async function deleteOrderRow(id){
@@ -1316,6 +1753,7 @@ async function deleteOrderRow(id){
   const res = await apiCall("deleteOrder", { orderId:id });
   if(res.success) loadOrders(); else alert(res.message);
 }
+
 
 /* ================= ডিলার: বিক্রি ================= */
 let allPackagesCache = [];
@@ -1352,22 +1790,65 @@ function renderSalesTable(){
   let customers = allCustomersCache;
   if(loc) customers = customers.filter(c => c["প্রাপ্তির স্থান"] === loc);
 
-  table.innerHTML = "<thead><tr><th class='cell-right'>নাম</th><th>মোবাইল</th><th>প্রাপ্তির স্থান</th><th>স্ট্যাটাস</th><th class='no-print'>একশন</th></tr></thead><tbody></tbody>";
+  table.innerHTML = "<thead><tr><th class='cell-left'>নাম</th><th>মোবাইল</th><th>প্রাপ্তির স্থান</th><th>স্ট্যাটাস</th><th class='no-print'>একশন</th></tr></thead><tbody></tbody>";
   const tbody = table.querySelector("tbody");
 
   customers.forEach(c => {
     const sale = allSalesCache.find(s => s["CustomerID"] === c["CustomerID"] && s["PackageID"] === pkgId && s["স্ট্যাটাস"] === "বিক্রিত");
+    const pkg = allPackagesCache.find(p => p["PackageID"] === pkgId);
+    const cJson = JSON.stringify(c).replace(/'/g, "&#39;");
     const tr = document.createElement("tr");
     tr.innerHTML = `
-      <td class="cell-right">${c["নাম"]}</td><td>${c["মোবাইল নং"]}</td><td>${c["প্রাপ্তির স্থান"]||""}</td>
+      <td class="cell-left">${c["নাম"]}</td><td>${c["মোবাইল নং"]}</td><td>${c["প্রাপ্তির স্থান"]||""}</td>
       <td>${sale ? "বিক্রিত" : "—"}</td>
       <td class="no-print">
         ${!sale
           ? `<button class="btn small" ${!pkgId?"disabled":""} onclick="makeSale('${c['CustomerID']}','${pkgId}')">বিক্রয়</button>`
           : `<button class="btn small danger" onclick="undoSale('${sale['SaleID']}')">বাতিল</button>`}
+        <button class="btn small secondary" ${!pkgId?"disabled":""} onclick='printThermalReceipt(${cJson}, "${pkgId}")'>প্রিন্ট</button>
       </td>`;
     tbody.appendChild(tr);
   });
+}
+
+/*******************************************************
+ * থার্মাল প্রিন্ট (৮০মিমি রিসিট প্রিন্টার সাইজ) — গ্রাহকের বিক্রয় রসিদ
+ *******************************************************/
+function printThermalReceipt(c, packageId){
+  const pkg = allPackagesCache.find(p => p["PackageID"] === packageId);
+  const sale = allSalesCache.find(s => s["CustomerID"] === c["CustomerID"] && s["PackageID"] === packageId && s["স্ট্যাটাস"] === "বিক্রিত");
+  const dt = sale && sale["তারিখ"] ? new Date(sale["তারিখ"]).toLocaleDateString("bn-BD") : new Date().toLocaleDateString("bn-BD");
+  const dealerLabel = state.dealerName || "";
+
+  const win = window.open("", "_blank", "width=340,height=520");
+  win.document.write(`<html><head><meta charset="utf-8"><title>রসিদ</title>
+    <style>
+      @page{ size:80mm auto; margin:2mm; }
+      body{ font-family:'Hind Siliguri',sans-serif; width:76mm; margin:0 auto; color:#000; font-size:12px; }
+      h2{ text-align:center; font-size:14px; margin:4px 0; }
+      .line{ border-top:1px dashed #000; margin:6px 0; }
+      table{ width:100%; border-collapse:collapse; font-size:12px; }
+      td{ padding:2px 0; }
+      .lbl{ font-weight:600; }
+      .center{ text-align:center; }
+    </style></head><body>
+    <h2>${dealerLabel}</h2>
+    <p class="center">বিক্রয় রসিদ</p>
+    <div class="line"></div>
+    <table>
+      <tr><td class="lbl">গ্রাহকের নাম</td><td>${c["নাম"]||""}</td></tr>
+      <tr><td class="lbl">মোবাইল নং</td><td>${c["মোবাইল নং"]||""}</td></tr>
+      <tr><td class="lbl">প্রাপ্তির স্থান</td><td>${c["প্রাপ্তির স্থান"]||""}</td></tr>
+      <tr><td class="lbl">প্যাকেজ</td><td>${pkg ? pkg["নাম"] : ""}</td></tr>
+      <tr><td class="lbl">মূল্য</td><td>${pkg ? pkg["সর্বমোট মূল্য"] : ""}</td></tr>
+      <tr><td class="lbl">তারিখ</td><td>${dt}</td></tr>
+      <tr><td class="lbl">স্ট্যাটাস</td><td>${sale ? "বিক্রিত" : "অপেক্ষমান"}</td></tr>
+    </table>
+    <div class="line"></div>
+    <p class="center">ধন্যবাদ</p>
+    <script>window.onload=function(){window.print();}<\/script>
+    </body></html>`);
+  win.document.close();
 }
 
 async function makeSale(customerId, packageId){
@@ -1498,8 +1979,8 @@ async function runReport(tab){
       <div class="card"><div class="num">${r.grandTotal}</div><div class="label">সর্বমোট মূল্য</div></div>
     </div>
     <div class="toolbar no-print"><button class="btn secondary small" onclick="window.print()">🖨 রিপোর্ট প্রিন্ট করুন</button></div>
-    <div class="table-wrap"><table><thead><tr><th class="cell-right">প্যাকেজ</th><th>সংখ্যা</th><th>মোট মূল্য</th></tr></thead><tbody>`;
-  r.byPackage.forEach(p => { html += `<tr><td class="cell-right">${p.packageName}</td><td>${p.count}</td><td>${p.total}</td></tr>`; });
+    <div class="table-wrap"><table><thead><tr><th class="cell-left">প্যাকেজ</th><th>সংখ্যা</th><th>মোট মূল্য</th></tr></thead><tbody>`;
+  r.byPackage.forEach(p => { html += `<tr><td class="cell-left">${p.packageName}</td><td>${p.count}</td><td>${p.total}</td></tr>`; });
   html += `</tbody></table></div>`;
   box.innerHTML = html;
 }
