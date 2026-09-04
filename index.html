@@ -61,7 +61,7 @@
   .login-box h1{ font-size:1.4rem; margin:0 0 2px; color:var(--teal-dark); }
   .login-box .tagline{ font-size:0.86rem; color:var(--clay); font-weight:600; margin:0 0 16px; }
   .login-box p.sub{ margin:0 0 20px; color:var(--muted); font-size:0.88rem; }
-  .field{ margin-bottom:14px; text-align:right; }
+  .field{ margin-bottom:14px; text-align:left; }
   .field label{ display:block; margin-bottom:4px; font-size:0.88rem; color:var(--muted); }
   .field input, .field select, .field textarea{
     width:100%;
@@ -96,18 +96,20 @@
   /* ---------- অ্যাপ শেল ---------- */
   #appScreen{ display:none; min-height:100vh; }
   header.topbar{
-    background:var(--teal-dark);
-    color:#fff;
+    background:#faf8f2;
+    color:var(--ink);
     display:flex;
     align-items:center;
     justify-content:space-between;
     padding:12px 16px;
     position:sticky; top:0; z-index:20;
+    border-bottom:2px solid var(--line);
   }
   .brand{ display:flex; align-items:center; gap:10px; }
   .brand .logo{
     width:38px; height:38px; border-radius:10px;
     background:var(--clay);
+    color:#fff;
     display:flex; align-items:center; justify-content:center;
     font-weight:800; font-size:0.78rem;
     overflow:hidden;
@@ -117,7 +119,7 @@
   .brand .names .agency{ font-size:0.95rem; font-weight:700; }
   .brand .names .dealer{ font-size:0.78rem; opacity:0.85; }
   .hamburger{
-    background:none; border:none; color:#fff; font-size:1.5rem; cursor:pointer;
+    background:none; border:none; color:var(--teal-dark); font-size:1.5rem; cursor:pointer;
     padding:4px 8px;
   }
 
@@ -174,7 +176,10 @@
   .pkg-click-row:hover{ background:#f0efe6; }
   .pkg-detail-box{ background:#fff; border:1px solid var(--line); border-radius:10px; padding:12px; margin-top:10px; }
 
-  footer.appfoot{ text-align:center; padding:18px; color:var(--muted); font-size:0.82rem; }
+  footer.appfoot{
+    text-align:center; padding:18px; color:var(--muted); font-size:0.82rem;
+    background:#faf8f2; border-top:2px solid var(--line);
+  }
 
   /* ---------- জেনেরিক মোডাল (এডিট / পাসওয়ার্ড উদ্ধার) ---------- */
   .modal-overlay{
@@ -488,6 +493,15 @@ async function apiCall(action, data){
   }
 }
 
+/*******************************************************
+ * বাটনে ক্লিক করার সাথে সাথে (নেটওয়ার্ক রেসপন্সের অপেক্ষা না করেই)
+ * তাৎক্ষণিক ফিডব্যাক দেখানোর জন্য — যাতে অ্যাপ ধীর মনে না হয়
+ *******************************************************/
+function markSaving(msgBoxId){
+  const box = document.getElementById(msgBoxId);
+  if(box){ box.textContent = "সংরক্ষণ হচ্ছে..."; box.className = "msg"; }
+}
+
 function fileToBase64(fileInput){
   return new Promise((resolve) => {
     const file = fileInput.files[0];
@@ -573,8 +587,11 @@ async function doLogin(){
   errBox.textContent = "";
 
   if(!username || !password){ errBox.textContent = "ইউজারনেম ও পাসওয়ার্ড দিন"; return; }
+  errBox.textContent = "লগইন হচ্ছে...";
+  errBox.style.color = "var(--muted)";
 
   const res = await apiCall("login", { username, password });
+  errBox.style.color = ""; // ডিফল্ট এরর রঙে ফেরত
   if(!res.success){ errBox.textContent = res.message; return; }
 
   if(userType === "agency" && res.dealerId !== "AGENCY"){
@@ -1031,6 +1048,7 @@ async function submitPackage(){
   })).filter(i => i["naamPoriman"]);
 
   const msgBox = document.getElementById("pkgMsg");
+  markSaving("pkgMsg");
 
   if(editingPackageId){
     const fields = {
@@ -1167,6 +1185,7 @@ async function submitCommission(){
     dealerId: document.getElementById("commDealerSelect").value,
     amount: document.getElementById("commAmount").value
   };
+  markSaving("commMsg");
   const res = await apiCall("addCommission", data);
   const msgBox = document.getElementById("commMsg");
   msgBox.textContent = res.message;
@@ -1239,6 +1258,7 @@ async function submitAgencyExpense(){
     "পরিমাণ": r.querySelector(".expAmount").value
   })).filter(e => e["বিবরণ"]);
 
+  markSaving("agencyExpenseMsg");
   const res = await apiCall("addExpense", { entries });
   const msgBox = document.getElementById("agencyExpenseMsg");
   msgBox.textContent = res.message;
@@ -1379,35 +1399,45 @@ function generateCustomerCards(){
 /*******************************************************
  * গ্রাহক আইডি কার্ড প্রিন্ট (৩.২in x ২.২in, প্রফেশনাল কালার ডিজাইন, QR সহ)
  *******************************************************/
-function printCustomerCardsWindow(dealerId, customers){
+async function printCustomerCardsWindow(dealerId, customers){
+  // পপ-আপ ব্লকার এড়াতে window.open() await এর আগেই সিঙ্ক্রোনাসভাবে কল করা হচ্ছে
+  const win = window.open("", "_blank", "width=900,height=700");
+  win.document.write("<p style='font-family:sans-serif;padding:20px;'>কার্ড তৈরি হচ্ছে...</p>");
+
   const dealer = (dealerListCache||[]).find(d => d["DealerID"] === dealerId) ||
     { "নাম": "", "মোবাইল": "" };
+
+  const agencyRes = await apiCall("getAgencyInfo", {});
+  const agency = agencyRes.success ? agencyRes.agency : { "নাম":"", "মোবাইল":"" };
 
   const cardsHtml = customers.map(c => {
     const qrData = encodeURIComponent(API_URL + "?view=customer&dealerId=" + dealerId + "&customerId=" + c["CustomerID"]);
     const qrImgUrl = "https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=" + qrData;
+    const thikana = [c["গ্রাম"]||"", c["ইউনিয়ন/পৌরসভা"]||""].filter(Boolean).join(", ");
     return `
       <div class="id-card">
         <div class="card-header">
-          <div class="org-name">${dealer["নাম"]||""}</div>
-          <div class="org-mobile">${dealer["মোবাইল"]||""}</div>
+          <div class="org-name">${agency["নাম"]||""}</div>
+          <div class="org-mobile">${agency["মোবাইল"]||""}</div>
         </div>
         <div class="card-divider"></div>
         <div class="card-body">
           <div class="card-fields">
-            <div class="cf-name">${c["নাম"]||""}</div>
-            <div><span class="cf-label">পিতা:</span> ${c["পিতার নাম"]||""}</div>
-            <div><span class="cf-label">NID:</span> ${c["NID/জন্মসনদ নং"]||""}</div>
-            <div><span class="cf-label">মোবাইল:</span> ${c["মোবাইল নং"]||""}</div>
-            <div><span class="cf-label">ঠিকানা:</span> ${(c["গ্রাম"]||"")}${c["ইউনিয়ন/পৌরসভা"]?(", "+c["ইউনিয়ন/পৌরসভা"]):""}</div>
+            <div><span class="cf-label">নাম:</span> ${c["নাম"]||""}</div>
+            <div><span class="cf-label">পিতার নাম:</span> ${c["পিতার নাম"]||""}</div>
+            <div><span class="cf-label">এনআইডি নং:</span> ${c["NID/জন্মসনদ নং"]||""}</div>
+            <div><span class="cf-label">মোবাইল নং:</span> ${c["মোবাইল নং"]||""}</div>
+            <div><span class="cf-label">ঠিকানা:</span> ${thikana}</div>
             <div><span class="cf-label">প্রাপ্তির স্থান:</span> ${c["প্রাপ্তির স্থান"]||""}</div>
           </div>
           <div class="card-qr"><img src="${qrImgUrl}"></div>
         </div>
+        <div class="card-footer">
+          <span>${dealer["নাম"]||""}</span><span>${dealer["মোবাইল"]||""}</span>
+        </div>
       </div>`;
   }).join("");
 
-  const win = window.open("", "_blank", "width=900,height=700");
   win.document.write(`<html><head><meta charset="utf-8"><title>গ্রাহক কার্ড</title>
     <style>
       @page{ margin:6mm; }
@@ -1424,16 +1454,21 @@ function printCustomerCardsWindow(dealerId, customers){
       .card-header{
         background:linear-gradient(135deg,#1f5f52,#153f37);
         color:#fff; padding:6px 10px;
+        display:flex; justify-content:space-between; align-items:baseline;
       }
       .org-name{ font-size:12px; font-weight:700; }
       .org-mobile{ font-size:10px; opacity:0.9; }
       .card-divider{ height:2px; background:#b5502f; }
       .card-body{ display:flex; flex:1; padding:6px 8px; gap:6px; }
       .card-fields{ flex:1; font-size:9.5px; line-height:1.55; color:#1c2b28; }
-      .cf-name{ font-size:12px; font-weight:700; color:#153f37; margin-bottom:2px; }
       .cf-label{ font-weight:600; color:#b5502f; }
       .card-qr{ width:60px; display:flex; align-items:center; justify-content:center; }
       .card-qr img{ width:56px; height:56px; }
+      .card-footer{
+        background:#eef0e9; color:#153f37; font-size:9px; font-weight:600;
+        padding:4px 10px; display:flex; justify-content:space-between;
+        border-top:1px solid #d8d2c2;
+      }
     </style></head><body>
     <div class="cards-wrap">${cardsHtml}</div>
     <script>window.onload=function(){window.print();}<\/script>
@@ -1554,6 +1589,7 @@ async function submitCustomer(){
     "praptirsthan": document.getElementById("cusPraptirSthan").value.trim()
   };
   const msgBox = document.getElementById("cusMsg");
+  markSaving("cusMsg");
 
   if(editingCustomerId){
     const fields = {
@@ -1726,6 +1762,7 @@ async function submitOrder(){
   const qty = document.getElementById("ordQty").value;
   const price = document.getElementById("ordPrice").value;
   const msgBox = document.getElementById("ordMsg");
+  markSaving("ordMsg");
 
   if(editingOrderId){
     const total = (Number(qty)||0) * (Number(price)||0);
@@ -1853,20 +1890,41 @@ function printThermalReceipt(c, packageId){
 
 async function makeSale(customerId, packageId){
   if(!packageId){ alert("আগে প্যাকেজ সিলেক্ট করুন"); return; }
+
+  // অপটিমিস্টিক আপডেট — সাথে সাথে UI বদলে যাবে, সার্ভার রেসপন্সের অপেক্ষা না করে
+  const tempSale = { SaleID:"tmp-"+Date.now(), CustomerID:customerId, PackageID:packageId, "স্ট্যাটাস":"বিক্রিত" };
+  allSalesCache.push(tempSale);
+  renderSalesTable();
+
   const res = await apiCall("addSale", { customerId, packageId });
   document.getElementById("salesMsg").textContent = res.message;
   document.getElementById("salesMsg").className = "msg " + (res.success?"ok":"err");
+
   if(res.success){
-    allSalesCache.push({ SaleID:"tmp", CustomerID:customerId, PackageID:packageId, "স্ট্যাটাস":"বিক্রিত" });
-    loadSalesSetup(); // তালিকা নির্ভুলভাবে রিফ্রেশ করতে সার্ভার থেকে আবার লোড
+    tempSale.SaleID = res.saleId; // আসল আইডি বসিয়ে দেওয়া
+    renderSalesTable(); // বাটনের onclick এ সঠিক SaleID বসাতে পুনরায় রেন্ডার (নেটওয়ার্ক কল ছাড়াই, তাই দ্রুত)
+  } else {
+    // ব্যর্থ হলে অপটিমিস্টিক এন্ট্রি বাতিল করে আগের অবস্থায় ফেরত
+    allSalesCache = allSalesCache.filter(s => s !== tempSale);
+    renderSalesTable();
   }
 }
 
 async function undoSale(saleId){
+  // অপটিমিস্টিক আপডেট — সাথে সাথে স্ট্যাটাস বদলে দেখানো হবে
+  const sale = allSalesCache.find(s => s["SaleID"] === saleId);
+  const prevStatus = sale ? sale["স্ট্যাটাস"] : null;
+  if(sale) sale["স্ট্যাটাস"] = "বাতিল";
+  renderSalesTable();
+
   const res = await apiCall("cancelSale", { saleId });
   document.getElementById("salesMsg").textContent = res.message;
   document.getElementById("salesMsg").className = "msg " + (res.success?"ok":"err");
-  if(res.success) loadSalesSetup();
+
+  if(!res.success && sale){
+    sale["স্ট্যাটাস"] = prevStatus; // ব্যর্থ হলে পূর্বাবস্থায় ফেরত
+    renderSalesTable();
+  }
 }
 
 /* ================= ডিলার: খরচ ভাউচার ================= */
@@ -1889,6 +1947,7 @@ async function submitDealerExpense(){
     "পরিমাণ": r.querySelector(".expAmount").value
   })).filter(e => e["বিবরণ"]);
 
+  markSaving("dealerExpenseMsg");
   const res = await apiCall("addExpenseVoucher", { entries });
   const msgBox = document.getElementById("dealerExpenseMsg");
   msgBox.textContent = res.message;
