@@ -520,6 +520,30 @@ function markSaving(msgBoxId){
   if(box){ box.textContent = "সংরক্ষণ হচ্ছে..."; box.className = "msg"; }
 }
 
+/*******************************************************
+ * পারফরম্যান্স: রিড-অনলি (লিস্ট/গেট) কলগুলো অল্প সময়ের জন্য
+ * ব্রাউজারেই ক্যাশ করা হয় — একই সেশনে বারবার একই সেকশনে গেলে
+ * নেটওয়ার্ক কল ছাড়াই তাৎক্ষণিক লোড হবে। কোনো সংরক্ষণ/এডিট/ডিলিট
+ * হলে clearCache() কল করে পুরো ক্যাশ খালি করে দেওয়া হয়, যাতে
+ * পরের লোডে সবসময় সঠিক/আপডেটেড তথ্য আসে।
+ *******************************************************/
+const _cache = {};
+async function cachedApiCall(action, data, ttlMs){
+  ttlMs = ttlMs || 20000;
+  data = data || {};
+  const key = action + "::" + JSON.stringify(data);
+  const now = Date.now();
+  if(_cache[key] && (now - _cache[key].time) < ttlMs){
+    return _cache[key].value;
+  }
+  const res = await apiCall(action, data);
+  if(res && res.success){ _cache[key] = { time: now, value: res }; }
+  return res;
+}
+function clearCache(){
+  Object.keys(_cache).forEach(k => delete _cache[k]);
+}
+
 function fileToBase64(fileInput){
   return new Promise((resolve) => {
     const file = fileInput.files[0];
@@ -714,7 +738,7 @@ function showSection(name){
 async function loadAgencyDashboard(){
   const box = document.getElementById("agencyDashboardCards");
   box.innerHTML = "<p>লোড হচ্ছে...</p>";
-  const res = await apiCall("agencyDashboardSummary", {});
+  const res = await cachedApiCall("agencyDashboardSummary", {}, 10000);
   if(!res.success){ box.innerHTML = "<p>"+res.message+"</p>"; return; }
   const s = res.summary;
   box.innerHTML = `
@@ -738,7 +762,7 @@ function switchMgmtTab(tab, btn){
 
 async function renderAboutInfoEdit(box){
   box.innerHTML = "লোড হচ্ছে...";
-  const res = await apiCall("getAbout", {});
+  const res = await cachedApiCall("getAbout", {}, 30000);
   const a = res.success ? res.about : {};
   box.innerHTML = `
     <div class="form-grid">
@@ -763,17 +787,19 @@ async function saveAboutInfo(){
     songkhiptoBiboron: document.getElementById("aiSongkhipto").value.trim()
   };
   const res = await apiCall("updateAbout", data);
+  if(res.success) clearCache();
   const msgBox = document.getElementById("aiMsg");
   msgBox.textContent = res.message;
   msgBox.className = "msg " + (res.success?"ok":"err");
 }
 
 function renderRegisterForm(box){
+  editingDealerId = null;
   box.innerHTML = `
     <div class="official-letterhead">
       <div class="ol-title">মানবিক সহায়তা ডেইলি শপ</div>
       <div class="ol-tagline">সাশ্রয়ী মূল্যে পণ্য বিক্রি সংস্থা</div>
-      <div class="ol-formtitle">ডিলার নিয়োগ / রেজিস্ট্রেশন ফরম</div>
+      <div class="ol-formtitle" id="registerFormLegend">ডিলার নিয়োগ / রেজিস্ট্রেশন ফরম</div>
     </div>
 
     <fieldset class="official-section">
@@ -818,8 +844,9 @@ function renderRegisterForm(box){
       </div>
     </fieldset>
     <div class="btn-row">
-      <button class="btn" onclick="submitRegister()">রেজিস্ট্রেশন সম্পন্ন করুন</button>
+      <button class="btn" id="registerSubmitBtn" onclick="submitRegister()">রেজিস্ট্রেশন সম্পন্ন করুন</button>
       <button class="btn secondary" onclick="printRegistrationForm()">🖨 ফরম প্রিন্ট করুন</button>
+      <button class="btn secondary" id="registerCancelBtn" style="display:none;" onclick="cancelDealerEdit()">বাতিল</button>
     </div>
     <div id="registerMsg" class="msg"></div>`;
 }
@@ -836,10 +863,44 @@ function previewImg(inputId, imgId){
 
 async function submitRegister(){
   const msgBox = document.getElementById("registerMsg");
-  msgBox.textContent = "রেজিস্ট্রেশন হচ্ছে..."; msgBox.className = "msg";
+  msgBox.textContent = editingDealerId ? "আপডেট হচ্ছে..." : "রেজিস্ট্রেশন হচ্ছে..."; msgBox.className = "msg";
 
   const dealerPhotoBase64 = await fileToBase64(document.getElementById("rDealerPhoto"));
   const nomineePhotoBase64 = await fileToBase64(document.getElementById("rNomPhoto"));
+
+  if(editingDealerId){
+    const data = {
+      dealerId: editingDealerId,
+      dealerFields: {
+        "নাম": document.getElementById("rNaam").value.trim(),
+        "পিতার নাম": document.getElementById("rPitarNaam").value.trim(),
+        "মোবাইল": document.getElementById("rMobile").value.trim(),
+        "Gmail": document.getElementById("rGmail").value.trim(),
+        "NID/জন্মসনদ": document.getElementById("rNid").value.trim(),
+        "ট্রেড লাইসেন্স নং": document.getElementById("rTrade").value.trim(),
+        "ঠিকানা": document.getElementById("rThikana").value.trim()
+      },
+      nomineeFields: {
+        "নমিনির নাম": document.getElementById("rNomNaam").value.trim(),
+        "NID নং": document.getElementById("rNomNid").value.trim(),
+        "মোবাইল নং": document.getElementById("rNomMobile").value.trim(),
+        "সম্পর্ক": document.getElementById("rNomSomporko").value.trim()
+      },
+      adminUsername: document.getElementById("rAdminUser").value.trim(),
+      adminPassword: document.getElementById("rAdminPass").value,
+      dealerPhotoBase64: dealerPhotoBase64,
+      nomineePhotoBase64: nomineePhotoBase64
+    };
+    const res = await apiCall("updateDealerFull", data);
+    msgBox.textContent = res.message;
+    msgBox.className = "msg " + (res.success ? "ok" : "err");
+    if(res.success){
+      clearCache();
+      editingDealerId = null;
+      switchMgmtTab("dealerList", document.querySelectorAll("#sec-management .tabs button")[1]);
+    }
+    return;
+  }
 
   const data = {
     "নাম": document.getElementById("rNaam").value.trim(),
@@ -865,12 +926,12 @@ async function submitRegister(){
   const res = await apiCall("registerDealer", data);
   msgBox.textContent = res.message;
   msgBox.className = "msg " + (res.success ? "ok" : "err");
-  if(res.success){ switchMgmtTab("dealerList", document.querySelectorAll("#sec-management .tabs button")[1]); }
+  if(res.success){ clearCache(); switchMgmtTab("dealerList", document.querySelectorAll("#sec-management .tabs button")[1]); }
 }
 
 async function renderDealersList(box){
   box.innerHTML = "লোড হচ্ছে...";
-  const res = await apiCall("listDealers", {});
+  const res = await cachedApiCall("listDealers", {}, 20000);
   if(!res.success){ box.innerHTML = "<p>"+res.message+"</p>"; return; }
 
   let html = `<div class="toolbar no-print"><button class="btn secondary small" onclick="window.print()">🖨 প্রিন্ট করুন</button></div>
@@ -886,7 +947,7 @@ async function renderDealersList(box){
       <td class="cell-left">${d["ঠিকানা"]||""}</td><td>${d["স্ট্যাটাস"]}</td>
       <td class="no-print">
         <button class="btn small" onclick="toggleDealerStatus('${d["DealerID"]}','${d["স্ট্যাটাস"]}')">${d["স্ট্যাটাস"]==="সক্রিয়" ? "নিষ্ক্রিয়" : "সক্রিয়"}</button>
-        <button class="btn small secondary" onclick='editDealerRow(${dJson})'>এডিট</button>
+        <button class="btn small secondary" onclick="editDealerRow('${d["DealerID"]}')">এডিট</button>
         <button class="btn small secondary" onclick='printDealerRow(${dJson})'>প্রিন্ট</button>
       </td></tr>`;
   });
@@ -897,22 +958,60 @@ async function renderDealersList(box){
 async function toggleDealerStatus(dealerId, currentStatus){
   const newStatus = currentStatus === "সক্রিয়" ? "নিষ্ক্রিয়" : "সক্রিয়";
   const res = await apiCall("setDealerStatus", { dealerId, status:newStatus });
-  if(res.success) renderDealersList(document.getElementById("mgmtContent"));
+  if(res.success){ clearCache(); renderDealersList(document.getElementById("mgmtContent")); }
   else alert(res.message);
 }
 
-function editDealerRow(d){
-  openEditModal("ডিলার এডিট — " + d["নাম"], [
-    { key:"নাম", label:"নাম", value:d["নাম"] },
-    { key:"পিতার নাম", label:"পিতার নাম", value:d["পিতার নাম"] },
-    { key:"মোবাইল", label:"মোবাইল নং", value:d["মোবাইল"] },
-    { key:"ঠিকানা", label:"ঠিকানা", value:d["ঠিকানা"] },
-    { key:"ট্রেড লাইসেন্স নং", label:"ট্রেড লাইসেন্স নং", value:d["ট্রেড লাইসেন্স নং"] }
-  ], async (values) => {
-    const res = await apiCall("updateDealerInfo", { dealerId: d["DealerID"], fields: values });
-    if(res.success) renderDealersList(document.getElementById("mgmtContent"));
-    return res;
-  });
+let editingDealerId = null;
+
+/*******************************************************
+ * ডিলার লিস্টের "এডিট" — সম্পূর্ণ তথ্য (ডিলার + নমিনি + ইউজারনেম/
+ * পাসওয়ার্ড) লোড করে রেজিস্ট্রেশন ফরমেই বসিয়ে দেওয়া হয়
+ *******************************************************/
+async function editDealerRow(dealerId){
+  switchMgmtTab("register", document.querySelectorAll("#sec-management .tabs button")[0]);
+
+  const res = await apiCall("getDealerFullInfo", { dealerId });
+  if(!res.success){ alert(res.message); return; }
+
+  const d = res.dealer, n = res.nominee || {}, u = res.adminUser || {};
+  editingDealerId = dealerId;
+
+  document.getElementById("registerFormLegend").textContent = "ডিলার এডিট — " + (d["নাম"]||"");
+  document.getElementById("registerSubmitBtn").textContent = "আপডেট করুন";
+  document.getElementById("registerCancelBtn").style.display = "inline-block";
+
+  document.getElementById("rNaam").value = d["নাম"] || "";
+  document.getElementById("rPitarNaam").value = d["পিতার নাম"] || "";
+  document.getElementById("rMobile").value = d["মোবাইল"] || "";
+  document.getElementById("rGmail").value = d["Gmail"] || "";
+  document.getElementById("rNid").value = d["NID/জন্মসনদ"] || "";
+  document.getElementById("rTrade").value = d["ট্রেড লাইসেন্স নং"] || "";
+  document.getElementById("rThikana").value = d["ঠিকানা"] || "";
+  if(d["ডিলারের ছবি(URL)"]){
+    document.getElementById("rDealerPhotoPreview").src = d["ডিলারের ছবি(URL)"];
+    document.getElementById("rDealerPhotoPreview").style.display = "block";
+  }
+
+  document.getElementById("rNomNaam").value = n["নমিনির নাম"] || "";
+  document.getElementById("rNomNid").value = n["NID নং"] || "";
+  document.getElementById("rNomMobile").value = n["মোবাইল নং"] || "";
+  document.getElementById("rNomSomporko").value = n["সম্পর্ক"] || "";
+  if(n["নমিনির ছবি(URL)"]){
+    document.getElementById("rNomPhotoPreview").src = n["নমিনির ছবি(URL)"];
+    document.getElementById("rNomPhotoPreview").style.display = "block";
+  }
+
+  document.getElementById("rAdminUser").value = u["ইউজারনেম"] || "";
+  document.getElementById("rAdminPass").value = u["পাসওয়ার্ড"] || "";
+  document.getElementById("rAdminName").value = u["নাম"] || "";
+
+  document.getElementById("sec-management").scrollIntoView({ behavior:"smooth" });
+}
+
+function cancelDealerEdit(){
+  editingDealerId = null;
+  renderRegisterForm(document.getElementById("mgmtContent"));
 }
 
 function printDealerRow(d){
@@ -973,7 +1072,7 @@ function printOfficialDealerForm(d){
       .letterhead p{ margin:4px 0 0; color:#b5502f; font-weight:600; font-size:13px; }
       .form-title{ text-align:center; font-size:16px; font-weight:700; margin:14px 0; text-decoration:underline; }
       .top-row{ display:flex; justify-content:space-between; align-items:flex-start; gap:16px; }
-      .photo-slot{ width:100px; height:120px; border:1px solid #999; flex-shrink:0; margin-top:10px; }
+      .photo-slot{ width:100px; height:120px; border:1px solid #999; flex-shrink:0; }
       table.info{ width:100%; border-collapse:collapse; margin-top:10px; }
       table.info td{ border:1px solid #999; padding:7px 10px; font-size:13px; }
       table.info td.label{ background:#eef0e9; font-weight:600; width:35%; }
@@ -1032,7 +1131,7 @@ function printOfficialDealerForm(d){
 
 async function renderAgencyInfoEdit(box){
   box.innerHTML = "লোড হচ্ছে...";
-  const res = await apiCall("getAgencyInfo", {});
+  const res = await cachedApiCall("getAgencyInfo", {}, 30000);
   if(!res.success){ box.innerHTML = "<p>"+res.message+"</p>"; return; }
   const a = res.agency;
   box.innerHTML = `
@@ -1052,6 +1151,7 @@ async function saveAgency(){
     "logoUrl": document.getElementById("mAgencyLogo").value.trim()
   };
   const res = await apiCall("updateAgencyInfo", data);
+  if(res.success) clearCache();
   const msgBox = document.getElementById("mAgencyMsg");
   msgBox.textContent = res.message;
   msgBox.className = "msg " + (res.success?"ok":"err");
@@ -1098,7 +1198,7 @@ async function submitPackage(){
     const res = await apiCall("updatePackage", { packageId: editingPackageId, fields: fields, items: items });
     msgBox.textContent = res.message;
     msgBox.className = "msg " + (res.success?"ok":"err");
-    if(res.success){ cancelPkgEdit(); loadAgencyPackages(); }
+    if(res.success){ clearCache(); cancelPkgEdit(); loadAgencyPackages(); }
     return;
   }
 
@@ -1111,7 +1211,7 @@ async function submitPackage(){
   const res = await apiCall("addPackage", data);
   msgBox.textContent = res.message + (res.success ? " (কম্বো সর্বমোট মূল্য: " + res.total + ")" : "");
   msgBox.className = "msg " + (res.success?"ok":"err");
-  if(res.success){
+  if(res.success){ clearCache();
     document.getElementById("pkgNaam").value = "";
     document.getElementById("pkgItems").innerHTML = "";
     loadAgencyPackages();
@@ -1130,7 +1230,7 @@ function cancelPkgEdit(){
 }
 
 async function loadAgencyPackages(){
-  const res = await apiCall("listPackages", {});
+  const res = await cachedApiCall("listPackages", {}, 15000);
   const table = document.getElementById("agencyPackagesTable");
   if(!res.success){ table.innerHTML = res.message; return; }
   window.__packagesCache = res.packages;
@@ -1192,13 +1292,13 @@ function printAgencyPackageById(packageId){
 async function deletePkg(id){
   if(!confirm("এই প্যাকেজ ডিলিট করবেন?")) return;
   const res = await apiCall("deletePackage", { packageId:id });
-  if(res.success) loadAgencyPackages(); else alert(res.message);
+  if(res.success){ clearCache(); loadAgencyPackages(); } else alert(res.message);
 }
 
 /* ================= এজেন্সি: কমিশন ================= */
 let dealerListCache = [];
 async function loadCommissionSetup(){
-  const res = await apiCall("listDealers", {});
+  const res = await cachedApiCall("listDealers", {}, 20000);
   dealerListCache = res.success ? res.dealers : [];
   const sel = document.getElementById("commDealerSelect");
   sel.innerHTML = "<option value=''>-- সিলেক্ট করুন --</option>" +
@@ -1224,11 +1324,11 @@ async function submitCommission(){
   const msgBox = document.getElementById("commMsg");
   msgBox.textContent = res.message;
   msgBox.className = "msg " + (res.success?"ok":"err");
-  if(res.success){ document.getElementById("commAmount").value=""; loadCommissionList(); }
+  if(res.success){ clearCache(); document.getElementById("commAmount").value=""; loadCommissionList(); }
 }
 
 async function loadCommissionList(){
-  const res = await apiCall("listCommissions", {});
+  const res = await cachedApiCall("listCommissions", {}, 15000);
   const table = document.getElementById("commissionTable");
   if(!res.success){ table.innerHTML = res.message; return; }
   table.innerHTML = "<thead><tr><th class='cell-left'>ডিলারের নাম</th><th>মোবাইল</th><th class='cell-left'>ঠিকানা</th><th>টাকার পরিমাণ</th><th>তারিখ</th><th class='no-print'>একশন</th></tr></thead><tbody></tbody>";
@@ -1252,7 +1352,7 @@ function editCommissionRow(c){
     { key:"টাকার পরিমাণ", label:"টাকার পরিমাণ", value:c["টাকার পরিমাণ"] }
   ], async (values) => {
     const res = await apiCall("updateCommission", { commissionId: c["CommissionID"], fields: values });
-    if(res.success) loadCommissionList();
+    if(res.success){ clearCache(); loadCommissionList(); }
     return res;
   });
 }
@@ -1269,7 +1369,7 @@ function printCommissionRow(c){
 async function deleteCommissionRow(id){
   if(!confirm("এই কমিশন এন্ট্রি ডিলিট করবেন?")) return;
   const res = await apiCall("deleteCommission", { commissionId:id });
-  if(res.success) loadCommissionList(); else alert(res.message);
+  if(res.success){ clearCache(); loadCommissionList(); } else alert(res.message);
 }
 
 /* ================= এজেন্সি: খরচ ================= */
@@ -1297,12 +1397,12 @@ async function submitAgencyExpense(){
   const msgBox = document.getElementById("agencyExpenseMsg");
   msgBox.textContent = res.message;
   msgBox.className = "msg " + (res.success?"ok":"err");
-  if(res.success){ document.getElementById("agencyExpenseRows").innerHTML=""; loadAgencyExpenses(); }
+  if(res.success){ clearCache(); document.getElementById("agencyExpenseRows").innerHTML=""; loadAgencyExpenses(); }
 }
 
 async function loadAgencyExpenses(){
   if(!document.getElementById("agencyExpenseRows").children.length) addAgencyExpenseRow();
-  const res = await apiCall("listExpenses", {});
+  const res = await cachedApiCall("listExpenses", {}, 15000);
   const table = document.getElementById("agencyExpenseTable");
   if(!res.success){ table.innerHTML = res.message; return; }
   table.innerHTML = "<thead><tr><th>তারিখ</th><th>বিবরণ</th><th>পরিমাণ</th><th class='no-print'>একশন</th></tr></thead><tbody></tbody>";
@@ -1327,7 +1427,7 @@ function editAgencyExpenseRow(e){
     { key:"পরিমাণ", label:"পরিমাণ", value:e["পরিমাণ"] }
   ], async (values) => {
     const res = await apiCall("updateExpense", { expenseId: e["ExpenseID"], fields: values });
-    if(res.success) loadAgencyExpenses();
+    if(res.success){ clearCache(); loadAgencyExpenses(); }
     return res;
   });
 }
@@ -1343,7 +1443,7 @@ function printAgencyExpenseRow(e){
 async function deleteAgencyExpenseRow(id){
   if(!confirm("এই খরচ এন্ট্রি ডিলিট করবেন?")) return;
   const res = await apiCall("deleteExpense", { expenseId:id });
-  if(res.success) loadAgencyExpenses(); else alert(res.message);
+  if(res.success){ clearCache(); loadAgencyExpenses(); } else alert(res.message);
 }
 
 /* ================= এজেন্সি: গ্রাহক কার্ড ================= */
@@ -1351,7 +1451,7 @@ let ccCustomersCache = [];
 let ccCurrentTab = "specific";
 
 async function loadCustomerCardsSetup(){
-  const res = await apiCall("listDealers", {});
+  const res = await cachedApiCall("listDealers", {}, 20000);
   const sel = document.getElementById("ccDealerSelect");
   if(res.success){
     dealerListCache = res.dealers; // শেয়ার্ড ক্যাশ, কমিশন ট্যাবেও ব্যবহৃত
@@ -1369,7 +1469,7 @@ async function onCcDealerChange(){
   if(!dealerId){ ccCustomersCache = []; document.getElementById("ccControls").innerHTML = ""; return; }
 
   document.getElementById("ccControls").innerHTML = "লোড হচ্ছে...";
-  const res = await apiCall("listCustomersForDealer", { dealerId });
+  const res = await cachedApiCall("listCustomersForDealer", { dealerId }, 15000);
   ccCustomersCache = res.success ? res.customers : [];
   renderCcControls();
 }
@@ -1441,29 +1541,42 @@ async function printCustomerCardsWindow(dealerId, customers){
   const dealer = (dealerListCache||[]).find(d => d["DealerID"] === dealerId) ||
     { "নাম": "", "মোবাইল": "" };
 
-  const agencyRes = await apiCall("getAgencyInfo", {});
-  const agency = agencyRes.success ? agencyRes.agency : { "নাম":"", "মোবাইল":"" };
+  const agencyRes = await cachedApiCall("getAgencyInfo", {}, 30000);
+  const agency = agencyRes.success ? agencyRes.agency : { "নাম":"", "মোবাইল":"", "লোগো(URL)":"" };
+  const logoImg = agency["লোগো(URL)"]
+    ? `<img src="${agency["লোগো(URL)"]}">`
+    : `<span>MSDS</span>`;
 
   const cardsHtml = customers.map(c => {
     const qrData = encodeURIComponent(API_URL + "?view=customer&dealerId=" + dealerId + "&customerId=" + c["CustomerID"]);
     const qrImgUrl = "https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=" + qrData;
     const thikana = [c["গ্রাম"]||"", c["ইউনিয়ন/পৌরসভা"]||""].filter(Boolean).join(", ");
+
+    const rows = [
+      ["নাম", c["নাম"]||""],
+      ["পিতার নাম", c["পিতার নাম"]||""],
+      ["এনআইডি নং", c["NID/জন্মসনদ নং"]||""],
+      ["মোবাইল নং", c["মোবাইল নং"]||""],
+      ["ঠিকানা", thikana],
+      ["প্রাপ্তির স্থান", c["প্রাপ্তির স্থান"]||""]
+    ];
+    const rowsHtml = rows.map(r => `
+      <tr><td class="cf-label">${r[0]}</td><td class="cf-colon">:</td><td class="cf-value">${r[1]}</td></tr>
+    `).join("");
+
     return `
       <div class="id-card">
         <div class="card-header">
-          <div class="org-name">${agency["নাম"]||""}</div>
-          <div class="org-mobile">${agency["মোবাইল"]||""}</div>
+          <div class="card-logo">${logoImg}</div>
+          <div class="card-org">
+            <div class="org-name">${agency["নাম"]||""}</div>
+            <div class="org-mobile">${agency["মোবাইল"]||""}</div>
+          </div>
+          <div class="card-logo-spacer"></div>
         </div>
         <div class="card-divider"></div>
         <div class="card-body">
-          <div class="card-fields">
-            <div><span class="cf-label">নাম:</span> ${c["নাম"]||""}</div>
-            <div><span class="cf-label">পিতার নাম:</span> ${c["পিতার নাম"]||""}</div>
-            <div><span class="cf-label">এনআইডি নং:</span> ${c["NID/জন্মসনদ নং"]||""}</div>
-            <div><span class="cf-label">মোবাইল নং:</span> ${c["মোবাইল নং"]||""}</div>
-            <div><span class="cf-label">ঠিকানা:</span> ${thikana}</div>
-            <div><span class="cf-label">প্রাপ্তির স্থান:</span> ${c["প্রাপ্তির স্থান"]||""}</div>
-          </div>
+          <table class="card-fields"><tbody>${rowsHtml}</tbody></table>
           <div class="card-qr"><img src="${qrImgUrl}"></div>
         </div>
         <div class="card-footer">
@@ -1487,16 +1600,26 @@ async function printCustomerCardsWindow(dealerId, customers){
       }
       .card-header{
         background:linear-gradient(135deg,#1f5f52,#153f37);
-        color:#fff; padding:6px 10px;
-        display:flex; justify-content:space-between; align-items:baseline;
+        color:#fff; padding:6px 8px;
+        display:flex; align-items:center; gap:6px;
       }
-      .org-name{ font-size:12px; font-weight:700; }
-      .org-mobile{ font-size:10px; opacity:0.9; }
+      .card-logo, .card-logo-spacer{
+        width:28px; height:28px; flex-shrink:0;
+        display:flex; align-items:center; justify-content:center;
+        font-size:7px; font-weight:800;
+      }
+      .card-logo img{ width:100%; height:100%; object-fit:contain; border-radius:6px; background:#fff; }
+      .card-org{ flex:1; text-align:center; }
+      .org-name{ font-size:12px; font-weight:700; line-height:1.3; }
+      .org-mobile{ font-size:9.5px; opacity:0.9; margin-top:1px; }
       .card-divider{ height:2px; background:#b5502f; }
-      .card-body{ display:flex; flex:1; padding:6px 8px; gap:6px; }
-      .card-fields{ flex:1; font-size:9.5px; line-height:1.55; color:#1c2b28; }
-      .cf-label{ font-weight:600; color:#b5502f; }
-      .card-qr{ width:60px; display:flex; align-items:center; justify-content:center; }
+      .card-body{ display:flex; flex:1; padding:6px 8px; gap:6px; align-items:center; }
+      table.card-fields{ flex:1; border-collapse:collapse; font-size:9.3px; color:#1c2b28; }
+      table.card-fields td{ padding:1.5px 0; vertical-align:top; }
+      .cf-label{ font-weight:600; color:#b5502f; white-space:nowrap; padding-right:4px; }
+      .cf-colon{ width:8px; }
+      .cf-value{ color:#1c2b28; }
+      .card-qr{ width:60px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
       .card-qr img{ width:56px; height:56px; }
       .card-footer{
         background:#eef0e9; color:#153f37; font-size:9px; font-weight:600;
@@ -1526,7 +1649,7 @@ async function loadDashboard(){
 
   const box = document.getElementById("dashboardCards");
   box.innerHTML = "<p>লোড হচ্ছে...</p>";
-  const res = await apiCall("dashboardSummary", {});
+  const res = await cachedApiCall("dashboardSummary", {}, 10000);
   if(!res.success){ box.innerHTML = "<p>"+res.message+"</p>"; return; }
   const s = res.summary;
   box.innerHTML = `
@@ -1541,7 +1664,7 @@ async function loadDashboard(){
 async function loadAboutView(){
   const box = document.getElementById("aboutView");
   box.innerHTML = "লোড হচ্ছে...";
-  const res = await apiCall("getAbout", {});
+  const res = await cachedApiCall("getAbout", {}, 30000);
   if(!res.success){ box.innerHTML = res.message; return; }
   window.__aboutCache = res.about;
   box.innerHTML = renderAboutBoxes(res.about) +
@@ -1591,7 +1714,7 @@ function printAboutA4(){
 /* ================= ডিলার: প্যাকেজ (ভিউ) ================= */
 let dealerPackagesCache = [];
 async function loadDealerPackages(){
-  const res = await apiCall("listPackages", {});
+  const res = await cachedApiCall("listPackages", {}, 15000);
   const table = document.getElementById("packagesTable");
   document.getElementById("pkgDetailBox").style.display = "none";
   if(!res.success){ table.innerHTML = res.message; return; }
@@ -1646,14 +1769,14 @@ async function submitCustomer(){
     const res = await apiCall("updateCustomer", { customerId: editingCustomerId, fields: fields });
     msgBox.textContent = res.message;
     msgBox.className = "msg " + (res.success?"ok":"err");
-    if(res.success){ cancelCusEdit(); loadCustomers(); }
+    if(res.success){ clearCache(); cancelCusEdit(); loadCustomers(); }
     return;
   }
 
   const res = await apiCall("addCustomer", data);
   msgBox.textContent = res.message;
   msgBox.className = "msg " + (res.success?"ok":"err");
-  if(res.success){
+  if(res.success){ clearCache();
     ["cusNaam","cusPitarNaam","cusMobile","cusNid","cusBariNaam","cusGram","cusWard","cusUnion","cusPraptirSthan"]
       .forEach(id => document.getElementById(id).value = "");
     loadCustomers();
@@ -1673,7 +1796,7 @@ function cancelCusEdit(){
 }
 
 async function loadCustomers(){
-  const res = await apiCall("listCustomers", {});
+  const res = await cachedApiCall("listCustomers", {}, 15000);
   const table = document.getElementById("customersTable");
   if(!res.success){ table.innerHTML = res.message; return; }
   window.__customersCache = res.customers;
@@ -1734,14 +1857,14 @@ function printCustomerRowById(customerId){
 async function deleteCustomerRow(id){
   if(!confirm("এই গ্রাহক ডিলিট করবেন?")) return;
   const res = await apiCall("deleteCustomer", { customerId:id });
-  if(res.success) loadCustomers(); else alert(res.message);
+  if(res.success){ clearCache(); loadCustomers(); } else alert(res.message);
 }
 
 /* ================= ডিলার: অর্ডার ================= */
 let editingOrderId = null;
 
 async function loadOrders(){
-  const res = await apiCall("getOrdersPageData", {});
+  const res = await cachedApiCall("getOrdersPageData", {}, 15000);
   const sel = document.getElementById("ordPackage");
   const table = document.getElementById("ordersTable");
   if(!res.success){ table.innerHTML = res.message; return; }
@@ -1816,7 +1939,7 @@ async function submitOrder(){
     const res = await apiCall("updateOrder", { orderId: editingOrderId, fields: fields });
     msgBox.textContent = res.message;
     msgBox.className = "msg " + (res.success?"ok":"err");
-    if(res.success){ cancelOrdEdit(); loadOrders(); }
+    if(res.success){ clearCache(); cancelOrdEdit(); loadOrders(); }
     return;
   }
 
@@ -1828,13 +1951,13 @@ async function submitOrder(){
   const res = await apiCall("addOrder", data);
   msgBox.textContent = res.message;
   msgBox.className = "msg " + (res.success?"ok":"err");
-  if(res.success){ document.getElementById("ordQty").value=""; document.getElementById("ordPrice").value=""; loadOrders(); }
+  if(res.success){ clearCache(); document.getElementById("ordQty").value=""; document.getElementById("ordPrice").value=""; loadOrders(); }
 }
 
 async function deleteOrderRow(id){
   if(!confirm("এই অর্ডার ডিলিট করবেন?")) return;
   const res = await apiCall("deleteOrder", { orderId:id });
-  if(res.success) loadOrders(); else alert(res.message);
+  if(res.success){ clearCache(); loadOrders(); } else alert(res.message);
 }
 
 
@@ -1844,7 +1967,7 @@ let allCustomersCache = [];
 let allSalesCache = [];
 
 async function loadSalesSetup(){
-  const res = await apiCall("getSalesPageData", {});
+  const res = await cachedApiCall("getSalesPageData", {}, 10000);
   allPackagesCache = res.success ? res.packages : [];
   allCustomersCache = res.success ? res.customers : [];
   allSalesCache = res.success ? res.sales : [];
@@ -1946,7 +2069,7 @@ async function makeSale(customerId, packageId){
   document.getElementById("salesMsg").textContent = res.message;
   document.getElementById("salesMsg").className = "msg " + (res.success?"ok":"err");
 
-  if(res.success){
+  if(res.success){ clearCache();
     tempSale.SaleID = res.saleId; // আসল আইডি বসিয়ে দেওয়া
     renderSalesTable(); // বাটনের onclick এ সঠিক SaleID বসাতে পুনরায় রেন্ডার (নেটওয়ার্ক কল ছাড়াই, তাই দ্রুত)
   } else {
@@ -1966,6 +2089,7 @@ async function undoSale(saleId){
   const res = await apiCall("cancelSale", { saleId });
   document.getElementById("salesMsg").textContent = res.message;
   document.getElementById("salesMsg").className = "msg " + (res.success?"ok":"err");
+  if(res.success) clearCache();
 
   if(!res.success && sale){
     sale["স্ট্যাটাস"] = prevStatus; // ব্যর্থ হলে পূর্বাবস্থায় ফেরত
@@ -1998,12 +2122,12 @@ async function submitDealerExpense(){
   const msgBox = document.getElementById("dealerExpenseMsg");
   msgBox.textContent = res.message;
   msgBox.className = "msg " + (res.success?"ok":"err");
-  if(res.success){ document.getElementById("dealerExpenseRows").innerHTML=""; loadDealerExpenseVouchers(); }
+  if(res.success){ clearCache(); document.getElementById("dealerExpenseRows").innerHTML=""; loadDealerExpenseVouchers(); }
 }
 
 async function loadDealerExpenseVouchers(){
   if(!document.getElementById("dealerExpenseRows").children.length) addDealerExpenseRow();
-  const res = await apiCall("listExpenseVouchers", {});
+  const res = await cachedApiCall("listExpenseVouchers", {}, 15000);
   const table = document.getElementById("dealerExpenseTable");
   if(!res.success){ table.innerHTML = res.message; return; }
   table.innerHTML = "<thead><tr><th>তারিখ</th><th>বিবরণ</th><th>পরিমাণ</th><th class='no-print'>একশন</th></tr></thead><tbody></tbody>";
@@ -2028,7 +2152,7 @@ function editDealerExpenseRow(v){
     { key:"পরিমাণ", label:"পরিমাণ", value:v["পরিমাণ"] }
   ], async (values) => {
     const res = await apiCall("updateExpenseVoucher", { voucherId: v["VoucherID"], fields: values });
-    if(res.success) loadDealerExpenseVouchers();
+    if(res.success){ clearCache(); loadDealerExpenseVouchers(); }
     return res;
   });
 }
@@ -2044,7 +2168,7 @@ function printDealerExpenseRow(v){
 async function deleteDealerExpenseRow(id){
   if(!confirm("এই খরচ এন্ট্রি ডিলিট করবেন?")) return;
   const res = await apiCall("deleteExpenseVoucher", { voucherId:id });
-  if(res.success) loadDealerExpenseVouchers(); else alert(res.message);
+  if(res.success){ clearCache(); loadDealerExpenseVouchers(); } else alert(res.message);
 }
 
 /* ================= ডিলার: রিপোর্ট ================= */
