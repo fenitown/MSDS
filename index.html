@@ -144,9 +144,27 @@
   .section h2{ color:var(--teal-dark); font-size:1.25rem; margin:0 0 14px; }
 
   .cards{ display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:10px; margin-bottom:20px; }
-  .card{ background:var(--card); border:1px solid var(--line); border-radius:10px; padding:14px; }
+  .card{ background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px; }
   .card .num{ font-size:1.6rem; font-weight:700; color:var(--teal-dark); }
   .card .label{ font-size:0.82rem; color:var(--muted); margin-top:2px; }
+
+  /* ---------- অফিসিয়াল ফরম্যাট (ডিলার রেজিস্ট্রেশন) ---------- */
+  .official-letterhead{
+    text-align:center; border-bottom:3px solid var(--teal-dark);
+    padding-bottom:12px; margin-bottom:16px;
+  }
+  .official-letterhead .ol-title{ font-size:1.3rem; font-weight:800; color:var(--teal-dark); }
+  .official-letterhead .ol-tagline{ font-size:0.85rem; color:var(--clay); font-weight:600; margin-top:2px; }
+  .official-letterhead .ol-formtitle{
+    font-size:1rem; font-weight:700; margin-top:12px; text-decoration:underline;
+  }
+  fieldset.official-section{ border:1.5px solid var(--teal); border-radius:10px; }
+  fieldset.official-section legend{ background:var(--teal-soft); padding:2px 10px; border-radius:6px; }
+
+  .dealer-thumb{
+    width:36px; height:36px; border-radius:8px; object-fit:cover;
+    border:1px solid var(--line); background:#eee;
+  }
 
   /* ---------- টেবিল অ্যালাইনমেন্ট: হেডার সবসময় সেন্টার,
      বডি ডিফল্ট সেন্টার, নির্দিষ্ট কলামে (নাম/ঠিকানা ইত্যাদি) রাইট ---------- */
@@ -300,7 +318,6 @@
         <legend id="pkgFormLegend">নতুন প্যাকেজ</legend>
         <div class="form-grid">
           <div class="field"><label>প্যাকেজের নাম</label><input id="pkgNaam"></div>
-          <div class="field"><label>কোম্পানী</label><input id="pkgCompany"></div>
           <div class="field">
             <label>ধরন</label>
             <select id="pkgDhoron">
@@ -378,6 +395,7 @@
     <!-- ================= ডিলার সেকশনসমূহ ================= -->
     <section class="section" id="sec-dashboard">
       <h2>ড্যাশবোর্ড</h2>
+      <div id="dealerProfileBox" style="display:none;"></div>
       <div class="cards" id="dashboardCards"><p>লোড হচ্ছে...</p></div>
     </section>
 
@@ -480,7 +498,7 @@
    ============================================================ */
 const API_URL = "https://script.google.com/macros/s/AKfycbxmseU_Vj8xwWzq9rxK6b8NN5ZPvb3GNlc-LNN-hgwa2kr3kS6lAe11ZWseK7qd9PuB-g/exec";
 
-let state = { token:null, role:null, dealerId:null, dealerName:null, name:null };
+let state = { token:null, role:null, dealerId:null, dealerName:null, name:null, dealerPhotoUrl:null };
 
 async function apiCall(action, data){
   data = data || {};
@@ -608,9 +626,17 @@ async function doLogin(){
   state.dealerId = res.dealerId;
   state.dealerName = res.dealerName;
   state.name = res.name;
+  state.dealerPhotoUrl = res.dealerPhotoUrl || "";
 
   document.getElementById("hdrDealerName").textContent = state.dealerId === "AGENCY" ? "মানবিক সহায়তা ডেইলি শপ" : state.dealerName;
   document.getElementById("hdrUserName").textContent = state.name + " (" + state.role + ")";
+
+  const logoBox = document.getElementById("hdrLogoBox");
+  if(state.dealerId !== "AGENCY" && state.dealerPhotoUrl){
+    logoBox.innerHTML = `<img src="${state.dealerPhotoUrl}" style="width:100%;height:100%;object-fit:cover;">`;
+  } else {
+    logoBox.innerHTML = "MSDS";
+  }
 
   document.getElementById("loginScreen").style.display = "none";
   document.getElementById("appScreen").style.display = "block";
@@ -621,7 +647,8 @@ async function doLogin(){
 }
 
 function doLogout(){
-  state = { token:null, role:null, dealerId:null, dealerName:null, name:null };
+  state = { token:null, role:null, dealerId:null, dealerName:null, name:null, dealerPhotoUrl:null };
+  document.getElementById("hdrLogoBox").innerHTML = "MSDS";
   document.getElementById("appScreen").style.display = "none";
   document.getElementById("loginScreen").style.display = "flex";
   document.getElementById("loginUsername").value = "";
@@ -743,22 +770,32 @@ async function saveAboutInfo(){
 
 function renderRegisterForm(box){
   box.innerHTML = `
-    <div class="form-grid">
-      <div class="field"><label>ডিলারের নাম</label><input id="rNaam"></div>
-      <div class="field"><label>পিতার নাম</label><input id="rPitarNaam"></div>
-      <div class="field"><label>মোবাইল নং</label><input id="rMobile" maxlength="11"></div>
-      <div class="field"><label>Gmail (ঐচ্ছিক — শীট শেয়ার হবে)</label><input id="rGmail" type="email"></div>
-      <div class="field"><label>NID/জন্মসনদ নং</label><input id="rNid"></div>
-      <div class="field"><label>ট্রেড লাইসেন্স নং</label><input id="rTrade"></div>
-      <div class="field" style="grid-column:1/-1;"><label>ঠিকানা</label><input id="rThikana"></div>
-      <div class="field">
-        <label>ডিলারের ছবি</label>
-        <input type="file" id="rDealerPhoto" accept="image/*" onchange="previewImg('rDealerPhoto','rDealerPhotoPreview')">
-        <img id="rDealerPhotoPreview" class="photo-preview" style="display:none;">
-      </div>
+    <div class="official-letterhead">
+      <div class="ol-title">মানবিক সহায়তা ডেইলি শপ</div>
+      <div class="ol-tagline">সাশ্রয়ী মূল্যে পণ্য বিক্রি সংস্থা</div>
+      <div class="ol-formtitle">ডিলার নিয়োগ / রেজিস্ট্রেশন ফরম</div>
     </div>
-    <fieldset>
-      <legend>নমিনি তথ্য</legend>
+
+    <fieldset class="official-section">
+      <legend>১. ডিলারের তথ্য</legend>
+      <div class="form-grid">
+        <div class="field"><label>ডিলারের নাম</label><input id="rNaam"></div>
+        <div class="field"><label>পিতার নাম</label><input id="rPitarNaam"></div>
+        <div class="field"><label>মোবাইল নং</label><input id="rMobile" maxlength="11"></div>
+        <div class="field"><label>Gmail (ঐচ্ছিক — শীট শেয়ার হবে)</label><input id="rGmail" type="email"></div>
+        <div class="field"><label>NID/জন্মসনদ নং</label><input id="rNid"></div>
+        <div class="field"><label>ট্রেড লাইসেন্স নং</label><input id="rTrade"></div>
+        <div class="field" style="grid-column:1/-1;"><label>ঠিকানা</label><input id="rThikana"></div>
+        <div class="field">
+          <label>ডিলারের ছবি</label>
+          <input type="file" id="rDealerPhoto" accept="image/*" onchange="previewImg('rDealerPhoto','rDealerPhotoPreview')">
+          <img id="rDealerPhotoPreview" class="photo-preview" style="display:none;">
+        </div>
+      </div>
+    </fieldset>
+
+    <fieldset class="official-section">
+      <legend>২. নমিনি তথ্য</legend>
       <div class="form-grid">
         <div class="field"><label>নমিনির নাম</label><input id="rNomNaam"></div>
         <div class="field"><label>NID নং</label><input id="rNomNid"></div>
@@ -771,8 +808,9 @@ function renderRegisterForm(box){
         </div>
       </div>
     </fieldset>
-    <fieldset>
-      <legend>প্রথম এডমিন লগইন</legend>
+
+    <fieldset class="official-section">
+      <legend>৩. লগইন তথ্য তৈরি করুন</legend>
       <div class="form-grid">
         <div class="field"><label>ইউজারনেম</label><input id="rAdminUser"></div>
         <div class="field"><label>পাসওয়ার্ড</label><input id="rAdminPass" type="password"></div>
@@ -837,11 +875,13 @@ async function renderDealersList(box){
 
   let html = `<div class="toolbar no-print"><button class="btn secondary small" onclick="window.print()">🖨 প্রিন্ট করুন</button></div>
     <div class="table-wrap"><table><thead><tr>
-    <th>আইডি</th><th class="cell-left">নাম</th><th>মোবাইল</th><th class="cell-left">ঠিকানা</th><th>স্ট্যাটাস</th><th class="no-print">একশন</th>
+    <th>ছবি</th><th>আইডি</th><th class="cell-left">নাম</th><th>মোবাইল</th><th class="cell-left">ঠিকানা</th><th>স্ট্যাটাস</th><th class="no-print">একশন</th>
     </tr></thead><tbody>`;
   res.dealers.forEach(d => {
     const dJson = JSON.stringify(d).replace(/'/g, "&#39;");
+    const photoUrl = d["ডিলারের ছবি(URL)"] || "";
     html += `<tr>
+      <td>${photoUrl ? `<img src="${photoUrl}" class="dealer-thumb">` : "—"}</td>
       <td>${d["DealerID"]}</td><td class="cell-left">${d["নাম"]}</td><td>${d["মোবাইল"]}</td>
       <td class="cell-left">${d["ঠিকানা"]||""}</td><td>${d["স্ট্যাটাস"]}</td>
       <td class="no-print">
@@ -1053,7 +1093,6 @@ async function submitPackage(){
   if(editingPackageId){
     const fields = {
       "নাম": document.getElementById("pkgNaam").value.trim(),
-      "কোম্পানী": document.getElementById("pkgCompany").value.trim(),
       "ধরন": document.getElementById("pkgDhoron").value
     };
     const res = await apiCall("updatePackage", { packageId: editingPackageId, fields: fields, items: items });
@@ -1065,7 +1104,6 @@ async function submitPackage(){
 
   const data = {
     "নাম": document.getElementById("pkgNaam").value.trim(),
-    "কোম্পানী": document.getElementById("pkgCompany").value.trim(),
     "ধরন": document.getElementById("pkgDhoron").value,
     "items": items
   };
@@ -1075,7 +1113,6 @@ async function submitPackage(){
   msgBox.className = "msg " + (res.success?"ok":"err");
   if(res.success){
     document.getElementById("pkgNaam").value = "";
-    document.getElementById("pkgCompany").value = "";
     document.getElementById("pkgItems").innerHTML = "";
     loadAgencyPackages();
   }
@@ -1087,7 +1124,6 @@ function cancelPkgEdit(){
   document.getElementById("pkgSubmitBtn").textContent = "প্যাকেজ সংরক্ষণ করুন";
   document.getElementById("pkgCancelBtn").style.display = "none";
   document.getElementById("pkgNaam").value = "";
-  document.getElementById("pkgCompany").value = "";
   document.getElementById("pkgDhoron").value = "এক্টিভ";
   document.getElementById("pkgItems").innerHTML = "";
   document.getElementById("pkgMsg").textContent = "";
@@ -1116,7 +1152,7 @@ async function loadAgencyPackages(){
 
 /*******************************************************
  * প্যাকেজ এডিট — মডেলের বদলে সরাসরি উপরের ফরমেই সব তথ্য (নাম,
- * কোম্পানী, ধরন, এবং প্রতিটি পণ্যের সারি) লোড হয়ে যাবে
+ * ধরন, এবং প্রতিটি পণ্যের সারি) লোড হয়ে যাবে
  *******************************************************/
 function editAgencyPackage(packageId){
   const p = (window.__packagesCache||[]).find(x => x["PackageID"] === packageId);
@@ -1128,7 +1164,6 @@ function editAgencyPackage(packageId){
   document.getElementById("pkgCancelBtn").style.display = "inline-block";
 
   document.getElementById("pkgNaam").value = p["নাম"] || "";
-  document.getElementById("pkgCompany").value = p["কোম্পানী"] || "";
   document.getElementById("pkgDhoron").value = p["ধরন"] || "এক্টিভ";
 
   document.getElementById("pkgItems").innerHTML = "";
@@ -1148,7 +1183,6 @@ function printAgencyPackageById(packageId){
     `${it["পণ্যের নাম ও পরিমাণ"]} — বাজার: ${it["বাজার মূল্য"]}, কম্বো: ${it["কম্বো মূল্য"]}, সাশ্রয়: ${it["সাশ্রয়"]}`
   ).join("<br>");
   printSingleRecord("প্যাকেজ — " + p["নাম"], [
-    { label:"কোম্পানী", value:p["কোম্পানী"] },
     { label:"ধরন", value:p["ধরন"] },
     { label:"সর্বমোট মূল্য", value:p["সর্বমোট মূল্য"] },
     { label:"পণ্য তালিকা", value:itemLines }
@@ -1478,6 +1512,18 @@ async function printCustomerCardsWindow(dealerId, customers){
 
 /* ================= ডিলার: ড্যাশবোর্ড ================= */
 async function loadDashboard(){
+  const profileBox = document.getElementById("dealerProfileBox");
+  if(state.dealerPhotoUrl){
+    profileBox.style.display = "flex";
+    profileBox.style.cssText = "display:flex;align-items:center;gap:12px;margin-bottom:16px;background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px;";
+    profileBox.innerHTML = `
+      <img src="${state.dealerPhotoUrl}" style="width:64px;height:64px;border-radius:50%;object-fit:cover;border:2px solid var(--teal);">
+      <div><div style="font-weight:700;color:var(--teal-dark);">${state.dealerName||""}</div>
+      <div style="font-size:0.85rem;color:var(--muted);">${state.name} (${state.role})</div></div>`;
+  } else {
+    profileBox.style.display = "none";
+  }
+
   const box = document.getElementById("dashboardCards");
   box.innerHTML = "<p>লোড হচ্ছে...</p>";
   const res = await apiCall("dashboardSummary", {});
@@ -1550,13 +1596,13 @@ async function loadDealerPackages(){
   document.getElementById("pkgDetailBox").style.display = "none";
   if(!res.success){ table.innerHTML = res.message; return; }
   dealerPackagesCache = res.packages;
-  table.innerHTML = "<thead><tr><th class='cell-left'>নাম</th><th>কোম্পানী</th><th>ধরন</th><th>সর্বমোট মূল্য</th></tr></thead><tbody></tbody>";
+  table.innerHTML = "<thead><tr><th class='cell-left'>নাম</th><th>ধরন</th><th>সর্বমোট মূল্য</th></tr></thead><tbody></tbody>";
   const tbody = table.querySelector("tbody");
   res.packages.forEach(p => {
     const tr = document.createElement("tr");
     tr.className = "pkg-click-row";
     tr.onclick = () => showPkgDetail(p["PackageID"]);
-    tr.innerHTML = `<td class="cell-left">${p["নাম"]}</td><td>${p["কোম্পানী"]}</td><td>${p["ধরন"]}</td><td>${p["সর্বমোট মূল্য"]}</td>`;
+    tr.innerHTML = `<td class="cell-left">${p["নাম"]}</td><td>${p["ধরন"]}</td><td>${p["সর্বমোট মূল্য"]}</td>`;
     tbody.appendChild(tr);
   });
 }
