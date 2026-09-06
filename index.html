@@ -26,7 +26,7 @@
     background:var(--paper);
     color:var(--ink);
   }
-  input,select,button,textarea{ font-family:inherit; font-size:1rem; }
+  input,select,button,textarea{ font-family:inherit; font-size:1rem; border-radius:8px; max-width:100%; box-sizing:border-box; }
 
   /* ---------- লগইন স্ক্রিন (নতুন ডিজাইন) ---------- */
   #loginScreen{
@@ -174,12 +174,18 @@
   table td.cell-left, table th.cell-left{ text-align:left; }
   .table-wrap{ overflow-x:auto; margin-top:10px; }
 
-  .form-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:10px; }
-  fieldset{ border:1px solid var(--line); border-radius:10px; margin:14px 0; padding:12px; }
+  .form-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:10px; max-width:100%; }
+  fieldset{ border:1px solid var(--line); border-radius:10px; margin:14px 0; padding:12px; max-width:100%; box-sizing:border-box; }
   legend{ padding:0 6px; color:var(--teal-dark); font-weight:600; font-size:0.9rem; }
 
-  .item-row-v2{ display:grid; grid-template-columns:2fr 1fr 1fr 1fr auto; gap:8px; margin-bottom:6px; }
-  .expense-row{ display:grid; grid-template-columns:1fr 2fr 1fr auto; gap:8px; margin-bottom:6px; }
+  .item-row-v2{ display:flex; flex-wrap:wrap; gap:8px; margin-bottom:6px; }
+  .item-row-v2 > input{ flex:1 1 110px; min-width:0; }
+  .item-row-v2 > input.itemNaamPoriman{ flex:2 1 160px; }
+  .item-row-v2 > button{ flex:0 0 auto; }
+  .expense-row{ display:flex; flex-wrap:wrap; gap:8px; margin-bottom:6px; }
+  .expense-row > input{ flex:1 1 110px; min-width:0; }
+  .expense-row > input.expDesc{ flex:2 1 160px; }
+  .expense-row > button{ flex:0 0 auto; }
   .toolbar{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:12px; }
   .msg{ font-size:0.88rem; margin-top:8px; }
   .msg.ok{ color:var(--teal); }
@@ -379,17 +385,21 @@
           <label>ডিলার সিলেক্ট করুন</label>
           <select id="ccDealerSelect" onchange="onCcDealerChange()"><option value="">-- সিলেক্ট করুন --</option></select>
         </div>
+        <div class="field">
+          <label>ধরন</label>
+          <select id="ccCategorySelect" onchange="onCcCategoryChange()">
+            <option value="specific">নির্দিষ্ট গ্রাহক</option>
+            <option value="location">প্রাপ্তির স্থান ভিত্তিক</option>
+            <option value="all">সকল গ্রাহক</option>
+          </select>
+        </div>
       </div>
-      <div class="tabs no-print">
-        <button class="active" onclick="switchCcTab('specific', this)">নির্দিষ্ট গ্রাহক</button>
-        <button onclick="switchCcTab('location', this)">প্রাপ্তির স্থান ভিত্তিক</button>
-        <button onclick="switchCcTab('all', this)">সকল গ্রাহক</button>
-      </div>
-      <div id="ccControls" class="no-print"></div>
+      <div id="ccControls" class="form-grid no-print"></div>
       <div class="btn-row no-print">
-        <button class="btn" onclick="generateCustomerCards()">কার্ড তৈরি ও প্রিন্ট করুন</button>
+        <button class="btn" onclick="printCurrentCcPreview()">🖨 প্রিন্ট করুন</button>
       </div>
       <div id="ccMsg" class="msg"></div>
+      <div id="ccPreviewWrap" style="margin-top:14px;"></div>
     </section>
 
     <!-- ================= ডিলার সেকশনসমূহ ================= -->
@@ -1448,7 +1458,8 @@ async function deleteAgencyExpenseRow(id){
 
 /* ================= এজেন্সি: গ্রাহক কার্ড ================= */
 let ccCustomersCache = [];
-let ccCurrentTab = "specific";
+let ccCurrentCategory = "specific";
+let ccAgencyCache = null;
 
 async function loadCustomerCardsSetup(){
   const res = await cachedApiCall("listDealers", {}, 20000);
@@ -1458,27 +1469,38 @@ async function loadCustomerCardsSetup(){
     sel.innerHTML = "<option value=''>-- সিলেক্ট করুন --</option>" +
       res.dealers.map(d => `<option value="${d['DealerID']}">${d['নাম']}</option>`).join("");
   }
+  document.getElementById("ccCategorySelect").value = "specific";
+  ccCurrentCategory = "specific";
   ccCustomersCache = [];
   document.getElementById("ccControls").innerHTML = "";
   document.getElementById("ccMsg").textContent = "";
+  document.getElementById("ccPreviewWrap").innerHTML = "";
+
+  const agencyRes = await cachedApiCall("getAgencyInfo", {}, 30000);
+  ccAgencyCache = agencyRes.success ? agencyRes.agency : { "নাম":"", "মোবাইল":"", "লোগো(URL)":"" };
 }
 
 async function onCcDealerChange(){
   const dealerId = document.getElementById("ccDealerSelect").value;
   document.getElementById("ccMsg").textContent = "";
-  if(!dealerId){ ccCustomersCache = []; document.getElementById("ccControls").innerHTML = ""; return; }
+  if(!dealerId){
+    ccCustomersCache = [];
+    document.getElementById("ccControls").innerHTML = "";
+    document.getElementById("ccPreviewWrap").innerHTML = "";
+    return;
+  }
 
   document.getElementById("ccControls").innerHTML = "লোড হচ্ছে...";
   const res = await cachedApiCall("listCustomersForDealer", { dealerId }, 15000);
   ccCustomersCache = res.success ? res.customers : [];
   renderCcControls();
+  updateCcPreview();
 }
 
-function switchCcTab(tab, btn){
-  ccCurrentTab = tab;
-  document.querySelectorAll("#sec-customerCards .tabs button").forEach(b => b.classList.remove("active"));
-  if(btn) btn.classList.add("active");
+function onCcCategoryChange(){
+  ccCurrentCategory = document.getElementById("ccCategorySelect").value;
   renderCcControls();
+  updateCcPreview();
 }
 
 function renderCcControls(){
@@ -1488,61 +1510,93 @@ function renderCcControls(){
     return;
   }
 
-  if(ccCurrentTab === "specific"){
-    if(ccCustomersCache.length === 0){ box.innerHTML = "<p>কোনো গ্রাহক পাওয়া যায়নি</p>"; return; }
-    box.innerHTML = `<div class="table-wrap" style="max-height:260px;overflow-y:auto;"><table>
-      <thead><tr><th style="width:10%;">✓</th><th class="cell-left">নাম</th><th>মোবাইল</th><th>প্রাপ্তির স্থান</th></tr></thead>
-      <tbody>` + ccCustomersCache.map(c => `
-        <tr>
-          <td><input type="checkbox" class="ccCustomerCheck" value="${c['CustomerID']}"></td>
-          <td class="cell-left">${c["নাম"]}</td><td>${c["মোবাইল নং"]}</td><td>${c["প্রাপ্তির স্থান"]||""}</td>
-        </tr>`).join("") + `</tbody></table></div>`;
-  } else if(ccCurrentTab === "location"){
+  if(ccCurrentCategory === "specific"){
+    box.innerHTML = `<div class="field"><label>গ্রাহক সিলেক্ট করুন</label>
+      <select id="ccSpecificCustomerSelect" onchange="updateCcPreview()">
+      <option value="">-- সিলেক্ট করুন --</option>
+      ${ccCustomersCache.map(c => `<option value="${c['CustomerID']}">${c['নাম']} (${c['মোবাইল নং']||''})</option>`).join("")}
+      </select></div>`;
+  } else if(ccCurrentCategory === "location"){
     const locations = [...new Set(ccCustomersCache.map(c => c["প্রাপ্তির স্থান"]).filter(Boolean))];
-    box.innerHTML = `<div class="field"><label>প্রাপ্তির স্থান</label>
-      <select id="ccLocationSelect"><option value="">-- সিলেক্ট করুন --</option>
+    box.innerHTML = `<div class="field"><label>প্রাপ্তির স্থান সিলেক্ট করুন</label>
+      <select id="ccLocationSelect" onchange="updateCcPreview()"><option value="">-- সিলেক্ট করুন --</option>
       ${locations.map(l => `<option value="${l}">${l}</option>`).join("")}</select></div>`;
   } else {
-    box.innerHTML = `<p style="color:var(--muted);font-size:0.85rem;">এই ডিলারের মোট ${ccCustomersCache.length} জন গ্রাহকের কার্ড তৈরি হবে</p>`;
+    box.innerHTML = `<p style="color:var(--muted);font-size:0.85rem;align-self:end;">এই ডিলারের মোট ${ccCustomersCache.length} জন গ্রাহকের কার্ড দেখানো হবে</p>`;
   }
 }
 
-function generateCustomerCards(){
+/*******************************************************
+ * বর্তমান সিলেকশন অনুযায়ী কোন কোন গ্রাহকের কার্ড দেখানো/প্রিন্ট
+ * হবে তা বের করা
+ *******************************************************/
+function getCcSelectedCustomers(){
+  if(ccCurrentCategory === "specific"){
+    const sel = document.getElementById("ccSpecificCustomerSelect");
+    const id = sel ? sel.value : "";
+    if(!id) return [];
+    return ccCustomersCache.filter(c => c["CustomerID"] === id);
+  } else if(ccCurrentCategory === "location"){
+    const sel = document.getElementById("ccLocationSelect");
+    const loc = sel ? sel.value : "";
+    if(!loc) return [];
+    return ccCustomersCache.filter(c => c["প্রাপ্তির স্থান"] === loc);
+  }
+  return ccCustomersCache;
+}
+
+/*******************************************************
+ * ডিলার/ধরন/সাব-সিলেকশন বদলালেই সাথে সাথে কার্ডের প্রিভিউ দেখানো
+ *******************************************************/
+function updateCcPreview(){
+  const dealerId = document.getElementById("ccDealerSelect").value;
+  const previewWrap = document.getElementById("ccPreviewWrap");
+  const msgBox = document.getElementById("ccMsg");
+  msgBox.textContent = "";
+
+  if(!dealerId){ previewWrap.innerHTML = ""; return; }
+  const customers = getCcSelectedCustomers();
+  if(customers.length === 0){
+    previewWrap.innerHTML = `<p style="color:var(--muted);font-size:0.85rem;">প্রিভিউ দেখতে উপরে থেকে নির্বাচন করুন</p>`;
+    return;
+  }
+
+  const dealer = (dealerListCache||[]).find(d => d["DealerID"] === dealerId) || { "নাম":"", "মোবাইল":"" };
+  const html = buildCardsDocument(ccAgencyCache, dealer, dealerId, customers, false);
+
+  previewWrap.innerHTML = `<div class="table-wrap" style="overflow-x:auto;"><iframe id="ccPreviewFrame" style="width:100%;min-height:260px;border:1px solid var(--line);border-radius:10px;background:#fff;"></iframe></div>`;
+  const frame = document.getElementById("ccPreviewFrame");
+  frame.srcdoc = html;
+  frame.onload = () => {
+    try{
+      const doc = frame.contentDocument;
+      frame.style.height = (doc.body.scrollHeight + 20) + "px";
+    }catch(e){}
+  };
+}
+
+function printCurrentCcPreview(){
   const dealerId = document.getElementById("ccDealerSelect").value;
   const msgBox = document.getElementById("ccMsg");
   if(!dealerId){ msgBox.textContent = "আগে ডিলার সিলেক্ট করুন"; msgBox.className = "msg err"; return; }
 
-  let selectedCustomers = [];
-  if(ccCurrentTab === "specific"){
-    const ids = [...document.querySelectorAll(".ccCustomerCheck:checked")].map(el => el.value);
-    if(ids.length === 0){ msgBox.textContent = "অন্তত একজন গ্রাহক সিলেক্ট করুন"; msgBox.className = "msg err"; return; }
-    selectedCustomers = ccCustomersCache.filter(c => ids.includes(c["CustomerID"]));
-  } else if(ccCurrentTab === "location"){
-    const loc = document.getElementById("ccLocationSelect").value;
-    if(!loc){ msgBox.textContent = "প্রাপ্তির স্থান সিলেক্ট করুন"; msgBox.className = "msg err"; return; }
-    selectedCustomers = ccCustomersCache.filter(c => c["প্রাপ্তির স্থান"] === loc);
-  } else {
-    selectedCustomers = ccCustomersCache;
-  }
-
-  if(selectedCustomers.length === 0){ msgBox.textContent = "কোনো গ্রাহক পাওয়া যায়নি"; msgBox.className = "msg err"; return; }
+  const customers = getCcSelectedCustomers();
+  if(customers.length === 0){ msgBox.textContent = "প্রিন্ট করার জন্য অন্তত একটি নির্বাচন করুন"; msgBox.className = "msg err"; return; }
   msgBox.textContent = "";
-  printCustomerCardsWindow(dealerId, selectedCustomers);
+
+  const dealer = (dealerListCache||[]).find(d => d["DealerID"] === dealerId) || { "নাম":"", "মোবাইল":"" };
+  const win = window.open("", "_blank", "width=900,height=700");
+  const html = buildCardsDocument(ccAgencyCache, dealer, dealerId, customers, true);
+  win.document.write(html);
+  win.document.close();
 }
 
 /*******************************************************
- * গ্রাহক আইডি কার্ড প্রিন্ট (৩.২in x ২.২in, প্রফেশনাল কালার ডিজাইন, QR সহ)
+ * গ্রাহক আইডি কার্ড — ৩.২in x ২.২in, প্রফেশনাল ডিজাইন, QR সহ
+ * (প্রিভিউ ও প্রিন্ট — দুই জায়গাতেই একই ফাংশন ব্যবহার হয়)
  *******************************************************/
-async function printCustomerCardsWindow(dealerId, customers){
-  // পপ-আপ ব্লকার এড়াতে window.open() await এর আগেই সিঙ্ক্রোনাসভাবে কল করা হচ্ছে
-  const win = window.open("", "_blank", "width=900,height=700");
-  win.document.write("<p style='font-family:sans-serif;padding:20px;'>কার্ড তৈরি হচ্ছে...</p>");
-
-  const dealer = (dealerListCache||[]).find(d => d["DealerID"] === dealerId) ||
-    { "নাম": "", "মোবাইল": "" };
-
-  const agencyRes = await cachedApiCall("getAgencyInfo", {}, 30000);
-  const agency = agencyRes.success ? agencyRes.agency : { "নাম":"", "মোবাইল":"", "লোগো(URL)":"" };
+function buildCardsDocument(agency, dealer, dealerId, customers, autoprint){
+  agency = agency || { "নাম":"", "মোবাইল":"", "লোগো(URL)":"" };
   const logoImg = agency["লোগো(URL)"]
     ? `<img src="${agency["লোগো(URL)"]}">`
     : `<span>MSDS</span>`;
@@ -1585,7 +1639,7 @@ async function printCustomerCardsWindow(dealerId, customers){
       </div>`;
   }).join("");
 
-  win.document.write(`<html><head><meta charset="utf-8"><title>গ্রাহক কার্ড</title>
+  return `<html><head><meta charset="utf-8"><title>গ্রাহক কার্ড</title>
     <style>
       @page{ margin:6mm; }
       *{ box-sizing:border-box; }
@@ -1628,9 +1682,8 @@ async function printCustomerCardsWindow(dealerId, customers){
       }
     </style></head><body>
     <div class="cards-wrap">${cardsHtml}</div>
-    <script>window.onload=function(){window.print();}<\/script>
-    </body></html>`);
-  win.document.close();
+    ${autoprint ? '<script>window.onload=function(){window.print();}<\/script>' : ''}
+    </body></html>`;
 }
 
 /* ================= ডিলার: ড্যাশবোর্ড ================= */
