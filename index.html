@@ -130,7 +130,7 @@
   }
   nav#sideMenu.open{ right:0; }
   nav#sideMenu a, nav#sideMenu button.menu-item{
-    display:block; width:100%; text-align:right; background:none; border:none;
+    display:block; width:100%; text-align:left; background:none; border:none;
     color:#fff; padding:12px 20px; font-size:0.98rem; cursor:pointer;
     border-bottom:1px solid rgba(255,255,255,0.08);
   }
@@ -144,7 +144,7 @@
   .section h2{ color:var(--teal-dark); font-size:1.25rem; margin:0 0 14px; }
 
   .cards{ display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:10px; margin-bottom:20px; }
-  .card{ background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px; }
+  .card{ background:var(--card); border:1px solid var(--line); border-left:4px solid var(--teal); border-radius:14px; padding:14px; }
   .card .num{ font-size:1.6rem; font-weight:700; color:var(--teal-dark); }
   .card .label{ font-size:0.82rem; color:var(--muted); margin-top:2px; }
 
@@ -195,6 +195,15 @@
   .tabs button.active{ background:var(--teal); color:#fff; border-color:var(--teal); }
 
   .photo-preview{ width:80px; height:80px; border-radius:10px; object-fit:cover; border:1px solid var(--line); display:block; margin-top:6px; background:#eee; }
+
+  .photo-upload-box{
+    width:100px; height:100px; border:2px dashed var(--teal); border-radius:12px;
+    background:#fff; cursor:pointer; display:flex; align-items:center; justify-content:center;
+    overflow:hidden; transition:border-color 0.15s, background 0.15s;
+  }
+  .photo-upload-box:hover{ background:var(--teal-soft); border-color:var(--teal-dark); }
+  .photo-upload-box img{ width:100%; height:100%; object-fit:cover; }
+  .photo-upload-placeholder{ font-size:0.72rem; color:var(--muted); text-align:center; line-height:1.4; padding:4px; }
 
   .pkg-click-row{ cursor:pointer; }
   .pkg-click-row:hover{ background:#f0efe6; }
@@ -416,6 +425,7 @@
 
     <section class="section" id="sec-packages">
       <h2>প্যাকেজ</h2>
+      <div class="toolbar no-print"><button class="btn secondary small" onclick="printDealerPackagesList()">🖨 প্যাকেজ প্রিন্ট করুন</button></div>
       <div class="table-wrap"><table id="packagesTable"><thead></thead><tbody></tbody></table></div>
       <div id="pkgDetailBox" class="pkg-detail-box" style="display:none;"></div>
     </section>
@@ -441,7 +451,7 @@
         </div>
         <div id="cusMsg" class="msg"></div>
       </fieldset>
-      <div class="toolbar no-print"><button class="btn secondary small" onclick="window.print()">🖨 সব গ্রাহক প্রিন্ট করুন</button></div>
+      <div class="toolbar no-print"><button class="btn secondary small" onclick="printCustomersListOfficial()">🖨 সব গ্রাহক প্রিন্ট করুন</button></div>
       <div class="table-wrap"><table id="customersTable"><thead></thead><tbody></tbody></table></div>
     </section>
 
@@ -460,6 +470,7 @@
         </div>
         <div id="ordMsg" class="msg"></div>
       </fieldset>
+      <div class="toolbar no-print"><button class="btn secondary small" onclick="printOrdersInvoice()">🖨 ইনভয়েস প্রিন্ট করুন</button></div>
       <div class="table-wrap"><table id="ordersTable"><thead></thead><tbody></tbody></table></div>
     </section>
 
@@ -603,6 +614,45 @@ function printSingleRecord(title, fields){
       th{background:#eef0e9;width:40%;}
     </style></head><body>
     <h2>${title}</h2><table>${rows}</table>
+    <script>window.onload=function(){window.print();}<\/script>
+    </body></html>`);
+  win.document.close();
+}
+
+/*******************************************************
+ * অফিসিয়াল ফরম্যাটে টেবিল প্রিন্ট (গ্রাহক লিস্ট, অর্ডার ইনভয়েস,
+ * প্যাকেজ লিস্ট — সবজায়গায় ব্যবহৃত)
+ * headers: টেবিল হেডার (center-align), rows: 2D array (data left-align)
+ * extraFooterRows: টোটাল/সারাংশ সারি (ঐচ্ছিক, bold দেখাবে)
+ *******************************************************/
+function printOfficialTable(title, subtitle, headers, rows, extraFooterRows, footerNote){
+  const win = window.open("", "_blank", "width=900,height=700");
+  const theadHtml = "<tr>" + headers.map(h => `<th>${h}</th>`).join("") + "</tr>";
+  const tbodyHtml = rows.map(r => "<tr>" + r.map(v => `<td>${v===undefined||v===null?'':v}</td>`).join("") + "</tr>").join("");
+  const tfootHtml = (extraFooterRows||[]).map(r =>
+    "<tr>" + r.map(v => `<td style="font-weight:700;">${v===undefined||v===null?'':v}</td>`).join("") + "</tr>"
+  ).join("");
+
+  win.document.write(`<html><head><meta charset="utf-8"><title>${title}</title>
+    <style>
+      @page{ size:A4; margin:15mm; }
+      body{ font-family:'Hind Siliguri',sans-serif; color:#1c2b28; }
+      .letterhead{ text-align:center; border-bottom:3px solid #153f37; padding-bottom:10px; margin-bottom:14px; }
+      .letterhead h1{ margin:0; color:#153f37; font-size:20px; }
+      .letterhead p{ margin:4px 0 0; color:#b5502f; font-weight:600; font-size:12px; }
+      h2.doc-title{ text-align:center; font-size:15px; margin:10px 0 4px; text-decoration:underline; }
+      .doc-subtitle{ text-align:center; margin:0 0 14px; color:#6b7570; font-size:12px; }
+      table{ width:100%; border-collapse:collapse; }
+      th,td{ border:1px solid #999; padding:6px 8px; font-size:12px; }
+      th{ text-align:center; background:#eef0e9; }
+      td{ text-align:left; }
+      .doc-footer{ margin-top:26px; font-size:9px; color:#6b7570; text-align:center; }
+    </style></head><body>
+    <div class="letterhead"><h1>মানবিক সহায়তা ডেইলি শপ</h1><p>সাশ্রয়ী মূল্যে পণ্য বিক্রি সংস্থা</p></div>
+    <h2 class="doc-title">${title}</h2>
+    ${subtitle ? `<p class="doc-subtitle">${subtitle}</p>` : ''}
+    <table><thead>${theadHtml}</thead><tbody>${tbodyHtml}${tfootHtml}</tbody></table>
+    ${footerNote ? `<div class="doc-footer">${footerNote}</div>` : ''}
     <script>window.onload=function(){window.print();}<\/script>
     </body></html>`);
   win.document.close();
@@ -824,8 +874,7 @@ function renderRegisterForm(box){
         <div class="field" style="grid-column:1/-1;"><label>ঠিকানা</label><input id="rThikana"></div>
         <div class="field">
           <label>ডিলারের ছবি</label>
-          <input type="file" id="rDealerPhoto" accept="image/*" onchange="previewImg('rDealerPhoto','rDealerPhotoPreview')">
-          <img id="rDealerPhotoPreview" class="photo-preview" style="display:none;">
+          ${photoUploadBoxHtml('rDealerPhoto', 'rDealerPhotoPreview', 'rDealerPhotoPlaceholder', '')}
         </div>
       </div>
     </fieldset>
@@ -839,8 +888,7 @@ function renderRegisterForm(box){
         <div class="field"><label>সম্পর্ক</label><input id="rNomSomporko"></div>
         <div class="field">
           <label>নমিনির ছবি</label>
-          <input type="file" id="rNomPhoto" accept="image/*" onchange="previewImg('rNomPhoto','rNomPhotoPreview')">
-          <img id="rNomPhotoPreview" class="photo-preview" style="display:none;">
+          ${photoUploadBoxHtml('rNomPhoto', 'rNomPhotoPreview', 'rNomPhotoPlaceholder', '')}
         </div>
       </div>
     </fieldset>
@@ -861,14 +909,31 @@ function renderRegisterForm(box){
     <div id="registerMsg" class="msg"></div>`;
 }
 
-function previewImg(inputId, imgId){
+function previewImg(inputId, imgId, placeholderId){
   const input = document.getElementById(inputId);
   const img = document.getElementById(imgId);
   if(input.files && input.files[0]){
     const reader = new FileReader();
-    reader.onload = e => { img.src = e.target.result; img.style.display = "block"; };
+    reader.onload = e => {
+      img.src = e.target.result; img.style.display = "block";
+      if(placeholderId){ const ph = document.getElementById(placeholderId); if(ph) ph.style.display = "none"; }
+    };
     reader.readAsDataURL(input.files[0]);
   }
+}
+
+/*******************************************************
+ * ক্লিক-করে-ছবি-আপলোড বক্স — png/jpg/jpeg/svg সাপোর্ট করে
+ *******************************************************/
+function photoUploadBoxHtml(fileInputId, previewImgId, placeholderId, existingUrl){
+  const hasImg = !!existingUrl;
+  return `
+    <div class="photo-upload-box" onclick="document.getElementById('${fileInputId}').click()">
+      <img id="${previewImgId}" src="${existingUrl||''}" style="${hasImg?'':'display:none;'}">
+      <span id="${placeholderId}" class="photo-upload-placeholder" style="${hasImg?'display:none;':''}">📷<br>ছবি যোগ করতে ক্লিক করুন</span>
+    </div>
+    <input type="file" id="${fileInputId}" accept="image/png,image/jpeg,image/jpg,image/svg+xml,.svg"
+      style="display:none;" onchange="previewImg('${fileInputId}','${previewImgId}','${placeholderId}')">`;
 }
 
 async function submitRegister(){
@@ -1001,6 +1066,7 @@ async function editDealerRow(dealerId){
   if(d["ডিলারের ছবি(URL)"]){
     document.getElementById("rDealerPhotoPreview").src = d["ডিলারের ছবি(URL)"];
     document.getElementById("rDealerPhotoPreview").style.display = "block";
+    document.getElementById("rDealerPhotoPlaceholder").style.display = "none";
   }
 
   document.getElementById("rNomNaam").value = n["নমিনির নাম"] || "";
@@ -1010,6 +1076,7 @@ async function editDealerRow(dealerId){
   if(n["নমিনির ছবি(URL)"]){
     document.getElementById("rNomPhotoPreview").src = n["নমিনির ছবি(URL)"];
     document.getElementById("rNomPhotoPreview").style.display = "block";
+    document.getElementById("rNomPhotoPlaceholder").style.display = "none";
   }
 
   document.getElementById("rAdminUser").value = u["ইউজারনেম"] || "";
@@ -1148,17 +1215,21 @@ async function renderAgencyInfoEdit(box){
     <div class="form-grid">
       <div class="field"><label>নাম</label><input id="mAgencyNaam" value="${a['নাম']||''}"></div>
       <div class="field"><label>মোবাইল নং</label><input id="mAgencyMobile" value="${a['মোবাইল']||''}"></div>
-      <div class="field"><label>লোগো URL</label><input id="mAgencyLogo" value="${a['লোগো(URL)']||''}"></div>
+      <div class="field">
+        <label>লোগো</label>
+        ${photoUploadBoxHtml('mAgencyLogo_file', 'mAgencyLogo_preview', 'mAgencyLogo_placeholder', a['লোগো(URL)'])}
+      </div>
     </div>
     <button class="btn" onclick="saveAgency()">সংরক্ষণ করুন</button>
     <div id="mAgencyMsg" class="msg"></div>`;
 }
 
 async function saveAgency(){
+  const logoBase64 = await fileToBase64(document.getElementById("mAgencyLogo_file"));
   const data = {
     "নাম": document.getElementById("mAgencyNaam").value.trim(),
     "mobile": document.getElementById("mAgencyMobile").value.trim(),
-    "logoUrl": document.getElementById("mAgencyLogo").value.trim()
+    "logoBase64": logoBase64
   };
   const res = await apiCall("updateAgencyInfo", data);
   if(res.success) clearCache();
@@ -1607,12 +1678,12 @@ function buildCardsDocument(agency, dealer, dealerId, customers, autoprint){
     const thikana = [c["গ্রাম"]||"", c["ইউনিয়ন/পৌরসভা"]||""].filter(Boolean).join(", ");
 
     const rows = [
-      ["নাম", c["নাম"]||""],
-      ["পিতার নাম", c["পিতার নাম"]||""],
-      ["এনআইডি নং", c["NID/জন্মসনদ নং"]||""],
-      ["মোবাইল নং", c["মোবাইল নং"]||""],
-      ["ঠিকানা", thikana],
-      ["প্রাপ্তির স্থান", c["প্রাপ্তির স্থান"]||""]
+      ["Name", c["নাম"]||""],
+      ["Father's Name", c["পিতার নাম"]||""],
+      ["NID No", c["NID/জন্মসনদ নং"]||""],
+      ["Mobile No", c["মোবাইল নং"]||""],
+      ["Address", thikana],
+      ["Collection Point", c["প্রাপ্তির স্থান"]||""]
     ];
     const rowsHtml = rows.map(r => `
       <tr><td class="cf-label">${r[0]}</td><td class="cf-colon">:</td><td class="cf-value">${r[1]}</td></tr>
@@ -1630,6 +1701,7 @@ function buildCardsDocument(agency, dealer, dealerId, customers, autoprint){
         </div>
         <div class="card-divider"></div>
         <div class="card-body">
+          ${agency["লোগো(URL)"] ? `<img class="card-watermark" src="${agency["লোগো(URL)"]}">` : ''}
           <table class="card-fields"><tbody>${rowsHtml}</tbody></table>
           <div class="card-qr"><img src="${qrImgUrl}"></div>
         </div>
@@ -1667,13 +1739,17 @@ function buildCardsDocument(agency, dealer, dealerId, customers, autoprint){
       .org-name{ font-size:12px; font-weight:700; line-height:1.3; }
       .org-mobile{ font-size:9.5px; opacity:0.9; margin-top:1px; }
       .card-divider{ height:2px; background:#b5502f; }
-      .card-body{ display:flex; flex:1; padding:6px 8px; gap:6px; align-items:center; }
-      table.card-fields{ flex:1; border-collapse:collapse; font-size:9.3px; color:#1c2b28; }
+      .card-body{ display:flex; flex:1; padding:6px 8px; gap:6px; align-items:center; position:relative; }
+      .card-watermark{
+        position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+        width:70%; max-height:70%; object-fit:contain; opacity:0.09; pointer-events:none; z-index:0;
+      }
+      table.card-fields{ flex:1; border-collapse:collapse; font-size:9.3px; color:#1c2b28; position:relative; z-index:1; }
       table.card-fields td{ padding:1.5px 0; vertical-align:top; }
       .cf-label{ font-weight:600; color:#b5502f; white-space:nowrap; padding-right:4px; }
       .cf-colon{ width:8px; }
       .cf-value{ color:#1c2b28; }
-      .card-qr{ width:60px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+      .card-qr{ width:60px; display:flex; align-items:center; justify-content:center; flex-shrink:0; position:relative; z-index:1; }
       .card-qr img{ width:56px; height:56px; }
       .card-footer{
         background:#eef0e9; color:#153f37; font-size:9px; font-weight:600;
@@ -1792,9 +1868,36 @@ function showPkgDetail(packageId){
   pkg.items.forEach(it => {
     html += `<tr><td class="cell-left">${it["পণ্যের নাম ও পরিমাণ"]}</td><td>${it["বাজার মূল্য"]}</td><td>${it["কম্বো মূল্য"]}</td><td>${it["সাশ্রয়"]}</td></tr>`;
   });
-  html += `</tbody></table>`;
+  html += `</tbody></table>
+    <div class="cards" style="margin-top:12px;margin-bottom:0;">
+      <div class="card"><div class="num">${pkg.itemCount}</div><div class="label">মোট পণ্য</div></div>
+      <div class="card"><div class="num">${pkg["সর্বমোট বাজার মূল্য"]||0}</div><div class="label">বাজার মূল্য</div></div>
+      <div class="card"><div class="num">${pkg["সর্বমোট কম্বো মূল্য (সর্বমোট মূল্য)"]||pkg["সর্বমোট মূল্য"]||0}</div><div class="label">কম্বো মূল্য</div></div>
+      <div class="card"><div class="num">${pkg["সর্বমোট সাশ্রয়"]||0}</div><div class="label">মোট সাশ্রয়</div></div>
+    </div>`;
   box.innerHTML = html;
   box.style.display = "block";
+}
+
+/*******************************************************
+ * প্যাকেজ লিস্ট — অফিসিয়াল ফরম্যাটে প্রিন্ট (ডিলার সাইট থেকে)
+ *******************************************************/
+function printDealerPackagesList(){
+  const packages = dealerPackagesCache || [];
+  if(packages.length === 0){ alert("প্রিন্ট করার জন্য কোনো প্যাকেজ নেই"); return; }
+
+  const headers = ["ক্রম", "প্যাকেজের নাম", "পণ্য সংখ্যা", "ধরন", "বাজার মূল্য", "কম্বো মূল্য", "সাশ্রয়"];
+  const rows = packages.map((p, i) => [
+    i+1, p["নাম"]||"", p.itemCount||0, p["ধরন"]||"",
+    p["সর্বমোট বাজার মূল্য"]||0, p["সর্বমোট মূল্য"]||0, p["সর্বমোট সাশ্রয়"]||0
+  ]);
+
+  printOfficialTable(
+    "প্যাকেজ তালিকা",
+    "ডিলার: " + (state.dealerName||""),
+    headers, rows, null,
+    "@Powered by: AM Shahed: 01605721296"
+  );
 }
 
 /* ================= ডিলার: গ্রাহক ================= */
@@ -1868,6 +1971,28 @@ async function loadCustomers(){
 }
 
 /*******************************************************
+ * গ্রাহক তালিকা — অফিসিয়াল ফরম্যাটে প্রিন্ট (হেডার সেন্টার, ডাটা লেফট)
+ *******************************************************/
+function printCustomersListOfficial(){
+  const customers = window.__customersCache || [];
+  if(customers.length === 0){ alert("প্রিন্ট করার জন্য কোনো গ্রাহক নেই"); return; }
+
+  const headers = ["ক্রম", "নাম", "পিতার নাম", "মোবাইল নং", "NID/জন্মসনদ নং", "ঠিকানা", "প্রাপ্তির স্থান"];
+  const rows = customers.map((c, i) => [
+    i+1, c["নাম"]||"", c["পিতার নাম"]||"", c["মোবাইল নং"]||"", c["NID/জন্মসনদ নং"]||"",
+    [c["বাড়ির নাম"]||"", c["গ্রাম"]||"", c["ইউনিয়ন/পৌরসভা"]||"", c["ওয়ার্ড নং"]?("ওয়ার্ড-"+c["ওয়ার্ড নং"]):""].filter(Boolean).join(", "),
+    c["প্রাপ্তির স্থান"]||""
+  ]);
+
+  printOfficialTable(
+    "গ্রাহক তালিকা",
+    "ডিলার: " + (state.dealerName||"") + " — মোট গ্রাহক: " + customers.length,
+    headers, rows, null,
+    "@Powered by: AM Shahed: 01605721296"
+  );
+}
+
+/*******************************************************
  * গ্রাহক এডিট — মোডালের বদলে সরাসরি উপরের ফরমেই সব তথ্য লোড হয়ে যাবে
  *******************************************************/
 function editCustomerRow(customerId){
@@ -1923,6 +2048,7 @@ async function loadOrders(){
   if(!res.success){ table.innerHTML = res.message; return; }
 
   window.__ordersCache = res.orders;
+  window.__orderPackagesCache = res.packages;
   sel.innerHTML = res.packages.map(p => `<option value="${p['PackageID']}">${p['নাম']}</option>`).join("");
 
   table.innerHTML = "<thead><tr><th>ক্রম</th><th>তারিখ</th><th>সংখ্যা</th><th>একক মূল্য</th><th>মোট মূল্য</th><th class='no-print'>একশন</th></tr></thead><tbody></tbody>";
@@ -1938,6 +2064,36 @@ async function loadOrders(){
       </td>`;
     tbody.appendChild(tr);
   });
+}
+
+/*******************************************************
+ * অর্ডার ইনভয়েস — অফিসিয়াল ইনভয়েস ফরম্যাটে প্রিন্ট
+ *******************************************************/
+function printOrdersInvoice(){
+  const orders = window.__ordersCache || [];
+  if(orders.length === 0){ alert("প্রিন্ট করার জন্য কোনো অর্ডার নেই"); return; }
+
+  const pkgMap = {};
+  (window.__orderPackagesCache||[]).forEach(p => pkgMap[p["PackageID"]] = p["নাম"]);
+
+  const headers = ["ক্রম", "তারিখ", "প্যাকেজ", "সংখ্যা", "একক মূল্য", "মোট মূল্য"];
+  const rows = orders.map((o, i) => [
+    i+1,
+    o["তারিখ"] ? new Date(o["তারিখ"]).toLocaleDateString("bn-BD") : "",
+    pkgMap[o["PackageID"]] || "",
+    o["সংখ্যা"]||0, o["একক মূল্য"]||0, o["মোট মূল্য"]||0
+  ]);
+
+  let grandTotal = 0;
+  orders.forEach(o => { grandTotal += Number(o["মোট মূল্য"]) || 0; });
+
+  printOfficialTable(
+    "অর্ডার ইনভয়েস",
+    "ডিলার: " + (state.dealerName||"") + " — তারিখ: " + new Date().toLocaleDateString("bn-BD"),
+    headers, rows,
+    [["", "", "", "", "সর্বমোট", grandTotal]],
+    "@Powered by: AM Shahed: 01605721296"
+  );
 }
 
 /*******************************************************
@@ -2049,7 +2205,7 @@ function renderSalesTable(){
   let customers = allCustomersCache;
   if(loc) customers = customers.filter(c => c["প্রাপ্তির স্থান"] === loc);
 
-  table.innerHTML = "<thead><tr><th class='cell-left'>নাম</th><th>মোবাইল</th><th>প্রাপ্তির স্থান</th><th>স্ট্যাটাস</th><th class='no-print'>একশন</th></tr></thead><tbody></tbody>";
+  table.innerHTML = "<thead><tr><th class='cell-left'>নাম</th><th class='cell-left'>পিতার নাম</th><th>মোবাইল</th><th>প্রাপ্তির স্থান</th><th>স্ট্যাটাস</th><th class='no-print'>একশন</th></tr></thead><tbody></tbody>";
   const tbody = table.querySelector("tbody");
 
   customers.forEach(c => {
@@ -2058,7 +2214,7 @@ function renderSalesTable(){
     const cJson = JSON.stringify(c).replace(/'/g, "&#39;");
     const tr = document.createElement("tr");
     tr.innerHTML = `
-      <td class="cell-left">${c["নাম"]}</td><td>${c["মোবাইল নং"]}</td><td>${c["প্রাপ্তির স্থান"]||""}</td>
+      <td class="cell-left">${c["নাম"]}</td><td class="cell-left">${c["পিতার নাম"]||""}</td><td>${c["মোবাইল নং"]}</td><td>${c["প্রাপ্তির স্থান"]||""}</td>
       <td>${sale ? "বিক্রিত" : "—"}</td>
       <td class="no-print">
         ${!sale
@@ -2079,6 +2235,17 @@ function printThermalReceipt(c, packageId){
   const dt = sale && sale["তারিখ"] ? new Date(sale["তারিখ"]).toLocaleDateString("bn-BD") : new Date().toLocaleDateString("bn-BD");
   const dealerLabel = state.dealerName || "";
 
+  const rows = [
+    ["Customer Name", c["নাম"]||""],
+    ["Mobile No", c["মোবাইল নং"]||""],
+    ["Collection Point", c["প্রাপ্তির স্থান"]||""],
+    ["প্যাকেজ", pkg ? pkg["নাম"] : ""],
+    ["মূল্য", pkg ? pkg["সর্বমোট মূল্য"] : ""],
+    ["তারিখ", dt],
+    ["স্ট্যাটাস", sale ? "বিক্রিত" : "অপেক্ষমান"]
+  ];
+  const rowsHtml = rows.map(r => `<tr><td class="lbl">${r[0]}</td><td class="colon">:</td><td>${r[1]}</td></tr>`).join("");
+
   const win = window.open("", "_blank", "width=340,height=520");
   win.document.write(`<html><head><meta charset="utf-8"><title>রসিদ</title>
     <style>
@@ -2086,25 +2253,20 @@ function printThermalReceipt(c, packageId){
       body{ font-family:'Hind Siliguri',sans-serif; width:76mm; margin:0 auto; color:#000; font-size:12px; }
       h2{ text-align:center; font-size:14px; margin:4px 0; }
       .line{ border-top:1px dashed #000; margin:6px 0; }
-      table{ width:100%; border-collapse:collapse; font-size:12px; }
-      td{ padding:2px 0; }
-      .lbl{ font-weight:600; }
+      table{ width:100%; border-collapse:collapse; font-size:11.5px; }
+      td{ padding:2px 0; vertical-align:top; }
+      .lbl{ font-weight:600; white-space:nowrap; padding-right:4px; }
+      .colon{ width:8px; }
       .center{ text-align:center; }
+      .footnote{ text-align:center; font-size:8.5px; color:#555; margin-top:8px; }
     </style></head><body>
     <h2>${dealerLabel}</h2>
     <p class="center">বিক্রয় রসিদ</p>
     <div class="line"></div>
-    <table>
-      <tr><td class="lbl">গ্রাহকের নাম</td><td>${c["নাম"]||""}</td></tr>
-      <tr><td class="lbl">মোবাইল নং</td><td>${c["মোবাইল নং"]||""}</td></tr>
-      <tr><td class="lbl">প্রাপ্তির স্থান</td><td>${c["প্রাপ্তির স্থান"]||""}</td></tr>
-      <tr><td class="lbl">প্যাকেজ</td><td>${pkg ? pkg["নাম"] : ""}</td></tr>
-      <tr><td class="lbl">মূল্য</td><td>${pkg ? pkg["সর্বমোট মূল্য"] : ""}</td></tr>
-      <tr><td class="lbl">তারিখ</td><td>${dt}</td></tr>
-      <tr><td class="lbl">স্ট্যাটাস</td><td>${sale ? "বিক্রিত" : "অপেক্ষমান"}</td></tr>
-    </table>
+    <table>${rowsHtml}</table>
     <div class="line"></div>
     <p class="center">ধন্যবাদ</p>
+    <p class="footnote">@Powered by: AM Shahed: 01605721296</p>
     <script>window.onload=function(){window.print();}<\/script>
     </body></html>`);
   win.document.close();
