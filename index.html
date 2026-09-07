@@ -459,19 +459,15 @@
     <section class="section" id="sec-orders">
       <h2>অর্ডার</h2>
       <fieldset class="no-print">
-        <legend id="ordFormLegend">নতুন অর্ডার</legend>
-        <div class="form-grid">
-          <div class="field"><label>প্যাকেজ</label><select id="ordPackage"></select></div>
-          <div class="field"><label>সংখ্যা</label><input id="ordQty" type="number" min="1"></div>
-          <div class="field"><label>একক মূল্য</label><input id="ordPrice" type="number" min="0"></div>
-        </div>
+        <legend id="ordFormLegend">নতুন অর্ডার ইনভয়েস (একাধিক প্যাকেজ যোগ করা যাবে)</legend>
+        <div id="ordItems"></div>
+        <button class="btn secondary small" onclick="addOrdItemRow()">+ আরেকটি প্যাকেজ যোগ করুন</button>
         <div class="btn-row">
           <button class="btn" id="ordSubmitBtn" onclick="submitOrder()">অর্ডার সংরক্ষণ করুন</button>
-          <button class="btn secondary" id="ordCancelBtn" style="display:none;" onclick="cancelOrdEdit()">বাতিল</button>
         </div>
         <div id="ordMsg" class="msg"></div>
       </fieldset>
-      <div class="toolbar no-print"><button class="btn secondary small" onclick="printOrdersInvoice()">🖨 ইনভয়েস প্রিন্ট করুন</button></div>
+      <div class="toolbar no-print"><button class="btn secondary small" onclick="printOrdersInvoice()">🖨 সব অর্ডার প্রিন্ট করুন</button></div>
       <div class="table-wrap"><table id="ordersTable"><thead></thead><tbody></tbody></table></div>
     </section>
 
@@ -574,6 +570,52 @@ function fileToBase64(fileInput){
     reader.onload = () => resolve(reader.result);
     reader.readAsDataURL(file);
   });
+}
+
+/*******************************************************
+ * ছবি রিসাইজ+কমপ্রেস করে ছোট base64 data URI বানানো — Google Sheet
+ * এর প্রতি-সেল ৫০,০০০ ক্যারেক্টার সীমার মধ্যে রাখতে এবং আপলোড দ্রুত
+ * করতে এটা জরুরি। SVG ফাইল টেক্সট-ভিত্তিক ও সাধারণত ছোট, তাই
+ * রিসাইজ ছাড়াই সরাসরি পাঠানো হয়।
+ *******************************************************/
+function resizeImageFile(file, maxDim, quality){
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        let w = img.width, h = img.height;
+        if(w > maxDim || h > maxDim){
+          if(w >= h){ h = Math.round(h * maxDim / w); w = maxDim; }
+          else { w = Math.round(w * maxDim / h); h = maxDim; }
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = w; canvas.height = h;
+        const ctx = canvas.getContext("2d");
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, w, h);
+        ctx.drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL("image/jpeg", quality));
+      };
+      img.onerror = () => reject(new Error("ছবি লোড করা যায়নি"));
+      img.src = e.target.result;
+    };
+    reader.onerror = () => reject(new Error("ফাইল পড়া যায়নি"));
+    reader.readAsDataURL(file);
+  });
+}
+
+async function fileToBase64Compressed(fileInput){
+  const file = fileInput.files[0];
+  if(!file) return "";
+  if(file.type === "image/svg+xml"){
+    return await fileToBase64(fileInput); // SVG সাধারণত ছোট, রিসাইজের দরকার নেই
+  }
+  try{
+    return await resizeImageFile(file, 400, 0.72);
+  }catch(e){
+    return await fileToBase64(fileInput); // রিসাইজ ব্যর্থ হলে মূল ফাইল পাঠানো
+  }
 }
 
 /* ---------------- জেনেরিক এডিট মোডাল ---------------- */
@@ -952,8 +994,8 @@ async function submitRegister(){
   const msgBox = document.getElementById("registerMsg");
   msgBox.textContent = editingDealerId ? "আপডেট হচ্ছে..." : "রেজিস্ট্রেশন হচ্ছে..."; msgBox.className = "msg";
 
-  const dealerPhotoBase64 = await fileToBase64(document.getElementById("rDealerPhoto"));
-  const nomineePhotoBase64 = await fileToBase64(document.getElementById("rNomPhoto"));
+  const dealerPhotoBase64 = await fileToBase64Compressed(document.getElementById("rDealerPhoto"));
+  const nomineePhotoBase64 = await fileToBase64Compressed(document.getElementById("rNomPhoto"));
 
   if(editingDealerId){
     const data = {
@@ -1121,8 +1163,8 @@ function printDealerRow(d){
  * রেজিস্ট্রেশন ফরম পূরণ করা অবস্থাতেই অফিসিয়াল ফরম্যাটে প্রিন্ট করা
  *******************************************************/
 async function printRegistrationForm(){
-  const dealerPhotoSrc = await fileToBase64(document.getElementById("rDealerPhoto"));
-  const nomPhotoSrc = await fileToBase64(document.getElementById("rNomPhoto"));
+  const dealerPhotoSrc = await fileToBase64Compressed(document.getElementById("rDealerPhoto"));
+  const nomPhotoSrc = await fileToBase64Compressed(document.getElementById("rNomPhoto"));
   printOfficialDealerForm({
     dealerId: "", status: "নতুন আবেদন",
     naam: document.getElementById("rNaam").value.trim(),
@@ -1237,7 +1279,7 @@ async function renderAgencyInfoEdit(box){
 }
 
 async function saveAgency(){
-  const logoBase64 = await fileToBase64(document.getElementById("mAgencyLogo_file"));
+  const logoBase64 = await fileToBase64Compressed(document.getElementById("mAgencyLogo_file"));
   const data = {
     "নাম": document.getElementById("mAgencyNaam").value.trim(),
     "mobile": document.getElementById("mAgencyMobile").value.trim(),
@@ -1705,8 +1747,8 @@ function buildCardsDocument(agency, dealer, dealerId, customers, autoprint){
     : `<span>MSDS</span>`;
 
   const cardsHtml = customers.map(c => {
-    const barcodeText = c["CustomerID"];
-    const barcodeImgUrl = "https://barcodeapi.org/api/128/" + encodeURIComponent(barcodeText);
+    const qrData = encodeURIComponent(API_URL + "?view=customer&dealerId=" + dealerId + "&customerId=" + c["CustomerID"]);
+    const qrImgUrl = "https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=" + qrData;
     const thikana = [c["গ্রাম"]||"", c["ইউনিয়ন/পৌরসভা"]||""].filter(Boolean).join(", ");
 
     const rows = [
@@ -1731,12 +1773,14 @@ function buildCardsDocument(agency, dealer, dealerId, customers, autoprint){
           </div>
           <div class="card-logo-spacer"></div>
         </div>
-        <div class="card-title">Customer information:</div>
+        <div class="card-title-row">
+          <div class="card-title">Customer information:</div>
+          <div class="card-qr-badge"><img src="${qrImgUrl}"></div>
+        </div>
         <div class="card-body">
           ${agency["লোগো(URL)"] ? `<img class="card-watermark" src="${agency["লোগো(URL)"]}">` : ''}
           <table class="card-fields"><tbody>${rowsHtml}</tbody></table>
         </div>
-        <div class="card-barcode"><img src="${barcodeImgUrl}"></div>
         <div class="card-footer">
           <span>${dealer["নাম"]||""}</span><span>${dealer["মোবাইল"]||""}</span>
         </div>
@@ -1770,22 +1814,27 @@ function buildCardsDocument(agency, dealer, dealerId, customers, autoprint){
       .card-org{ flex:1; text-align:center; }
       .org-name{ font-size:11.5px; font-weight:700; line-height:1.25; }
       .org-mobile{ font-size:9px; opacity:0.9; margin-top:1px; }
+      .card-title-row{ position:relative; padding:4px 10px 2px; flex-shrink:0; }
       .card-title{
         text-align:center; font-size:9.5px; font-weight:700; color:#153f37;
-        padding:3px 0 2px; text-decoration:underline; flex-shrink:0;
+        text-decoration:underline;
       }
-      .card-body{ display:flex; flex:1; padding:2px 10px; align-items:center; position:relative; min-height:0; }
+      .card-qr-badge{
+        position:absolute; top:-6px; right:8px;
+        width:30px; height:30px; background:#fff; border:1px solid #d8d2c2; border-radius:4px;
+        padding:1px; box-shadow:0 1px 2px rgba(0,0,0,0.15);
+      }
+      .card-qr-badge img{ width:100%; height:100%; object-fit:contain; }
+      .card-body{ display:flex; flex:1; padding:6px 12px 8px; align-items:center; position:relative; min-height:0; }
       .card-watermark{
         position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
         width:65%; max-height:80%; object-fit:contain; opacity:0.09; pointer-events:none; z-index:0;
       }
-      table.card-fields{ width:100%; border-collapse:collapse; font-size:9.6px; color:#000; position:relative; z-index:1; }
-      table.card-fields td{ padding:1.4px 0; vertical-align:top; color:#000; font-weight:700; }
-      .cf-label{ white-space:nowrap; padding-right:2px; width:32%; }
+      table.card-fields{ width:100%; border-collapse:collapse; font-size:11px; color:#000; position:relative; z-index:1; }
+      table.card-fields td{ padding:2.6px 0; vertical-align:top; color:#000; font-weight:700; }
+      .cf-label{ white-space:nowrap; padding-right:2px; width:34%; }
       .cf-colon{ width:6px; }
       .cf-value{ }
-      .card-barcode{ display:flex; align-items:center; justify-content:center; padding:1px 0; flex-shrink:0; }
-      .card-barcode img{ height:26px; max-width:80%; object-fit:contain; }
       .card-footer{
         background:#eef0e9; color:#153f37; font-size:9px; font-weight:600;
         padding:3px 10px; display:flex; justify-content:space-between;
@@ -2109,23 +2158,26 @@ let editingOrderId = null;
 
 async function loadOrders(){
   const res = await cachedApiCall("getOrdersPageData", {}, 15000);
-  const sel = document.getElementById("ordPackage");
   const table = document.getElementById("ordersTable");
   if(!res.success){ table.innerHTML = res.message; return; }
 
   window.__ordersCache = res.orders;
   window.__orderPackagesCache = res.packages;
-  sel.innerHTML = res.packages.map(p => `<option value="${p['PackageID']}">${p['নাম']}</option>`).join("");
 
-  table.innerHTML = "<thead><tr><th>ক্রম</th><th>তারিখ</th><th>সংখ্যা</th><th>একক মূল্য</th><th>মোট মূল্য</th><th class='no-print'>একশন</th></tr></thead><tbody></tbody>";
+  if(document.getElementById("ordItems").children.length === 0) addOrdItemRow();
+
+  const pkgMap = {};
+  res.packages.forEach(p => pkgMap[p["PackageID"]] = p["নাম"]);
+
+  table.innerHTML = "<thead><tr><th>ইনভয়েস নং</th><th>তারিখ</th><th class='cell-left'>প্যাকেজ</th><th>সংখ্যা</th><th>একক মূল্য</th><th>মোট মূল্য</th><th class='no-print'>একশন</th></tr></thead><tbody></tbody>";
   const tbody = table.querySelector("tbody");
   res.orders.forEach(o => {
     const dt = o["তারিখ"] ? new Date(o["তারিখ"]).toLocaleDateString("bn-BD") : "";
     const tr = document.createElement("tr");
-    tr.innerHTML = `<td>${o["OrderID"]}</td><td>${dt}</td><td>${o["সংখ্যা"]}</td><td>${o["একক মূল্য"]}</td><td>${o["মোট মূল্য"]}</td>
+    tr.innerHTML = `<td>${o["ইনভয়েস নং"]||o["OrderID"]}</td><td>${dt}</td><td class="cell-left">${pkgMap[o["PackageID"]]||""}</td><td>${o["সংখ্যা"]}</td><td>${o["একক মূল্য"]}</td><td>${o["মোট মূল্য"]}</td>
       <td class="no-print">
         <button class="btn small secondary" onclick="editOrderRow('${o['OrderID']}')">এডিট</button>
-        <button class="btn small secondary" onclick="printOrderRowById('${o['OrderID']}')">প্রিন্ট</button>
+        <button class="btn small secondary" onclick="printOrderInvoiceById('${o['OrderID']}')">প্রিন্ট</button>
         <button class="btn small danger" onclick="deleteOrderRow('${o['OrderID']}')">ডিলিট</button>
       </td>`;
     tbody.appendChild(tr);
@@ -2133,7 +2185,49 @@ async function loadOrders(){
 }
 
 /*******************************************************
- * অর্ডার ইনভয়েস — অফিসিয়াল ইনভয়েস ফরম্যাটে প্রিন্ট
+ * অর্ডার ফরমে একাধিক প্যাকেজ যোগ করার সারি
+ *******************************************************/
+function addOrdItemRow(){
+  const wrap = document.getElementById("ordItems");
+  const packages = window.__orderPackagesCache || [];
+  const row = document.createElement("div");
+  row.className = "item-row-v2";
+  row.innerHTML = `
+    <select class="ordItemPackage">${packages.map(p => `<option value="${p['PackageID']}">${p['নাম']}</option>`).join("")}</select>
+    <input placeholder="সংখ্যা" type="number" min="1" class="ordItemQty">
+    <input placeholder="একক মূল্য" type="number" min="0" class="ordItemPrice">
+    <button type="button" class="btn secondary small" onclick="this.parentElement.remove()">✕</button>`;
+  wrap.appendChild(row);
+}
+
+/*******************************************************
+ * একটি ইনভয়েসের (একই ইনভয়েস নং শেয়ার করা সব লাইন) অফিসিয়াল প্রিন্ট
+ *******************************************************/
+function printOrderInvoiceById(orderId){
+  const order = (window.__ordersCache||[]).find(o => o["OrderID"] === orderId);
+  if(!order) return;
+  const invoiceNo = order["ইনভয়েস নং"] || order["OrderID"];
+  const lines = (window.__ordersCache||[]).filter(o => (o["ইনভয়েস নং"]||o["OrderID"]) === invoiceNo);
+
+  const pkgMap = {};
+  (window.__orderPackagesCache||[]).forEach(p => pkgMap[p["PackageID"]] = p["নাম"]);
+
+  const headers = ["ক্রম", "প্যাকেজ", "সংখ্যা", "একক মূল্য", "মোট মূল্য"];
+  const rows = lines.map((o, i) => [i+1, pkgMap[o["PackageID"]]||"", o["সংখ্যা"]||0, o["একক মূল্য"]||0, o["মোট মূল্য"]||0]);
+  let grandTotal = 0;
+  lines.forEach(o => { grandTotal += Number(o["মোট মূল্য"]) || 0; });
+
+  printOfficialTable(
+    "অর্ডার ইনভয়েস — " + invoiceNo,
+    "ডিলার: " + (state.dealerName||"") + " — তারিখ: " + (lines[0]["তারিখ"] ? new Date(lines[0]["তারিখ"]).toLocaleDateString("bn-BD") : ""),
+    headers, rows,
+    [["", "", "", "সর্বমোট", grandTotal]],
+    "@Powered by: AM Shahed: 01605721296"
+  );
+}
+
+/*******************************************************
+ * অর্ডার ইনভয়েস — সব অর্ডার একসাথে অফিসিয়াল ফরম্যাটে প্রিন্ট
  *******************************************************/
 function printOrdersInvoice(){
   const orders = window.__ordersCache || [];
@@ -2142,9 +2236,9 @@ function printOrdersInvoice(){
   const pkgMap = {};
   (window.__orderPackagesCache||[]).forEach(p => pkgMap[p["PackageID"]] = p["নাম"]);
 
-  const headers = ["ক্রম", "তারিখ", "প্যাকেজ", "সংখ্যা", "একক মূল্য", "মোট মূল্য"];
+  const headers = ["ক্রম", "ইনভয়েস নং", "তারিখ", "প্যাকেজ", "সংখ্যা", "একক মূল্য", "মোট মূল্য"];
   const rows = orders.map((o, i) => [
-    i+1,
+    i+1, o["ইনভয়েস নং"]||o["OrderID"],
     o["তারিখ"] ? new Date(o["তারিখ"]).toLocaleDateString("bn-BD") : "",
     pkgMap[o["PackageID"]] || "",
     o["সংখ্যা"]||0, o["একক মূল্য"]||0, o["মোট মূল্য"]||0
@@ -2154,83 +2248,57 @@ function printOrdersInvoice(){
   orders.forEach(o => { grandTotal += Number(o["মোট মূল্য"]) || 0; });
 
   printOfficialTable(
-    "অর্ডার ইনভয়েস",
+    "অর্ডার তালিকা",
     "ডিলার: " + (state.dealerName||"") + " — তারিখ: " + new Date().toLocaleDateString("bn-BD"),
     headers, rows,
-    [["", "", "", "", "সর্বমোট", grandTotal]],
+    [["", "", "", "", "", "সর্বমোট", grandTotal]],
     "@Powered by: AM Shahed: 01605721296"
   );
 }
 
 /*******************************************************
- * অর্ডার এডিট — মোডালের বদলে সরাসরি উপরের ফরমেই সব তথ্য লোড হয়ে যাবে
+ * একটি অর্ডার লাইন এডিট (সংখ্যা/একক মূল্য) — ছোট পপ-আপ ফরম
  *******************************************************/
 function editOrderRow(orderId){
   const o = (window.__ordersCache||[]).find(x => x["OrderID"] === orderId);
   if(!o) return;
-
-  editingOrderId = orderId;
-  document.getElementById("ordFormLegend").textContent = "অর্ডার এডিট — " + o["OrderID"];
-  document.getElementById("ordSubmitBtn").textContent = "আপডেট করুন";
-  document.getElementById("ordCancelBtn").style.display = "inline-block";
-
-  document.getElementById("ordPackage").value = o["PackageID"] || "";
-  document.getElementById("ordQty").value = o["সংখ্যা"] || "";
-  document.getElementById("ordPrice").value = o["একক মূল্য"] || "";
-
-  document.getElementById("sec-orders").scrollIntoView({ behavior:"smooth" });
-}
-
-function cancelOrdEdit(){
-  editingOrderId = null;
-  document.getElementById("ordFormLegend").textContent = "নতুন অর্ডার";
-  document.getElementById("ordSubmitBtn").textContent = "অর্ডার সংরক্ষণ করুন";
-  document.getElementById("ordCancelBtn").style.display = "none";
-  document.getElementById("ordQty").value = "";
-  document.getElementById("ordPrice").value = "";
-  document.getElementById("ordMsg").textContent = "";
-}
-
-function printOrderRowById(orderId){
-  const o = (window.__ordersCache||[]).find(x => x["OrderID"] === orderId);
-  if(!o) return;
-  printSingleRecord("অর্ডার — " + o["OrderID"], [
-    { label:"তারিখ", value:o["তারিখ"] ? new Date(o["তারিখ"]).toLocaleDateString("bn-BD") : "" },
-    { label:"সংখ্যা", value:o["সংখ্যা"] },
-    { label:"একক মূল্য", value:o["একক মূল্য"] },
-    { label:"মোট মূল্য", value:o["মোট মূল্য"] }
-  ]);
+  openEditModal("অর্ডার এডিট — " + o["OrderID"], [
+    { key:"সংখ্যা", label:"সংখ্যা", value:o["সংখ্যা"] },
+    { key:"একক মূল্য", label:"একক মূল্য", value:o["একক মূল্য"] }
+  ], async (values) => {
+    const total = (Number(values["সংখ্যা"])||0) * (Number(values["একক মূল্য"])||0);
+    values["মোট মূল্য"] = total;
+    const res = await apiCall("updateOrder", { orderId: orderId, fields: values });
+    if(res.success){ clearCache(); loadOrders(); }
+    return res;
+  });
 }
 
 async function submitOrder(){
-  const qty = document.getElementById("ordQty").value;
-  const price = document.getElementById("ordPrice").value;
+  const rows = [...document.querySelectorAll("#ordItems .item-row-v2")];
+  const items = rows.map(r => ({
+    packageId: r.querySelector(".ordItemPackage").value,
+    quantity: r.querySelector(".ordItemQty").value,
+    unitPrice: r.querySelector(".ordItemPrice").value
+  })).filter(i => i.packageId && i.quantity);
+
   const msgBox = document.getElementById("ordMsg");
+  if(items.length === 0){ msgBox.textContent = "অন্তত একটি প্যাকেজ ও সংখ্যা দিন"; msgBox.className = "msg err"; return; }
+
   markSaving("ordMsg");
-
-  if(editingOrderId){
-    const total = (Number(qty)||0) * (Number(price)||0);
-    const fields = { "সংখ্যা": qty, "একক মূল্য": price, "মোট মূল্য": total };
-    const res = await apiCall("updateOrder", { orderId: editingOrderId, fields: fields });
-    msgBox.textContent = res.message;
-    msgBox.className = "msg " + (res.success?"ok":"err");
-    if(res.success){ clearCache(); cancelOrdEdit(); loadOrders(); }
-    return;
-  }
-
-  const data = {
-    packageId: document.getElementById("ordPackage").value,
-    quantity: qty,
-    unitPrice: price
-  };
-  const res = await apiCall("addOrder", data);
-  msgBox.textContent = res.message;
+  const res = await apiCall("addOrder", { items });
+  msgBox.textContent = res.message + (res.success ? " (ইনভয়েস নং: " + res.invoiceNo + ", সর্বমোট: " + res.total + ")" : "");
   msgBox.className = "msg " + (res.success?"ok":"err");
-  if(res.success){ clearCache(); document.getElementById("ordQty").value=""; document.getElementById("ordPrice").value=""; loadOrders(); }
+  if(res.success){
+    clearCache();
+    document.getElementById("ordItems").innerHTML = "";
+    addOrdItemRow();
+    loadOrders();
+  }
 }
 
 async function deleteOrderRow(id){
-  if(!confirm("এই অর্ডার ডিলিট করবেন?")) return;
+  if(!confirm("এই অর্ডার লাইন ডিলিট করবেন?")) return;
   const res = await apiCall("deleteOrder", { orderId:id });
   if(res.success){ clearCache(); loadOrders(); } else alert(res.message);
 }
