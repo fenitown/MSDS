@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>মানবিক সহায়তা ডেইলি শপ (MSDS)</title>
+<link id="faviconLink" rel="icon" type="image/png" href="">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -352,7 +353,7 @@
         <div id="pkgMsg" class="msg"></div>
       </fieldset>
       <div class="toolbar no-print">
-        <button class="btn secondary small" onclick="window.print()">🖨 সব প্যাকেজ প্রিন্ট করুন</button>
+        <button class="btn secondary small" onclick="printAgencyPackagesListOfficial()">🖨 সব প্যাকেজ প্রিন্ট করুন</button>
       </div>
       <div class="table-wrap"><table id="agencyPackagesTable"><thead></thead><tbody></tbody></table></div>
     </section>
@@ -519,7 +520,7 @@
    ============================================================ */
 const API_URL = "https://script.google.com/macros/s/AKfycbxmseU_Vj8xwWzq9rxK6b8NN5ZPvb3GNlc-LNN-hgwa2kr3kS6lAe11ZWseK7qd9PuB-g/exec";
 
-let state = { token:null, role:null, dealerId:null, dealerName:null, name:null, dealerPhotoUrl:null };
+let state = { token:null, role:null, dealerId:null, dealerName:null, name:null, dealerPhotoUrl:null, dealerMobile:null };
 
 async function apiCall(action, data){
   data = data || {};
@@ -711,13 +712,24 @@ async function doLogin(){
   state.dealerName = res.dealerName;
   state.name = res.name;
   state.dealerPhotoUrl = res.dealerPhotoUrl || "";
+  state.dealerMobile = res.dealerMobile || "";
 
   document.getElementById("hdrDealerName").textContent = state.dealerId === "AGENCY" ? "মানবিক সহায়তা ডেইলি শপ" : state.dealerName;
   document.getElementById("hdrUserName").textContent = state.name + " (" + state.role + ")";
 
+  // এজেন্সির লোগো আনা — এজেন্সি সাইটের মেনুবার লোগো ও সবার জন্য
+  // ফেভিকন (ব্রাউজার ট্যাব আইকন) হিসেবে ব্যবহার হবে
+  const agencyRes = await cachedApiCall("getAgencyInfo", {}, 30000);
+  const agencyLogoUrl = (agencyRes.success && agencyRes.agency["লোগো(URL)"]) ? agencyRes.agency["লোগো(URL)"] : "";
+  if(agencyLogoUrl){
+    document.getElementById("faviconLink").href = agencyLogoUrl;
+  }
+
   const logoBox = document.getElementById("hdrLogoBox");
   if(state.dealerId !== "AGENCY" && state.dealerPhotoUrl){
     logoBox.innerHTML = `<img src="${state.dealerPhotoUrl}" style="width:100%;height:100%;object-fit:cover;">`;
+  } else if(state.dealerId === "AGENCY" && agencyLogoUrl){
+    logoBox.innerHTML = `<img src="${agencyLogoUrl}" style="width:100%;height:100%;object-fit:contain;background:#fff;">`;
   } else {
     logoBox.innerHTML = "MSDS";
   }
@@ -1332,6 +1344,26 @@ async function loadAgencyPackages(){
 }
 
 /*******************************************************
+ * প্যাকেজ তালিকা — অফিসিয়াল টেবিল ফরম্যাটে প্রিন্ট (এজেন্সি সাইট)
+ *******************************************************/
+function printAgencyPackagesListOfficial(){
+  const packages = window.__packagesCache || [];
+  if(packages.length === 0){ alert("প্রিন্ট করার জন্য কোনো প্যাকেজ নেই"); return; }
+
+  const headers = ["ক্রম", "প্যাকেজের নাম", "তারিখ", "পণ্য সংখ্যা", "ধরন", "বাজার মূল্য", "কম্বো মূল্য", "সাশ্রয়"];
+  const rows = packages.map((p, i) => [
+    i+1, p["নাম"]||"",
+    p["তারিখ"] ? new Date(p["তারিখ"]).toLocaleDateString("bn-BD") : "",
+    p.itemCount||0, p["ধরন"]||"",
+    p["সর্বমোট বাজার মূল্য"]||0, p["সর্বমোট মূল্য"]||0, p["সর্বমোট সাশ্রয়"]||0
+  ]);
+
+  printOfficialTable("প্যাকেজ তালিকা", "মোট প্যাকেজ: " + packages.length, headers, rows, null,
+    "@Powered by: AM Shahed: 01605721296");
+}
+
+
+/*******************************************************
  * প্যাকেজ এডিট — মডেলের বদলে সরাসরি উপরের ফরমেই সব তথ্য (নাম,
  * ধরন, এবং প্রতিটি পণ্যের সারি) লোড হয়ে যাবে
  *******************************************************/
@@ -1673,8 +1705,8 @@ function buildCardsDocument(agency, dealer, dealerId, customers, autoprint){
     : `<span>MSDS</span>`;
 
   const cardsHtml = customers.map(c => {
-    const qrData = encodeURIComponent(API_URL + "?view=customer&dealerId=" + dealerId + "&customerId=" + c["CustomerID"]);
-    const qrImgUrl = "https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=" + qrData;
+    const barcodeText = c["CustomerID"];
+    const barcodeImgUrl = "https://barcodeapi.org/api/128/" + encodeURIComponent(barcodeText);
     const thikana = [c["গ্রাম"]||"", c["ইউনিয়ন/পৌরসভা"]||""].filter(Boolean).join(", ");
 
     const rows = [
@@ -1699,12 +1731,12 @@ function buildCardsDocument(agency, dealer, dealerId, customers, autoprint){
           </div>
           <div class="card-logo-spacer"></div>
         </div>
-        <div class="card-divider"></div>
+        <div class="card-title">Customer information:</div>
         <div class="card-body">
           ${agency["লোগো(URL)"] ? `<img class="card-watermark" src="${agency["লোগো(URL)"]}">` : ''}
           <table class="card-fields"><tbody>${rowsHtml}</tbody></table>
-          <div class="card-qr"><img src="${qrImgUrl}"></div>
         </div>
+        <div class="card-barcode"><img src="${barcodeImgUrl}"></div>
         <div class="card-footer">
           <span>${dealer["নাম"]||""}</span><span>${dealer["মোবাইল"]||""}</span>
         </div>
@@ -1726,35 +1758,38 @@ function buildCardsDocument(agency, dealer, dealerId, customers, autoprint){
       }
       .card-header{
         background:linear-gradient(135deg,#1f5f52,#153f37);
-        color:#fff; padding:6px 8px;
+        color:#fff; padding:5px 8px;
         display:flex; align-items:center; gap:6px;
       }
       .card-logo, .card-logo-spacer{
-        width:28px; height:28px; flex-shrink:0;
+        width:26px; height:26px; flex-shrink:0;
         display:flex; align-items:center; justify-content:center;
         font-size:7px; font-weight:800;
       }
       .card-logo img{ width:100%; height:100%; object-fit:contain; border-radius:6px; background:#fff; }
       .card-org{ flex:1; text-align:center; }
-      .org-name{ font-size:12px; font-weight:700; line-height:1.3; }
-      .org-mobile{ font-size:9.5px; opacity:0.9; margin-top:1px; }
-      .card-divider{ height:2px; background:#b5502f; }
-      .card-body{ display:flex; flex:1; padding:6px 8px; gap:6px; align-items:center; position:relative; }
+      .org-name{ font-size:11.5px; font-weight:700; line-height:1.25; }
+      .org-mobile{ font-size:9px; opacity:0.9; margin-top:1px; }
+      .card-title{
+        text-align:center; font-size:9.5px; font-weight:700; color:#153f37;
+        padding:3px 0 2px; text-decoration:underline; flex-shrink:0;
+      }
+      .card-body{ display:flex; flex:1; padding:2px 10px; align-items:center; position:relative; min-height:0; }
       .card-watermark{
         position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
-        width:70%; max-height:70%; object-fit:contain; opacity:0.09; pointer-events:none; z-index:0;
+        width:65%; max-height:80%; object-fit:contain; opacity:0.09; pointer-events:none; z-index:0;
       }
-      table.card-fields{ flex:1; border-collapse:collapse; font-size:9.3px; color:#1c2b28; position:relative; z-index:1; }
-      table.card-fields td{ padding:1.5px 0; vertical-align:top; }
-      .cf-label{ font-weight:600; color:#b5502f; white-space:nowrap; padding-right:4px; }
-      .cf-colon{ width:8px; }
-      .cf-value{ color:#1c2b28; }
-      .card-qr{ width:60px; display:flex; align-items:center; justify-content:center; flex-shrink:0; position:relative; z-index:1; }
-      .card-qr img{ width:56px; height:56px; }
+      table.card-fields{ width:100%; border-collapse:collapse; font-size:9.6px; color:#000; position:relative; z-index:1; }
+      table.card-fields td{ padding:1.4px 0; vertical-align:top; color:#000; font-weight:700; }
+      .cf-label{ white-space:nowrap; padding-right:2px; width:32%; }
+      .cf-colon{ width:6px; }
+      .cf-value{ }
+      .card-barcode{ display:flex; align-items:center; justify-content:center; padding:1px 0; flex-shrink:0; }
+      .card-barcode img{ height:26px; max-width:80%; object-fit:contain; }
       .card-footer{
         background:#eef0e9; color:#153f37; font-size:9px; font-weight:600;
-        padding:4px 10px; display:flex; justify-content:space-between;
-        border-top:1px solid #d8d2c2;
+        padding:3px 10px; display:flex; justify-content:space-between;
+        border-top:1px solid #d8d2c2; flex-shrink:0;
       }
     </style></head><body>
     <div class="cards-wrap">${cardsHtml}</div>
@@ -1868,36 +1903,67 @@ function showPkgDetail(packageId){
   pkg.items.forEach(it => {
     html += `<tr><td class="cell-left">${it["পণ্যের নাম ও পরিমাণ"]}</td><td>${it["বাজার মূল্য"]}</td><td>${it["কম্বো মূল্য"]}</td><td>${it["সাশ্রয়"]}</td></tr>`;
   });
-  html += `</tbody></table>
-    <div class="cards" style="margin-top:12px;margin-bottom:0;">
-      <div class="card"><div class="num">${pkg.itemCount}</div><div class="label">মোট পণ্য</div></div>
-      <div class="card"><div class="num">${pkg["সর্বমোট বাজার মূল্য"]||0}</div><div class="label">বাজার মূল্য</div></div>
-      <div class="card"><div class="num">${pkg["সর্বমোট কম্বো মূল্য (সর্বমোট মূল্য)"]||pkg["সর্বমোট মূল্য"]||0}</div><div class="label">কম্বো মূল্য</div></div>
-      <div class="card"><div class="num">${pkg["সর্বমোট সাশ্রয়"]||0}</div><div class="label">মোট সাশ্রয়</div></div>
-    </div>`;
+  html += `<tr style="font-weight:700;background:#eef0e9;">
+      <td class="cell-left">সর্বমোট (${pkg.itemCount} টি পণ্য)</td>
+      <td>${pkg["সর্বমোট বাজার মূল্য"]||0}</td>
+      <td>${pkg["সর্বমোট মূল্য"]||0}</td>
+      <td>${pkg["সর্বমোট সাশ্রয়"]||0}</td>
+    </tr>`;
+  html += `</tbody></table>`;
   box.innerHTML = html;
   box.style.display = "block";
 }
 
 /*******************************************************
  * প্যাকেজ লিস্ট — অফিসিয়াল ফরম্যাটে প্রিন্ট (ডিলার সাইট থেকে)
+ * — প্রতিটি প্যাকেজের পণ্যভিত্তিক সম্পূর্ণ তথ্যসহ
  *******************************************************/
 function printDealerPackagesList(){
   const packages = dealerPackagesCache || [];
   if(packages.length === 0){ alert("প্রিন্ট করার জন্য কোনো প্যাকেজ নেই"); return; }
 
-  const headers = ["ক্রম", "প্যাকেজের নাম", "পণ্য সংখ্যা", "ধরন", "বাজার মূল্য", "কম্বো মূল্য", "সাশ্রয়"];
-  const rows = packages.map((p, i) => [
-    i+1, p["নাম"]||"", p.itemCount||0, p["ধরন"]||"",
-    p["সর্বমোট বাজার মূল্য"]||0, p["সর্বমোট মূল্য"]||0, p["সর্বমোট সাশ্রয়"]||0
-  ]);
+  const win = window.open("", "_blank", "width=900,height=700");
+  const sectionsHtml = packages.map((p, idx) => {
+    const itemRows = (p.items||[]).map(it => `
+      <tr><td>${it["পণ্যের নাম ও পরিমাণ"]}</td><td>${it["বাজার মূল্য"]}</td><td>${it["কম্বো মূল্য"]}</td><td>${it["সাশ্রয়"]}</td></tr>
+    `).join("");
+    return `
+      <h3>${idx+1}. ${p["নাম"]} <span style="font-weight:400;font-size:12px;color:#6b7570;">(ধরন: ${p["ধরন"]||""})</span></h3>
+      <table>
+        <thead><tr><th>পণ্যের নাম ও পরিমাণ</th><th>বাজার মূল্য</th><th>কম্বো মূল্য</th><th>সাশ্রয়</th></tr></thead>
+        <tbody>${itemRows}
+          <tr style="font-weight:700;background:#eef0e9;">
+            <td>সর্বমোট (${p.itemCount||0} টি পণ্য)</td>
+            <td>${p["সর্বমোট বাজার মূল্য"]||0}</td><td>${p["সর্বমোট মূল্য"]||0}</td><td>${p["সর্বমোট সাশ্রয়"]||0}</td>
+          </tr>
+        </tbody>
+      </table>`;
+  }).join("<div style='height:16px;'></div>");
 
-  printOfficialTable(
-    "প্যাকেজ তালিকা",
-    "ডিলার: " + (state.dealerName||""),
-    headers, rows, null,
-    "@Powered by: AM Shahed: 01605721296"
-  );
+  win.document.write(`<html><head><meta charset="utf-8"><title>প্যাকেজ তালিকা</title>
+    <style>
+      @page{ size:A4; margin:15mm; }
+      body{ font-family:'Hind Siliguri',sans-serif; color:#1c2b28; }
+      .letterhead{ text-align:center; border-bottom:3px solid #153f37; padding-bottom:10px; margin-bottom:14px; }
+      .letterhead h1{ margin:0; color:#153f37; font-size:20px; }
+      .letterhead p{ margin:4px 0 0; color:#b5502f; font-weight:600; font-size:12px; }
+      h2.doc-title{ text-align:center; font-size:15px; margin:10px 0 4px; text-decoration:underline; }
+      .doc-subtitle{ text-align:center; margin:0 0 14px; color:#6b7570; font-size:12px; }
+      h3{ color:#153f37; font-size:13px; margin:14px 0 6px; }
+      table{ width:100%; border-collapse:collapse; }
+      th,td{ border:1px solid #999; padding:5px 7px; font-size:11.5px; }
+      th{ text-align:center; background:#eef0e9; }
+      td{ text-align:left; }
+      .doc-footer{ margin-top:26px; font-size:9px; color:#6b7570; text-align:center; }
+    </style></head><body>
+    <div class="letterhead"><h1>মানবিক সহায়তা ডেইলি শপ</h1><p>সাশ্রয়ী মূল্যে পণ্য বিক্রি সংস্থা</p></div>
+    <h2 class="doc-title">প্যাকেজ তালিকা (পণ্যভিত্তিক)</h2>
+    <p class="doc-subtitle">ডিলার: ${state.dealerName||""} — মোট প্যাকেজ: ${packages.length}</p>
+    ${sectionsHtml}
+    <div class="doc-footer">@Powered by: AM Shahed: 01605721296</div>
+    <script>window.onload=function(){window.print();}<\/script>
+    </body></html>`);
+  win.document.close();
 }
 
 /* ================= ডিলার: গ্রাহক ================= */
@@ -2233,16 +2299,17 @@ function printThermalReceipt(c, packageId){
   const pkg = allPackagesCache.find(p => p["PackageID"] === packageId);
   const sale = allSalesCache.find(s => s["CustomerID"] === c["CustomerID"] && s["PackageID"] === packageId && s["স্ট্যাটাস"] === "বিক্রিত");
   const dt = sale && sale["তারিখ"] ? new Date(sale["তারিখ"]).toLocaleDateString("bn-BD") : new Date().toLocaleDateString("bn-BD");
-  const dealerLabel = state.dealerName || "";
+  const dealerName = state.dealerName || "";
+  const dealerMobile = state.dealerMobile || "";
 
   const rows = [
     ["Customer Name", c["নাম"]||""],
     ["Mobile No", c["মোবাইল নং"]||""],
     ["Collection Point", c["প্রাপ্তির স্থান"]||""],
-    ["প্যাকেজ", pkg ? pkg["নাম"] : ""],
-    ["মূল্য", pkg ? pkg["সর্বমোট মূল্য"] : ""],
-    ["তারিখ", dt],
-    ["স্ট্যাটাস", sale ? "বিক্রিত" : "অপেক্ষমান"]
+    ["Package", pkg ? pkg["নাম"] : ""],
+    ["Price", pkg ? pkg["সর্বমোট মূল্য"] : ""],
+    ["Date", dt],
+    ["Status", sale ? "বিক্রিত" : "অপেক্ষমান"]
   ];
   const rowsHtml = rows.map(r => `<tr><td class="lbl">${r[0]}</td><td class="colon">:</td><td>${r[1]}</td></tr>`).join("");
 
@@ -2251,16 +2318,18 @@ function printThermalReceipt(c, packageId){
     <style>
       @page{ size:80mm auto; margin:2mm; }
       body{ font-family:'Hind Siliguri',sans-serif; width:76mm; margin:0 auto; color:#000; font-size:12px; }
-      h2{ text-align:center; font-size:14px; margin:4px 0; }
+      h2{ text-align:center; font-size:14px; margin:4px 0 0; }
+      .dealer-mobile{ text-align:center; font-size:10.5px; margin:0 0 4px; }
       .line{ border-top:1px dashed #000; margin:6px 0; }
       table{ width:100%; border-collapse:collapse; font-size:11.5px; }
       td{ padding:2px 0; vertical-align:top; }
-      .lbl{ font-weight:600; white-space:nowrap; padding-right:4px; }
-      .colon{ width:8px; }
+      .lbl{ font-weight:600; white-space:nowrap; padding-right:1px; }
+      .colon{ width:5px; }
       .center{ text-align:center; }
       .footnote{ text-align:center; font-size:8.5px; color:#555; margin-top:8px; }
     </style></head><body>
-    <h2>${dealerLabel}</h2>
+    <h2>${dealerName}</h2>
+    <p class="dealer-mobile">${dealerMobile}</p>
     <p class="center">বিক্রয় রসিদ</p>
     <div class="line"></div>
     <table>${rowsHtml}</table>
