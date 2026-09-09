@@ -301,7 +301,7 @@
       <div class="logo" id="hdrLogoBox">MSDS</div>
       <div class="names">
         <div class="agency" id="hdrDealerName">—</div>
-        <div class="dealer" id="hdrUserName">—</div>
+        <div class="dealer" id="hdrTagline">সাশ্রয়ী মূল্যে পণ্য বিক্রি সংস্থা</div>
       </div>
     </div>
     <button class="hamburger" onclick="toggleMenu()">☰</button>
@@ -679,6 +679,7 @@ function printOfficialTable(title, subtitle, headers, rows, extraFooterRows, foo
   win.document.write(`<html><head><meta charset="utf-8"><title>${title}</title>
     <style>
       @page{ size:A4; margin:15mm; }
+      html, body{ margin:0; padding:0; }
       body{ font-family:'Hind Siliguri',sans-serif; color:#1c2b28; }
       .letterhead{ text-align:center; border-bottom:3px solid #153f37; padding-bottom:10px; margin-bottom:14px; }
       .letterhead h1{ margin:0; color:#153f37; font-size:20px; }
@@ -756,21 +757,19 @@ async function doLogin(){
   state.dealerPhotoUrl = res.dealerPhotoUrl || "";
   state.dealerMobile = res.dealerMobile || "";
 
-  document.getElementById("hdrDealerName").textContent = state.dealerId === "AGENCY" ? "মানবিক সহায়তা ডেইলি শপ" : state.dealerName;
-  document.getElementById("hdrUserName").textContent = state.name + " (" + state.role + ")";
-
-  // এজেন্সির লোগো আনা — এজেন্সি সাইটের মেনুবার লোগো ও সবার জন্য
-  // ফেভিকন (ব্রাউজার ট্যাব আইকন) হিসেবে ব্যবহার হবে
+  // এজেন্সির লোগো ও নাম আনা — মেনুবারে (উভয় সাইটেই) এখন সবসময়
+  // সংস্থার লোগো+নাম+ট্যাগলাইন দেখাবে, ফেভিকন হিসেবেও ব্যবহার হবে
   const agencyRes = await cachedApiCall("getAgencyInfo", {}, 30000);
+  const agencyName = (agencyRes.success && agencyRes.agency["নাম"]) ? agencyRes.agency["নাম"] : "মানবিক সহায়তা ডেইলি শপ";
   const agencyLogoUrl = (agencyRes.success && agencyRes.agency["লোগো(URL)"]) ? agencyRes.agency["লোগো(URL)"] : "";
+
+  document.getElementById("hdrDealerName").textContent = agencyName;
   if(agencyLogoUrl){
     document.getElementById("faviconLink").href = agencyLogoUrl;
   }
 
   const logoBox = document.getElementById("hdrLogoBox");
-  if(state.dealerId !== "AGENCY" && state.dealerPhotoUrl){
-    logoBox.innerHTML = `<img src="${state.dealerPhotoUrl}" style="width:100%;height:100%;object-fit:cover;">`;
-  } else if(state.dealerId === "AGENCY" && agencyLogoUrl){
+  if(agencyLogoUrl){
     logoBox.innerHTML = `<img src="${agencyLogoUrl}" style="width:100%;height:100%;object-fit:contain;background:#fff;">`;
   } else {
     logoBox.innerHTML = "MSDS";
@@ -1197,6 +1196,7 @@ function printOfficialDealerForm(d){
   win.document.write(`<html><head><meta charset="utf-8"><title>ডিলার নিয়োগ ফরম</title>
     <style>
       @page{ size:A4; margin:16mm; }
+      html, body{ margin:0; padding:0; }
       body{ font-family:'Hind Siliguri',sans-serif; color:#1c2b28; }
       .letterhead{ text-align:center; border-bottom:3px solid #153f37; padding-bottom:10px; margin-bottom:16px; }
       .letterhead h1{ margin:0; color:#153f37; font-size:22px; }
@@ -1389,19 +1389,7 @@ async function loadAgencyPackages(){
  * প্যাকেজ তালিকা — অফিসিয়াল টেবিল ফরম্যাটে প্রিন্ট (এজেন্সি সাইট)
  *******************************************************/
 function printAgencyPackagesListOfficial(){
-  const packages = window.__packagesCache || [];
-  if(packages.length === 0){ alert("প্রিন্ট করার জন্য কোনো প্যাকেজ নেই"); return; }
-
-  const headers = ["ক্রম", "প্যাকেজের নাম", "তারিখ", "পণ্য সংখ্যা", "ধরন", "বাজার মূল্য", "কম্বো মূল্য", "সাশ্রয়"];
-  const rows = packages.map((p, i) => [
-    i+1, p["নাম"]||"",
-    p["তারিখ"] ? new Date(p["তারিখ"]).toLocaleDateString("bn-BD") : "",
-    p.itemCount||0, p["ধরন"]||"",
-    p["সর্বমোট বাজার মূল্য"]||0, p["সর্বমোট মূল্য"]||0, p["সর্বমোট সাশ্রয়"]||0
-  ]);
-
-  printOfficialTable("প্যাকেজ তালিকা", "মোট প্যাকেজ: " + packages.length, headers, rows, null,
-    "@Powered by: AM Shahed: 01605721296");
+  printPackagesOfficial(window.__packagesCache || [], "তারিখ: " + new Date().toLocaleDateString("bn-BD"));
 }
 
 
@@ -1434,14 +1422,7 @@ function editAgencyPackage(packageId){
 function printAgencyPackageById(packageId){
   const p = (window.__packagesCache||[]).find(x => x["PackageID"] === packageId);
   if(!p) return;
-  const itemLines = (p.items||[]).map(it =>
-    `${it["পণ্যের নাম ও পরিমাণ"]} — বাজার: ${it["বাজার মূল্য"]}, কম্বো: ${it["কম্বো মূল্য"]}, সাশ্রয়: ${it["সাশ্রয়"]}`
-  ).join("<br>");
-  printSingleRecord("প্যাকেজ — " + p["নাম"], [
-    { label:"ধরন", value:p["ধরন"] },
-    { label:"সর্বমোট মূল্য", value:p["সর্বমোট মূল্য"] },
-    { label:"পণ্য তালিকা", value:itemLines }
-  ]);
+  printPackagesOfficial([p], "তারিখ: " + new Date().toLocaleDateString("bn-BD"));
 }
 
 async function deletePkg(id){
@@ -1769,6 +1750,7 @@ function buildCardsDocument(agency, dealer, dealerId, customers, autoprint){
           <div class="card-logo">${logoImg}</div>
           <div class="card-org">
             <div class="org-name">${agency["নাম"]||""}</div>
+            <div class="org-tagline">সাশ্রয়ী মূল্যে পণ্য বিক্রি সংস্থা</div>
             <div class="org-mobile">${agency["মোবাইল"]||""}</div>
           </div>
           <div class="card-logo-spacer"></div>
@@ -1790,9 +1772,10 @@ function buildCardsDocument(agency, dealer, dealerId, customers, autoprint){
   return `<html><head><meta charset="utf-8"><title>গ্রাহক কার্ড</title>
     <style>
       @page{ margin:6mm; }
+      html, body{ margin:0; padding:0; }
       *{ box-sizing:border-box; }
-      body{ font-family:'Hind Siliguri',sans-serif; margin:0; background:#fff; }
-      .cards-wrap{ display:flex; flex-wrap:wrap; gap:6mm; padding:4mm; }
+      body{ font-family:'Hind Siliguri',sans-serif; background:#fff; }
+      .cards-wrap{ display:grid; grid-template-columns:repeat(auto-fill, 3.2in); gap:6mm; padding:4mm; page-break-after:avoid; }
       .id-card{
         width:3.2in; height:2.2in;
         border:1px solid #b7c9c2; border-radius:10px; overflow:hidden;
@@ -1812,17 +1795,18 @@ function buildCardsDocument(agency, dealer, dealerId, customers, autoprint){
       }
       .card-logo img{ width:100%; height:100%; object-fit:contain; border-radius:6px; background:#fff; }
       .card-org{ flex:1; text-align:center; }
-      .org-name{ font-size:11.5px; font-weight:700; line-height:1.25; }
-      .org-mobile{ font-size:9px; opacity:0.9; margin-top:1px; }
-      .card-title-row{ position:relative; padding:4px 10px 2px; flex-shrink:0; }
+      .org-name{ font-size:11px; font-weight:700; line-height:1.2; }
+      .org-tagline{ font-size:7.5px; opacity:0.95; margin-top:0.5px; }
+      .org-mobile{ font-size:8.5px; opacity:0.9; margin-top:1px; }
+      .card-title-row{ position:relative; padding:6px 10px 2px; flex-shrink:0; }
       .card-title{
         text-align:center; font-size:9.5px; font-weight:700; color:#153f37;
         text-decoration:underline;
       }
       .card-qr-badge{
-        position:absolute; top:-6px; right:8px;
-        width:30px; height:30px; background:#fff; border:1px solid #d8d2c2; border-radius:4px;
-        padding:1px; box-shadow:0 1px 2px rgba(0,0,0,0.15);
+        position:absolute; top:4px; right:8px;
+        width:40px; height:40px; background:#fff; border:1px solid #d8d2c2; border-radius:4px;
+        padding:2px; box-shadow:0 1px 2px rgba(0,0,0,0.15);
       }
       .card-qr-badge img{ width:100%; height:100%; object-fit:contain; }
       .card-body{ display:flex; flex:1; padding:6px 12px 8px; align-items:center; position:relative; min-height:0; }
@@ -1906,6 +1890,7 @@ function printAboutA4(){
   win.document.write(`<html><head><meta charset="utf-8"><title>সংস্থার তথ্য</title>
     <style>
       @page{ size:A4; margin:20mm; }
+      html, body{ margin:0; padding:0; }
       body{ font-family:'Hind Siliguri',sans-serif; color:#1c2b28; }
       h1{ text-align:center; color:#153f37; font-size:20px; margin-bottom:24px; }
       .box{ border:1px solid #d8d2c2; border-radius:8px; padding:14px 16px; margin-bottom:14px; }
@@ -1932,13 +1917,13 @@ async function loadDealerPackages(){
   document.getElementById("pkgDetailBox").style.display = "none";
   if(!res.success){ table.innerHTML = res.message; return; }
   dealerPackagesCache = res.packages;
-  table.innerHTML = "<thead><tr><th class='cell-left'>নাম</th><th>ধরন</th><th>সর্বমোট মূল্য</th></tr></thead><tbody></tbody>";
+  table.innerHTML = "<thead><tr><th class='cell-left'>নাম</th><th>ধরন</th><th>সর্বমোট মূল্য</th><th class='no-print'>একশন</th></tr></thead><tbody></tbody>";
   const tbody = table.querySelector("tbody");
   res.packages.forEach(p => {
     const tr = document.createElement("tr");
-    tr.className = "pkg-click-row";
-    tr.onclick = () => showPkgDetail(p["PackageID"]);
-    tr.innerHTML = `<td class="cell-left">${p["নাম"]}</td><td>${p["ধরন"]}</td><td>${p["সর্বমোট মূল্য"]}</td>`;
+    tr.innerHTML = `<td class="cell-left pkg-click-row">${p["নাম"]}</td><td>${p["ধরন"]}</td><td>${p["সর্বমোট মূল্য"]}</td>
+      <td class="no-print"><button class="btn small secondary" onclick="printDealerPackageById('${p['PackageID']}')">প্রিন্ট</button></td>`;
+    tr.querySelector(".pkg-click-row").onclick = () => showPkgDetail(p["PackageID"]);
     tbody.appendChild(tr);
   });
 }
@@ -1968,8 +1953,21 @@ function showPkgDetail(packageId){
  * — প্রতিটি প্যাকেজের পণ্যভিত্তিক সম্পূর্ণ তথ্যসহ
  *******************************************************/
 function printDealerPackagesList(){
-  const packages = dealerPackagesCache || [];
-  if(packages.length === 0){ alert("প্রিন্ট করার জন্য কোনো প্যাকেজ নেই"); return; }
+  printPackagesOfficial(dealerPackagesCache || [], "ডিলার: " + (state.dealerName||""));
+}
+
+function printDealerPackageById(packageId){
+  const pkg = (dealerPackagesCache||[]).find(p => p["PackageID"] === packageId);
+  if(!pkg) return;
+  printPackagesOfficial([pkg], "ডিলার: " + (state.dealerName||""));
+}
+
+/*******************************************************
+ * প্যাকেজ প্রিন্ট — একটি বা একাধিক প্যাকেজ, প্রতিটির পূর্ণ পণ্যভিত্তিক
+ * তথ্যসহ অফিসিয়াল ফরম্যাটে (এজেন্সি ও ডিলার — দুই সাইটেই ব্যবহৃত)
+ *******************************************************/
+function printPackagesOfficial(packages, subtitle){
+  if(!packages || packages.length === 0){ alert("প্রিন্ট করার জন্য কোনো প্যাকেজ নেই"); return; }
 
   const win = window.open("", "_blank", "width=900,height=700");
   const sectionsHtml = packages.map((p, idx) => {
@@ -1992,6 +1990,7 @@ function printDealerPackagesList(){
   win.document.write(`<html><head><meta charset="utf-8"><title>প্যাকেজ তালিকা</title>
     <style>
       @page{ size:A4; margin:15mm; }
+      html, body{ margin:0; padding:0; }
       body{ font-family:'Hind Siliguri',sans-serif; color:#1c2b28; }
       .letterhead{ text-align:center; border-bottom:3px solid #153f37; padding-bottom:10px; margin-bottom:14px; }
       .letterhead h1{ margin:0; color:#153f37; font-size:20px; }
@@ -2007,7 +2006,7 @@ function printDealerPackagesList(){
     </style></head><body>
     <div class="letterhead"><h1>মানবিক সহায়তা ডেইলি শপ</h1><p>সাশ্রয়ী মূল্যে পণ্য বিক্রি সংস্থা</p></div>
     <h2 class="doc-title">প্যাকেজ তালিকা (পণ্যভিত্তিক)</h2>
-    <p class="doc-subtitle">ডিলার: ${state.dealerName||""} — মোট প্যাকেজ: ${packages.length}</p>
+    <p class="doc-subtitle">${subtitle||""} — মোট প্যাকেজ: ${packages.length}</p>
     ${sectionsHtml}
     <div class="doc-footer">@Powered by: AM Shahed: 01605721296</div>
     <script>window.onload=function(){window.print();}<\/script>
@@ -2339,25 +2338,50 @@ function renderSalesTable(){
   let customers = allCustomersCache;
   if(loc) customers = customers.filter(c => c["প্রাপ্তির স্থান"] === loc);
 
-  table.innerHTML = "<thead><tr><th class='cell-left'>নাম</th><th class='cell-left'>পিতার নাম</th><th>মোবাইল</th><th>প্রাপ্তির স্থান</th><th>স্ট্যাটাস</th><th class='no-print'>একশন</th></tr></thead><tbody></tbody>";
+  const pkg = allPackagesCache.find(p => p["PackageID"] === pkgId);
+  const defaultPrice = pkg ? (pkg["সর্বমোট মূল্য"] || 0) : 0;
+
+  table.innerHTML = "<thead><tr><th class='cell-left'>নাম</th><th class='cell-left'>পিতার নাম</th><th>মোবাইল</th><th>প্রাপ্তির স্থান</th><th>মূল্য</th><th>স্ট্যাটাস</th><th class='no-print'>একশন</th></tr></thead><tbody></tbody>";
   const tbody = table.querySelector("tbody");
+  let subtotal = 0;
 
   customers.forEach(c => {
     const sale = allSalesCache.find(s => s["CustomerID"] === c["CustomerID"] && s["PackageID"] === pkgId && s["স্ট্যাটাস"] === "বিক্রিত");
-    const pkg = allPackagesCache.find(p => p["PackageID"] === pkgId);
     const cJson = JSON.stringify(c).replace(/'/g, "&#39;");
+    const priceValue = sale ? (sale["মূল্য"] !== undefined && sale["মূল্য"] !== "" ? sale["মূল্য"] : defaultPrice) : defaultPrice;
+    subtotal += Number(priceValue) || 0;
+    const priceInputId = "salePrice_" + c["CustomerID"];
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td class="cell-left">${c["নাম"]}</td><td class="cell-left">${c["পিতার নাম"]||""}</td><td>${c["মোবাইল নং"]}</td><td>${c["প্রাপ্তির স্থান"]||""}</td>
+      <td><input type="number" id="${priceInputId}" value="${priceValue}" style="width:80px;" ${!pkgId?"disabled":""}
+        ${sale ? `onchange="updateSalePriceHandler('${sale['SaleID']}', this.value)"` : ""}></td>
       <td>${sale ? "বিক্রিত" : "—"}</td>
       <td class="no-print">
         ${!sale
-          ? `<button class="btn small" ${!pkgId?"disabled":""} onclick="makeSale('${c['CustomerID']}','${pkgId}')">বিক্রয়</button>`
+          ? `<button class="btn small" ${!pkgId?"disabled":""} onclick="makeSale('${c['CustomerID']}','${pkgId}','${priceInputId}')">বিক্রয়</button>`
           : `<button class="btn small danger" onclick="undoSale('${sale['SaleID']}')">বাতিল</button>`}
         <button class="btn small secondary" ${!pkgId?"disabled":""} onclick='printThermalReceipt(${cJson}, "${pkgId}")'>প্রিন্ট</button>
       </td>`;
     tbody.appendChild(tr);
   });
+
+  if(customers.length > 0){
+    const trFoot = document.createElement("tr");
+    trFoot.style.fontWeight = "700";
+    trFoot.style.background = "#eef0e9";
+    trFoot.innerHTML = `<td class="cell-left" colspan="4">সাবটোটাল</td><td>${subtotal}</td><td></td><td class="no-print"></td>`;
+    tbody.appendChild(trFoot);
+  }
+}
+
+async function updateSalePriceHandler(saleId, newPrice){
+  const sale = allSalesCache.find(s => s["SaleID"] === saleId);
+  if(sale) sale["মূল্য"] = newPrice;
+  clearCache();
+  const res = await apiCall("updateSalePrice", { saleId: saleId, price: newPrice });
+  if(!res.success){ alert(res.message); }
+  renderSalesTable();
 }
 
 /*******************************************************
@@ -2375,7 +2399,7 @@ function printThermalReceipt(c, packageId){
     ["Mobile No", c["মোবাইল নং"]||""],
     ["Collection Point", c["প্রাপ্তির স্থান"]||""],
     ["Package", pkg ? pkg["নাম"] : ""],
-    ["Price", pkg ? pkg["সর্বমোট মূল্য"] : ""],
+    ["Price", sale && sale["মূল্য"] !== undefined && sale["মূল্য"] !== "" ? sale["মূল্য"] : (pkg ? pkg["সর্বমোট মূল্য"] : "")],
     ["Date", dt],
     ["Status", sale ? "বিক্রিত" : "অপেক্ষমান"]
   ];
@@ -2385,6 +2409,7 @@ function printThermalReceipt(c, packageId){
   win.document.write(`<html><head><meta charset="utf-8"><title>রসিদ</title>
     <style>
       @page{ size:80mm auto; margin:2mm; }
+      html{ margin:0; padding:0; }
       body{ font-family:'Hind Siliguri',sans-serif; width:76mm; margin:0 auto; color:#000; font-size:12px; }
       h2{ text-align:center; font-size:14px; margin:4px 0 0; }
       .dealer-mobile{ text-align:center; font-size:10.5px; margin:0 0 4px; }
@@ -2409,15 +2434,17 @@ function printThermalReceipt(c, packageId){
   win.document.close();
 }
 
-async function makeSale(customerId, packageId){
+async function makeSale(customerId, packageId, priceInputId){
   if(!packageId){ alert("আগে প্যাকেজ সিলেক্ট করুন"); return; }
+  const priceInput = priceInputId ? document.getElementById(priceInputId) : null;
+  const price = priceInput ? priceInput.value : 0;
 
   // অপটিমিস্টিক আপডেট — সাথে সাথে UI বদলে যাবে, সার্ভার রেসপন্সের অপেক্ষা না করে
-  const tempSale = { SaleID:"tmp-"+Date.now(), CustomerID:customerId, PackageID:packageId, "স্ট্যাটাস":"বিক্রিত" };
+  const tempSale = { SaleID:"tmp-"+Date.now(), CustomerID:customerId, PackageID:packageId, "মূল্য":price, "স্ট্যাটাস":"বিক্রিত" };
   allSalesCache.push(tempSale);
   renderSalesTable();
 
-  const res = await apiCall("addSale", { customerId, packageId });
+  const res = await apiCall("addSale", { customerId, packageId, price });
   document.getElementById("salesMsg").textContent = res.message;
   document.getElementById("salesMsg").className = "msg " + (res.success?"ok":"err");
 
