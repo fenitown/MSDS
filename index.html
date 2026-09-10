@@ -35,7 +35,7 @@
     display:flex;
     align-items:center;
     justify-content:center;
-    padding:24px;
+    padding:16px;
     background:
       radial-gradient(circle at 15% 15%, rgba(31,95,82,0.14), transparent 45%),
       radial-gradient(circle at 85% 85%, rgba(181,80,47,0.12), transparent 45%),
@@ -44,26 +44,26 @@
   .login-box{
     background:var(--card);
     border:1px solid var(--line);
-    border-radius:16px;
-    padding:36px 30px;
+    border-radius:14px;
+    padding:22px 24px;
     width:100%;
-    max-width:400px;
+    max-width:360px;
     box-shadow:0 10px 34px rgba(21,63,55,0.10);
     text-align:center;
   }
   .login-avatar{
-    width:64px; height:64px; border-radius:50%;
+    width:44px; height:44px; border-radius:50%;
     background:linear-gradient(135deg,var(--teal),var(--teal-dark));
     color:#fff; display:flex; align-items:center; justify-content:center;
-    font-weight:800; font-size:1.05rem; margin:0 auto 14px;
+    font-weight:800; font-size:0.78rem; margin:0 auto 8px;
     letter-spacing:0.5px;
     box-shadow:0 6px 16px rgba(21,63,55,0.28);
   }
-  .login-box h1{ font-size:1.4rem; margin:0 0 2px; color:var(--teal-dark); }
-  .login-box .tagline{ font-size:0.86rem; color:var(--clay); font-weight:600; margin:0 0 16px; }
-  .login-box p.sub{ margin:0 0 20px; color:var(--muted); font-size:0.88rem; }
-  .field{ margin-bottom:14px; text-align:left; }
-  .field label{ display:block; margin-bottom:4px; font-size:0.88rem; color:var(--muted); }
+  .login-box h1{ font-size:1.15rem; margin:0 0 1px; color:var(--teal-dark); }
+  .login-box .tagline{ font-size:0.78rem; color:var(--clay); font-weight:600; margin:0 0 10px; }
+  .login-box p.sub{ margin:0 0 12px; color:var(--muted); font-size:0.8rem; }
+  .field{ margin-bottom:10px; text-align:left; }
+  .field label{ display:block; margin-bottom:3px; font-size:0.85rem; color:var(--muted); }
   .field input, .field select, .field textarea{
     width:100%;
     padding:10px 12px;
@@ -91,8 +91,8 @@
   .btn.small{ padding:6px 12px; font-size:0.85rem; border-radius:8px; }
   .btn-row{ display:flex; gap:8px; flex-wrap:wrap; margin-top:6px; }
   .link-btn{ background:none; border:none; color:var(--teal); text-decoration:underline; cursor:pointer; padding:0; font-size:0.88rem; }
-  #loginError{ color:var(--danger); font-size:0.85rem; margin-top:10px; min-height:1.2em; }
-  .login-box .recover-link{ margin-top:14px; }
+  #loginError{ color:var(--danger); font-size:0.85rem; margin-top:6px; min-height:1.1em; }
+  .login-box .recover-link{ margin-top:8px; }
 
   /* ---------- অ্যাপ শেল ---------- */
   #appScreen{ display:none; min-height:100vh; }
@@ -1972,7 +1972,7 @@ function printPackagesOfficial(packages, subtitle){
   const win = window.open("", "_blank", "width=900,height=700");
   const sectionsHtml = packages.map((p, idx) => {
     const itemRows = (p.items||[]).map(it => `
-      <tr><td>${it["পণ্যের নাম ও পরিমাণ"]}</td><td>${it["বাজার মূল্য"]}</td><td>${it["কম্বো মূল্য"]}</td><td>${it["সাশ্রয়"]}</td></tr>
+      <tr><td>${it["পণ্যের নাম ও পরিমাণ"]}</td><td class="num-cell">${it["বাজার মূল্য"]}</td><td class="num-cell">${it["কম্বো মূল্য"]}</td><td class="num-cell">${it["সাশ্রয়"]}</td></tr>
     `).join("");
     return `
       <h3>${idx+1}. ${p["নাম"]} <span style="font-weight:400;font-size:12px;color:#6b7570;">(ধরন: ${p["ধরন"]||""})</span></h3>
@@ -1981,7 +1981,7 @@ function printPackagesOfficial(packages, subtitle){
         <tbody>${itemRows}
           <tr style="font-weight:700;background:#eef0e9;">
             <td>সর্বমোট (${p.itemCount||0} টি পণ্য)</td>
-            <td>${p["সর্বমোট বাজার মূল্য"]||0}</td><td>${p["সর্বমোট মূল্য"]||0}</td><td>${p["সর্বমোট সাশ্রয়"]||0}</td>
+            <td class="num-cell">${p["সর্বমোট বাজার মূল্য"]||0}</td><td class="num-cell">${p["সর্বমোট মূল্য"]||0}</td><td class="num-cell">${p["সর্বমোট সাশ্রয়"]||0}</td>
           </tr>
         </tbody>
       </table>`;
@@ -2002,6 +2002,7 @@ function printPackagesOfficial(packages, subtitle){
       th,td{ border:1px solid #999; padding:5px 7px; font-size:11.5px; }
       th{ text-align:center; background:#eef0e9; }
       td{ text-align:left; }
+      td.num-cell{ text-align:center; }
       .doc-footer{ margin-top:26px; font-size:9px; color:#6b7570; text-align:center; }
     </style></head><body>
     <div class="letterhead"><h1>মানবিক সহায়তা ডেইলি শপ</h1><p>সাশ্রয়ী মূল্যে পণ্য বিক্রি সংস্থা</p></div>
@@ -2168,12 +2169,12 @@ async function loadOrders(){
   const pkgMap = {};
   res.packages.forEach(p => pkgMap[p["PackageID"]] = p["নাম"]);
 
-  table.innerHTML = "<thead><tr><th>ইনভয়েস নং</th><th>তারিখ</th><th class='cell-left'>প্যাকেজ</th><th>সংখ্যা</th><th>একক মূল্য</th><th>মোট মূল্য</th><th class='no-print'>একশন</th></tr></thead><tbody></tbody>";
+  table.innerHTML = "<thead><tr><th>ইনভয়েস নং</th><th>তারিখ</th><th class='cell-left'>প্যাকেজ</th><th>সংখ্যা</th><th>একক মূল্য</th><th>মোট মূল্য</th><th>কমিশন %</th><th>মোট কমিশন</th><th>সর্বমোট মূল্য</th><th class='no-print'>একশন</th></tr></thead><tbody></tbody>";
   const tbody = table.querySelector("tbody");
   res.orders.forEach(o => {
     const dt = o["তারিখ"] ? new Date(o["তারিখ"]).toLocaleDateString("bn-BD") : "";
     const tr = document.createElement("tr");
-    tr.innerHTML = `<td>${o["ইনভয়েস নং"]||o["OrderID"]}</td><td>${dt}</td><td class="cell-left">${pkgMap[o["PackageID"]]||""}</td><td>${o["সংখ্যা"]}</td><td>${o["একক মূল্য"]}</td><td>${o["মোট মূল্য"]}</td>
+    tr.innerHTML = `<td>${o["ইনভয়েস নং"]||o["OrderID"]}</td><td>${dt}</td><td class="cell-left">${pkgMap[o["PackageID"]]||""}</td><td>${o["সংখ্যা"]}</td><td>${o["একক মূল্য"]}</td><td>${o["মোট মূল্য"]}</td><td>${o["কমিশন %"]||0}</td><td>${o["মোট কমিশন"]||0}</td><td>${o["সর্বমোট মূল্য"]!==undefined&&o["সর্বমোট মূল্য"]!==""?o["সর্বমোট মূল্য"]:o["মোট মূল্য"]}</td>
       <td class="no-print">
         <button class="btn small secondary" onclick="editOrderRow('${o['OrderID']}')">এডিট</button>
         <button class="btn small secondary" onclick="printOrderInvoiceById('${o['OrderID']}')">প্রিন্ট</button>
@@ -2195,6 +2196,7 @@ function addOrdItemRow(){
     <select class="ordItemPackage">${packages.map(p => `<option value="${p['PackageID']}">${p['নাম']}</option>`).join("")}</select>
     <input placeholder="সংখ্যা" type="number" min="1" class="ordItemQty">
     <input placeholder="একক মূল্য" type="number" min="0" class="ordItemPrice">
+    <input placeholder="কমিশন %" type="number" min="0" max="100" class="ordItemCommission">
     <button type="button" class="btn secondary small" onclick="this.parentElement.remove()">✕</button>`;
   wrap.appendChild(row);
 }
@@ -2211,16 +2213,23 @@ function printOrderInvoiceById(orderId){
   const pkgMap = {};
   (window.__orderPackagesCache||[]).forEach(p => pkgMap[p["PackageID"]] = p["নাম"]);
 
-  const headers = ["ক্রম", "প্যাকেজ", "সংখ্যা", "একক মূল্য", "মোট মূল্য"];
-  const rows = lines.map((o, i) => [i+1, pkgMap[o["PackageID"]]||"", o["সংখ্যা"]||0, o["একক মূল্য"]||0, o["মোট মূল্য"]||0]);
-  let grandTotal = 0;
-  lines.forEach(o => { grandTotal += Number(o["মোট মূল্য"]) || 0; });
+  const headers = ["ক্রম", "প্যাকেজ", "সংখ্যা", "একক মূল্য", "মোট মূল্য", "কমিশন %", "মোট কমিশন", "সর্বমোট মূল্য"];
+  const rows = lines.map((o, i) => [
+    i+1, pkgMap[o["PackageID"]]||"", o["সংখ্যা"]||0, o["একক মূল্য"]||0, o["মোট মূল্য"]||0,
+    o["কমিশন %"]||0, o["মোট কমিশন"]||0, (o["সর্বমোট মূল্য"]!==undefined&&o["সর্বমোট মূল্য"]!==""?o["সর্বমোট মূল্য"]:o["মোট মূল্য"])||0
+  ]);
+  let grandTotal = 0, grandCommission = 0, grandNet = 0;
+  lines.forEach(o => {
+    grandTotal += Number(o["মোট মূল্য"]) || 0;
+    grandCommission += Number(o["মোট কমিশন"]) || 0;
+    grandNet += Number(o["সর্বমোট মূল্য"]!==undefined&&o["সর্বমোট মূল্য"]!==""?o["সর্বমোট মূল্য"]:o["মোট মূল্য"]) || 0;
+  });
 
   printOfficialTable(
     "অর্ডার ইনভয়েস — " + invoiceNo,
     "ডিলার: " + (state.dealerName||"") + " — তারিখ: " + (lines[0]["তারিখ"] ? new Date(lines[0]["তারিখ"]).toLocaleDateString("bn-BD") : ""),
     headers, rows,
-    [["", "", "", "সর্বমোট", grandTotal]],
+    [["", "", "", "", "সর্বমোট", grandTotal, grandCommission, grandNet]],
     "@Powered by: AM Shahed: 01605721296"
   );
 }
@@ -2235,22 +2244,27 @@ function printOrdersInvoice(){
   const pkgMap = {};
   (window.__orderPackagesCache||[]).forEach(p => pkgMap[p["PackageID"]] = p["নাম"]);
 
-  const headers = ["ক্রম", "ইনভয়েস নং", "তারিখ", "প্যাকেজ", "সংখ্যা", "একক মূল্য", "মোট মূল্য"];
+  const headers = ["ক্রম", "ইনভয়েস নং", "তারিখ", "প্যাকেজ", "সংখ্যা", "একক মূল্য", "মোট মূল্য", "কমিশন %", "মোট কমিশন", "সর্বমোট মূল্য"];
   const rows = orders.map((o, i) => [
     i+1, o["ইনভয়েস নং"]||o["OrderID"],
     o["তারিখ"] ? new Date(o["তারিখ"]).toLocaleDateString("bn-BD") : "",
     pkgMap[o["PackageID"]] || "",
-    o["সংখ্যা"]||0, o["একক মূল্য"]||0, o["মোট মূল্য"]||0
+    o["সংখ্যা"]||0, o["একক মূল্য"]||0, o["মোট মূল্য"]||0,
+    o["কমিশন %"]||0, o["মোট কমিশন"]||0, (o["সর্বমোট মূল্য"]!==undefined&&o["সর্বমোট মূল্য"]!==""?o["সর্বমোট মূল্য"]:o["মোট মূল্য"])||0
   ]);
 
-  let grandTotal = 0;
-  orders.forEach(o => { grandTotal += Number(o["মোট মূল্য"]) || 0; });
+  let grandTotal = 0, grandCommission = 0, grandNet = 0;
+  orders.forEach(o => {
+    grandTotal += Number(o["মোট মূল্য"]) || 0;
+    grandCommission += Number(o["মোট কমিশন"]) || 0;
+    grandNet += Number(o["সর্বমোট মূল্য"]!==undefined&&o["সর্বমোট মূল্য"]!==""?o["সর্বমোট মূল্য"]:o["মোট মূল্য"]) || 0;
+  });
 
   printOfficialTable(
     "অর্ডার তালিকা",
     "ডিলার: " + (state.dealerName||"") + " — তারিখ: " + new Date().toLocaleDateString("bn-BD"),
     headers, rows,
-    [["", "", "", "", "", "সর্বমোট", grandTotal]],
+    [["", "", "", "", "", "সর্বমোট", grandTotal, grandCommission, grandNet]],
     "@Powered by: AM Shahed: 01605721296"
   );
 }
@@ -2263,10 +2277,17 @@ function editOrderRow(orderId){
   if(!o) return;
   openEditModal("অর্ডার এডিট — " + o["OrderID"], [
     { key:"সংখ্যা", label:"সংখ্যা", value:o["সংখ্যা"] },
-    { key:"একক মূল্য", label:"একক মূল্য", value:o["একক মূল্য"] }
+    { key:"একক মূল্য", label:"একক মূল্য", value:o["একক মূল্য"] },
+    { key:"কমিশন %", label:"কমিশন %", value:o["কমিশন %"] }
   ], async (values) => {
-    const total = (Number(values["সংখ্যা"])||0) * (Number(values["একক মূল্য"])||0);
+    const qty = Number(values["সংখ্যা"]) || 0;
+    const unitPrice = Number(values["একক মূল্য"]) || 0;
+    const commissionPercent = Number(values["কমিশন %"]) || 0;
+    const total = qty * unitPrice;
+    const totalCommission = total * commissionPercent / 100;
     values["মোট মূল্য"] = total;
+    values["মোট কমিশন"] = totalCommission;
+    values["সর্বমোট মূল্য"] = total - totalCommission;
     const res = await apiCall("updateOrder", { orderId: orderId, fields: values });
     if(res.success){ clearCache(); loadOrders(); }
     return res;
@@ -2278,7 +2299,8 @@ async function submitOrder(){
   const items = rows.map(r => ({
     packageId: r.querySelector(".ordItemPackage").value,
     quantity: r.querySelector(".ordItemQty").value,
-    unitPrice: r.querySelector(".ordItemPrice").value
+    unitPrice: r.querySelector(".ordItemPrice").value,
+    commissionPercent: r.querySelector(".ordItemCommission").value
   })).filter(i => i.packageId && i.quantity);
 
   const msgBox = document.getElementById("ordMsg");
@@ -2286,7 +2308,7 @@ async function submitOrder(){
 
   markSaving("ordMsg");
   const res = await apiCall("addOrder", { items });
-  msgBox.textContent = res.message + (res.success ? " (ইনভয়েস নং: " + res.invoiceNo + ", সর্বমোট: " + res.total + ")" : "");
+  msgBox.textContent = res.message + (res.success ? " (ইনভয়েস নং: " + res.invoiceNo + ", সর্বমোট: " + res.netTotal + ")" : "");
   msgBox.className = "msg " + (res.success?"ok":"err");
   if(res.success){
     clearCache();
