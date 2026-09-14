@@ -371,7 +371,10 @@
         <div class="btn-row"><button class="btn" onclick="submitCommission()">সংরক্ষণ করুন</button></div>
         <div id="commMsg" class="msg"></div>
       </fieldset>
-      <div class="toolbar no-print"><button class="btn secondary small" onclick="window.print()">🖨 প্রিন্ট করুন</button></div>
+      <div class="toolbar no-print">
+        <input type="text" id="commSearchBox" placeholder="🔍 সার্চ করুন (ডিলারের নাম)" oninput="loadCommissionList()" style="flex:1;min-width:160px;">
+        <button class="btn secondary small" onclick="window.print()">🖨 প্রিন্ট করুন</button>
+      </div>
       <div class="table-wrap"><table id="commissionTable"><thead></thead><tbody></tbody></table></div>
     </section>
 
@@ -384,7 +387,10 @@
         <div class="btn-row"><button class="btn" onclick="submitAgencyExpense()">সংরক্ষণ করুন</button></div>
         <div id="agencyExpenseMsg" class="msg"></div>
       </fieldset>
-      <div class="toolbar no-print"><button class="btn secondary small" onclick="window.print()">🖨 প্রিন্ট করুন</button></div>
+      <div class="toolbar no-print">
+        <input type="text" id="agencyExpSearchBox" placeholder="🔍 সার্চ করুন (বিবরণ)" oninput="loadAgencyExpenses()" style="flex:1;min-width:160px;">
+        <button class="btn secondary small" onclick="window.print()">🖨 প্রিন্ট করুন</button>
+      </div>
       <div class="table-wrap"><table id="agencyExpenseTable"><thead></thead><tbody></tbody></table></div>
     </section>
 
@@ -410,6 +416,67 @@
       </div>
       <div id="ccMsg" class="msg"></div>
       <div id="ccPreviewWrap" style="margin-top:14px;"></div>
+    </section>
+
+    <!-- ================= স্টক ================= -->
+    <section class="section" id="sec-stock">
+      <h2>স্টক</h2>
+      <div class="tabs no-print">
+        <button class="active" onclick="switchStockTab('products', this)">পণ্য তালিকা</button>
+        <button onclick="switchStockTab('stockIn', this)">স্টক ইন ভাউচার</button>
+      </div>
+      <div id="stockTabContent"></div>
+    </section>
+
+    <!-- ================= বিক্রয় ইনভয়েস ================= -->
+    <section class="section" id="sec-salesInvoice">
+      <h2>বিক্রয় ইনভয়েস</h2>
+      <fieldset class="no-print">
+        <legend id="siFormLegend">নতুন বিক্রয় ইনভয়েস</legend>
+        <div class="form-grid">
+          <div class="field"><label>তারিখ</label><input id="siDate" type="date"></div>
+          <div class="field">
+            <label>ডিলার</label>
+            <select id="siDealerSelect" onchange="onSiDealerChange()"><option value="">-- সিলেক্ট করুন --</option></select>
+          </div>
+          <div class="field"><label>মোবাইল (অটো)</label><input id="siDealerMobile" readonly></div>
+          <div class="field"><label>ঠিকানা (অটো)</label><input id="siDealerThikana" readonly></div>
+        </div>
+        <div id="siItems"></div>
+        <button class="btn secondary small" onclick="addSiItemRow()">+ আরেকটি প্যাকেজ যোগ করুন</button>
+        <div class="form-grid" style="margin-top:10px;">
+          <div class="field"><label>ডিসকাউন্ট</label><input id="siDiscount" type="number" min="0" value="0"></div>
+          <div class="field"><label>পরিশোধ</label><input id="siPaid" type="number" min="0" value="0"></div>
+        </div>
+        <div id="siTotalsPreview" style="font-size:0.9rem;color:var(--muted);margin-top:6px;"></div>
+        <div class="btn-row">
+          <button class="btn" id="siSubmitBtn" onclick="submitSalesInvoice()">সংরক্ষণ করুন</button>
+        </div>
+        <div id="siMsg" class="msg"></div>
+      </fieldset>
+      <div class="toolbar no-print">
+        <input type="text" id="siSearchBox" placeholder="🔍 সার্চ করুন (ডিলার/ইনভয়েস নং)" oninput="renderSalesInvoiceTable()" style="flex:1;min-width:160px;">
+        <button class="btn secondary small" onclick="printSalesInvoicesListOfficial()">🖨 প্রিন্ট করুন</button>
+      </div>
+      <div class="table-wrap"><table id="salesInvoiceTable"><thead></thead><tbody></tbody></table></div>
+    </section>
+
+    <!-- ================= এজেন্সি রিপোর্ট ================= -->
+    <section class="section" id="sec-agencyReports">
+      <h2>রিপোর্ট</h2>
+      <div class="tabs no-print">
+        <button class="active" onclick="switchAgencyReportTab('daily', this)">দৈনিক</button>
+        <button onclick="switchAgencyReportTab('monthly', this)">মাসিক</button>
+        <button onclick="switchAgencyReportTab('total', this)">মোট</button>
+      </div>
+      <div class="form-grid no-print">
+        <div class="field">
+          <label>ডিলার</label>
+          <select id="arDealerSelect" onchange="runAgencyReport()"><option value="">-- সব ডিলার (মোট) --</option></select>
+        </div>
+      </div>
+      <div id="agencyReportControls" class="form-grid no-print"></div>
+      <div id="agencyReportResult"></div>
     </section>
 
     <!-- ================= ডিলার সেকশনসমূহ ================= -->
@@ -445,6 +512,7 @@
           <div class="field"><label>ওয়ার্ড নং</label><input id="cusWard"></div>
           <div class="field"><label>ইউনিয়ন/পৌরসভা</label><input id="cusUnion"></div>
           <div class="field"><label>প্রাপ্তির স্থান</label><input id="cusPraptirSthan"></div>
+          <div class="field"><label>কার্ড ফি</label><input id="cusCardFee" type="number" min="0"></div>
         </div>
         <div class="btn-row">
           <button class="btn" id="cusSubmitBtn" onclick="submitCustomer()">গ্রাহক সংরক্ষণ করুন</button>
@@ -536,6 +604,14 @@ async function apiCall(action, data){
 function markSaving(msgBoxId){
   const box = document.getElementById(msgBoxId);
   if(box){ box.textContent = "সংরক্ষণ হচ্ছে..."; box.className = "msg"; }
+}
+
+/*******************************************************
+ * শীটে কোনো ডাটা না থাকলে টেবিলে একটা স্পষ্ট বার্তা দেখানো,
+ * খালি টেবিল না দেখিয়ে
+ *******************************************************/
+function emptyRowHtml(colspan, message){
+  return `<tr><td colspan="${colspan}" style="text-align:center;color:var(--muted);padding:16px;">${message || "এখনো কোনো ডাটা নেই"}</td></tr>`;
 }
 
 /*******************************************************
@@ -800,8 +876,11 @@ function buildSideMenu(){
       <button class="menu-item" onclick="showSection('agencyDashboard')">ড্যাশবোর্ড</button>
       <button class="menu-item" onclick="showSection('management')">ব্যবস্থাপনা</button>
       <button class="menu-item" onclick="showSection('agencyPackages')">প্যাকেজ</button>
+      <button class="menu-item" onclick="showSection('stock')">স্টক</button>
+      <button class="menu-item" onclick="showSection('salesInvoice')">বিক্রয় ইনভয়েস</button>
       <button class="menu-item" onclick="showSection('commission')">কমিশন</button>
       <button class="menu-item" onclick="showSection('agencyExpense')">খরচ</button>
+      <button class="menu-item" onclick="showSection('agencyReports')">রিপোর্ট</button>
       <button class="menu-item" onclick="showSection('customerCards')">গ্রাহক কার্ড</button>
       <button class="menu-item" onclick="doLogout()">লগআউট</button>`;
   } else {
@@ -836,6 +915,9 @@ function showSection(name){
   if(name === "commission") loadCommissionSetup();
   if(name === "agencyExpense") loadAgencyExpenses();
   if(name === "customerCards") loadCustomerCardsSetup();
+  if(name === "stock") switchStockTab("products", document.querySelector("#sec-stock .tabs button"));
+  if(name === "salesInvoice") loadSalesInvoiceSetup();
+  if(name === "agencyReports") loadAgencyReportSetup();
 
   if(name === "dashboard") loadDashboard();
   if(name === "about") loadAboutView();
@@ -1066,6 +1148,9 @@ async function renderDealersList(box){
     <div class="table-wrap"><table><thead><tr>
     <th>ছবি</th><th>আইডি</th><th class="cell-left">নাম</th><th>মোবাইল</th><th class="cell-left">ঠিকানা</th><th>স্ট্যাটাস</th><th class="no-print">একশন</th>
     </tr></thead><tbody>`;
+  if(res.dealers.length === 0){
+    html += emptyRowHtml(7, "এখনো কোনো ডিলার রেজিস্ট্রেশন করা হয়নি");
+  } else {
   res.dealers.forEach(d => {
     const dJson = JSON.stringify(d).replace(/'/g, "&#39;");
     const photoUrl = d["ডিলারের ছবি(URL)"] || "";
@@ -1079,6 +1164,7 @@ async function renderDealersList(box){
         <button class="btn small secondary" onclick='printDealerRow(${dJson})'>প্রিন্ট</button>
       </td></tr>`;
   });
+  }
   html += `</tbody></table></div>`;
   box.innerHTML = html;
 }
@@ -1371,6 +1457,7 @@ async function loadAgencyPackages(){
   window.__packagesCache = res.packages;
   table.innerHTML = "<thead><tr><th class='cell-left'>নাম</th><th>তারিখ</th><th>পণ্য সংখ্যা</th><th>সর্বমোট মূল্য</th><th class='no-print'>একশন</th></tr></thead><tbody></tbody>";
   const tbody = table.querySelector("tbody");
+  if(res.packages.length === 0){ tbody.innerHTML = emptyRowHtml(5, "এখনো কোনো প্যাকেজ যোগ করা হয়নি"); return; }
   res.packages.forEach(p => {
     const dt = p["তারিখ"] ? new Date(p["তারিখ"]).toLocaleDateString("bn-BD") : "";
     const tr = document.createElement("tr");
@@ -1467,9 +1554,13 @@ async function loadCommissionList(){
   const res = await cachedApiCall("listCommissions", {}, 15000);
   const table = document.getElementById("commissionTable");
   if(!res.success){ table.innerHTML = res.message; return; }
+  const q = (document.getElementById("commSearchBox")?.value || "").trim().toLowerCase();
+  let list = res.commissions;
+  if(q) list = list.filter(c => (c["ডিলারের নাম"]||"").toLowerCase().includes(q));
   table.innerHTML = "<thead><tr><th class='cell-left'>ডিলারের নাম</th><th>মোবাইল</th><th class='cell-left'>ঠিকানা</th><th>টাকার পরিমাণ</th><th>তারিখ</th><th class='no-print'>একশন</th></tr></thead><tbody></tbody>";
   const tbody = table.querySelector("tbody");
-  res.commissions.forEach(c => {
+  if(list.length === 0){ tbody.innerHTML = emptyRowHtml(6, "এখনো কোনো কমিশন এন্ট্রি নেই"); return; }
+  list.forEach(c => {
     const dt = c["তারিখ"] ? new Date(c["তারিখ"]).toLocaleDateString("bn-BD") : "";
     const cJson = JSON.stringify(c).replace(/'/g, "&#39;");
     const tr = document.createElement("tr");
@@ -1541,9 +1632,13 @@ async function loadAgencyExpenses(){
   const res = await cachedApiCall("listExpenses", {}, 15000);
   const table = document.getElementById("agencyExpenseTable");
   if(!res.success){ table.innerHTML = res.message; return; }
+  const q = (document.getElementById("agencyExpSearchBox")?.value || "").trim().toLowerCase();
+  let list = res.expenses;
+  if(q) list = list.filter(e => (e["বিবরণ"]||"").toLowerCase().includes(q));
   table.innerHTML = "<thead><tr><th>তারিখ</th><th>বিবরণ</th><th>পরিমাণ</th><th class='no-print'>একশন</th></tr></thead><tbody></tbody>";
   const tbody = table.querySelector("tbody");
-  res.expenses.forEach(e => {
+  if(list.length === 0){ tbody.innerHTML = emptyRowHtml(4, "এখনো কোনো খরচ এন্ট্রি নেই"); return; }
+  list.forEach(e => {
     const dt = e["তারিখ"] ? new Date(e["তারিখ"]).toLocaleDateString("bn-BD") : "";
     const eJson = JSON.stringify(e).replace(/'/g, "&#39;");
     const tr = document.createElement("tr");
@@ -1580,6 +1675,517 @@ async function deleteAgencyExpenseRow(id){
   if(!confirm("এই খরচ এন্ট্রি ডিলিট করবেন?")) return;
   const res = await apiCall("deleteExpense", { expenseId:id });
   if(res.success){ clearCache(); loadAgencyExpenses(); } else alert(res.message);
+}
+
+/* ================= এজেন্সি: স্টক — পণ্য তালিকা ================= */
+let stockCurrentTab = "products";
+let productsCache = [];
+let stockVouchersCache = [];
+
+function switchStockTab(tab, btn){
+  stockCurrentTab = tab;
+  document.querySelectorAll("#sec-stock .tabs button").forEach(b => b.classList.remove("active"));
+  if(btn) btn.classList.add("active");
+  if(tab === "products") renderProductsTab();
+  else renderStockInTab();
+}
+
+function renderProductsTab(){
+  const box = document.getElementById("stockTabContent");
+  box.innerHTML = `
+    <fieldset class="no-print">
+      <legend id="prodFormLegend">নতুন পণ্য</legend>
+      <div class="form-grid">
+        <div class="field"><label>পণ্যের নাম</label><input id="prodNaam"></div>
+        <div class="field"><label>ব্র্যান্ড</label><input id="prodBrand"></div>
+        <div class="field"><label>মূল্য</label><input id="prodPrice" type="number" min="0"></div>
+      </div>
+      <div class="btn-row">
+        <button class="btn" id="prodSubmitBtn" onclick="submitProduct()">সংরক্ষণ করুন</button>
+        <button class="btn secondary" id="prodCancelBtn" style="display:none;" onclick="cancelProductEdit()">বাতিল</button>
+      </div>
+      <div id="prodMsg" class="msg"></div>
+    </fieldset>
+    <div class="toolbar no-print">
+      <input type="text" id="prodSearchBox" placeholder="🔍 সার্চ করুন (নাম/ব্র্যান্ড)" oninput="renderProductsTable()" style="flex:1;min-width:160px;">
+      <button class="btn secondary small" onclick="printProductsListOfficial()">🖨 প্রিন্ট করুন</button>
+    </div>
+    <div class="table-wrap"><table id="productsTable"><thead></thead><tbody></tbody></table></div>`;
+  loadProducts();
+}
+
+let editingProductId = null;
+
+async function loadProducts(){
+  const res = await cachedApiCall("listProducts", {}, 20000);
+  productsCache = res.success ? res.products : [];
+  renderProductsTable();
+}
+
+function renderProductsTable(){
+  const table = document.getElementById("productsTable");
+  if(!table) return;
+  const q = (document.getElementById("prodSearchBox")?.value || "").trim().toLowerCase();
+  let list = productsCache;
+  if(q) list = list.filter(p => (p["পণ্যের নাম"]||"").toLowerCase().includes(q) || (p["ব্র্যান্ড"]||"").toLowerCase().includes(q));
+
+  table.innerHTML = "<thead><tr><th>ক্রম</th><th class='cell-left'>পণ্যের নাম</th><th class='cell-left'>ব্র্যান্ড</th><th>মূল্য</th><th class='no-print'>একশন</th></tr></thead><tbody></tbody>";
+  const tbody = table.querySelector("tbody");
+  if(list.length === 0){ tbody.innerHTML = emptyRowHtml(5, "এখনো কোনো পণ্য যোগ করা হয়নি"); return; }
+  list.forEach((p, i) => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td>${i+1}</td><td class="cell-left">${p["পণ্যের নাম"]}</td><td class="cell-left">${p["ব্র্যান্ড"]||""}</td><td>${p["মূল্য"]||0}</td>
+      <td class="no-print">
+        <button class="btn small secondary" onclick="editProductRow('${p['ProductID']}')">এডিট</button>
+        <button class="btn small danger" onclick="deleteProductRow('${p['ProductID']}')">ডিলিট</button>
+      </td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+async function submitProduct(){
+  const msgBox = document.getElementById("prodMsg");
+  markSaving("prodMsg");
+  const naam = document.getElementById("prodNaam").value.trim();
+  const brand = document.getElementById("prodBrand").value.trim();
+  const price = document.getElementById("prodPrice").value;
+
+  if(editingProductId){
+    const res = await apiCall("updateProduct", { productId: editingProductId, fields:{ "পণ্যের নাম":naam, "ব্র্যান্ড":brand, "মূল্য":price } });
+    msgBox.textContent = res.message; msgBox.className = "msg " + (res.success?"ok":"err");
+    if(res.success){ clearCache(); cancelProductEdit(); loadProducts(); }
+    return;
+  }
+
+  const res = await apiCall("addProduct", { "নাম":naam, brand, price });
+  msgBox.textContent = res.message; msgBox.className = "msg " + (res.success?"ok":"err");
+  if(res.success){
+    clearCache();
+    document.getElementById("prodNaam").value = "";
+    document.getElementById("prodBrand").value = "";
+    document.getElementById("prodPrice").value = "";
+    loadProducts();
+  }
+}
+
+function editProductRow(productId){
+  const p = productsCache.find(x => x["ProductID"] === productId);
+  if(!p) return;
+  editingProductId = productId;
+  document.getElementById("prodFormLegend").textContent = "পণ্য এডিট — " + p["পণ্যের নাম"];
+  document.getElementById("prodSubmitBtn").textContent = "আপডেট করুন";
+  document.getElementById("prodCancelBtn").style.display = "inline-block";
+  document.getElementById("prodNaam").value = p["পণ্যের নাম"] || "";
+  document.getElementById("prodBrand").value = p["ব্র্যান্ড"] || "";
+  document.getElementById("prodPrice").value = p["মূল্য"] || "";
+}
+
+function cancelProductEdit(){
+  editingProductId = null;
+  document.getElementById("prodFormLegend").textContent = "নতুন পণ্য";
+  document.getElementById("prodSubmitBtn").textContent = "সংরক্ষণ করুন";
+  document.getElementById("prodCancelBtn").style.display = "none";
+  document.getElementById("prodNaam").value = "";
+  document.getElementById("prodBrand").value = "";
+  document.getElementById("prodPrice").value = "";
+  document.getElementById("prodMsg").textContent = "";
+}
+
+async function deleteProductRow(productId){
+  if(!confirm("এই পণ্য ডিলিট করবেন?")) return;
+  const res = await apiCall("deleteProduct", { productId });
+  if(res.success){ clearCache(); loadProducts(); } else alert(res.message);
+}
+
+function printProductsListOfficial(){
+  const q = (document.getElementById("prodSearchBox")?.value || "").trim().toLowerCase();
+  let list = productsCache;
+  if(q) list = list.filter(p => (p["পণ্যের নাম"]||"").toLowerCase().includes(q) || (p["ব্র্যান্ড"]||"").toLowerCase().includes(q));
+  if(list.length === 0){ alert("প্রিন্ট করার জন্য কোনো পণ্য নেই"); return; }
+  const headers = ["ক্রম", "পণ্যের নাম", "ব্র্যান্ড", "মূল্য"];
+  const rows = list.map((p, i) => [i+1, p["পণ্যের নাম"]||"", p["ব্র্যান্ড"]||"", p["মূল্য"]||0]);
+  printOfficialTable("পণ্য তালিকা", "মোট পণ্য: " + list.length, headers, rows, null, "@Powered by: AM Shahed: 01605721296");
+}
+
+/* ================= এজেন্সি: স্টক ইন ভাউচার ================= */
+function renderStockInTab(){
+  const box = document.getElementById("stockTabContent");
+  box.innerHTML = `
+    <fieldset class="no-print">
+      <legend>নতুন স্টক ইন ভাউচার (একাধিক পণ্য যোগ করা যাবে)</legend>
+      <div id="stockInItems"></div>
+      <button class="btn secondary small" onclick="addStockInItemRow()">+ আরেকটি পণ্য যোগ করুন</button>
+      <div class="btn-row"><button class="btn" onclick="submitStockVoucher()">সংরক্ষণ করুন</button></div>
+      <div id="stockInMsg" class="msg"></div>
+    </fieldset>
+    <div class="toolbar no-print">
+      <input type="text" id="stockInSearchBox" placeholder="🔍 সার্চ করুন (ভাউচার নং/পণ্যের নাম)" oninput="renderStockInTable()" style="flex:1;min-width:160px;">
+      <button class="btn secondary small" onclick="printStockVouchersListOfficial()">🖨 প্রিন্ট করুন</button>
+    </div>
+    <div class="table-wrap"><table id="stockInTable"><thead></thead><tbody></tbody></table></div>`;
+  loadStockVouchersSetup();
+}
+
+async function loadStockVouchersSetup(){
+  if(productsCache.length === 0){
+    const res = await cachedApiCall("listProducts", {}, 20000);
+    productsCache = res.success ? res.products : [];
+  }
+  if(document.getElementById("stockInItems").children.length === 0) addStockInItemRow();
+  loadStockVouchers();
+}
+
+function addStockInItemRow(){
+  const wrap = document.getElementById("stockInItems");
+  const row = document.createElement("div");
+  row.className = "item-row-v2";
+  row.innerHTML = `
+    <select class="stockInProduct" onchange="onStockInProductChange(this)">${productsCache.map(p => `<option value="${p['ProductID']}" data-price="${p['মূল্য']||0}">${p['পণ্যের নাম']}</option>`).join("")}</select>
+    <input placeholder="মূল্য" type="number" min="0" class="stockInPrice">
+    <input placeholder="সংখ্যা" type="number" min="1" class="stockInQty">
+    <button type="button" class="btn secondary small" onclick="this.parentElement.remove()">✕</button>`;
+  wrap.appendChild(row);
+  if(row.querySelector(".stockInProduct").options.length > 0) onStockInProductChange(row.querySelector(".stockInProduct"));
+}
+
+function onStockInProductChange(sel){
+  const row = sel.closest(".item-row-v2");
+  const opt = sel.options[sel.selectedIndex];
+  if(opt) row.querySelector(".stockInPrice").value = opt.dataset.price || 0;
+}
+
+async function submitStockVoucher(){
+  const rows = [...document.querySelectorAll("#stockInItems .item-row-v2")];
+  const items = rows.map(r => {
+    const sel = r.querySelector(".stockInProduct");
+    const opt = sel.options[sel.selectedIndex];
+    return {
+      productId: sel.value,
+      productName: opt ? opt.textContent : "",
+      price: r.querySelector(".stockInPrice").value,
+      quantity: r.querySelector(".stockInQty").value
+    };
+  }).filter(i => i.productId && i.quantity);
+
+  const msgBox = document.getElementById("stockInMsg");
+  if(items.length === 0){ msgBox.textContent = "অন্তত একটি পণ্য ও সংখ্যা দিন"; msgBox.className = "msg err"; return; }
+  markSaving("stockInMsg");
+  const res = await apiCall("addStockVoucher", { items });
+  msgBox.textContent = res.message + (res.success ? " (ভাউচার নং: " + res.voucherNo + ", মোট: " + res.total + ")" : "");
+  msgBox.className = "msg " + (res.success?"ok":"err");
+  if(res.success){
+    clearCache();
+    document.getElementById("stockInItems").innerHTML = "";
+    addStockInItemRow();
+    loadStockVouchers();
+  }
+}
+
+async function loadStockVouchers(){
+  const res = await apiCall("listStockVouchers", {});
+  stockVouchersCache = res.success ? res.entries : [];
+  renderStockInTable();
+}
+
+function renderStockInTable(){
+  const table = document.getElementById("stockInTable");
+  if(!table) return;
+  const q = (document.getElementById("stockInSearchBox")?.value || "").trim().toLowerCase();
+  let list = stockVouchersCache;
+  if(q) list = list.filter(e => (e["ভাউচার নং"]||"").toLowerCase().includes(q) || (e["পণ্যের নাম"]||"").toLowerCase().includes(q));
+
+  table.innerHTML = "<thead><tr><th>ভাউচার নং</th><th>তারিখ</th><th class='cell-left'>পণ্যের নাম</th><th>মূল্য</th><th>সংখ্যা</th><th>মোট মূল্য</th><th class='no-print'>একশন</th></tr></thead><tbody></tbody>";
+  const tbody = table.querySelector("tbody");
+  if(list.length === 0){ tbody.innerHTML = emptyRowHtml(7, "এখনো কোনো স্টক ইন ভাউচার নেই"); return; }
+  list.forEach(e => {
+    const dt = e["তারিখ"] ? new Date(e["তারিখ"]).toLocaleDateString("bn-BD") : "";
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td>${e["ভাউচার নং"]}</td><td>${dt}</td><td class="cell-left">${e["পণ্যের নাম"]}</td><td>${e["মূল্য"]}</td><td>${e["সংখ্যা"]}</td><td>${e["মোট মূল্য"]}</td>
+      <td class="no-print">
+        <button class="btn small secondary" onclick="editStockEntryRow('${e['EntryID']}')">এডিট</button>
+        <button class="btn small secondary" onclick="printStockVoucherById('${e['ভাউচার নং']}')">প্রিন্ট</button>
+        <button class="btn small danger" onclick="deleteStockVoucherByNo('${e['ভাউচার নং']}')">ডিলিট</button>
+      </td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+function editStockEntryRow(entryId){
+  const e = stockVouchersCache.find(x => x["EntryID"] === entryId);
+  if(!e) return;
+  openEditModal("স্টক এন্ট্রি এডিট", [
+    { key:"মূল্য", label:"মূল্য", value:e["মূল্য"] },
+    { key:"সংখ্যা", label:"সংখ্যা", value:e["সংখ্যা"] }
+  ], async (values) => {
+    values["মোট মূল্য"] = (Number(values["মূল্য"])||0) * (Number(values["সংখ্যা"])||0);
+    const res = await apiCall("updateStockVoucherEntry", { entryId, fields: values });
+    if(res.success){ clearCache(); loadStockVouchers(); }
+    return res;
+  });
+}
+
+async function deleteStockVoucherByNo(voucherNo){
+  if(!confirm("এই পুরো ভাউচার (সব পণ্যসহ) ডিলিট করবেন?")) return;
+  const res = await apiCall("deleteStockVoucher", { voucherNo });
+  if(res.success){ clearCache(); loadStockVouchers(); } else alert(res.message);
+}
+
+function printStockVoucherById(voucherNo){
+  const lines = stockVouchersCache.filter(e => e["ভাউচার নং"] === voucherNo);
+  if(lines.length === 0) return;
+  const headers = ["ক্রম", "পণ্যের নাম", "মূল্য", "সংখ্যা", "মোট মূল্য"];
+  const rows = lines.map((e, i) => [i+1, e["পণ্যের নাম"], e["মূল্য"], e["সংখ্যা"], e["মোট মূল্য"]]);
+  let grandTotal = 0;
+  lines.forEach(e => { grandTotal += Number(e["মোট মূল্য"]) || 0; });
+  printOfficialTable(
+    "স্টক ইন ভাউচার — " + voucherNo,
+    "তারিখ: " + (lines[0]["তারিখ"] ? new Date(lines[0]["তারিখ"]).toLocaleDateString("bn-BD") : ""),
+    headers, rows, [["", "", "", "সর্বমোট", grandTotal]],
+    "@Powered by: AM Shahed: 01605721296"
+  );
+}
+
+function printStockVouchersListOfficial(){
+  const q = (document.getElementById("stockInSearchBox")?.value || "").trim().toLowerCase();
+  let list = stockVouchersCache;
+  if(q) list = list.filter(e => (e["ভাউচার নং"]||"").toLowerCase().includes(q) || (e["পণ্যের নাম"]||"").toLowerCase().includes(q));
+  if(list.length === 0){ alert("প্রিন্ট করার জন্য কোনো ডাটা নেই"); return; }
+  const headers = ["ভাউচার নং", "তারিখ", "পণ্যের নাম", "মূল্য", "সংখ্যা", "মোট মূল্য"];
+  const rows = list.map(e => [e["ভাউচার নং"], e["তারিখ"] ? new Date(e["তারিখ"]).toLocaleDateString("bn-BD") : "", e["পণ্যের নাম"], e["মূল্য"], e["সংখ্যা"], e["মোট মূল্য"]]);
+  printOfficialTable("স্টক ইন ভাউচার তালিকা", "মোট এন্ট্রি: " + list.length, headers, rows, null, "@Powered by: AM Shahed: 01605721296");
+}
+
+/* ================= এজেন্সি: বিক্রয় ইনভয়েস ================= */
+let siDealersCache = [];
+let salesInvoicesCache = [];
+
+async function loadSalesInvoiceSetup(){
+  const dealersRes = await cachedApiCall("listDealers", {}, 20000);
+  siDealersCache = dealersRes.success ? dealersRes.dealers : [];
+  dealerListCache = siDealersCache;
+  const sel = document.getElementById("siDealerSelect");
+  sel.innerHTML = "<option value=''>-- সিলেক্ট করুন --</option>" + siDealersCache.map(d => `<option value="${d['DealerID']}">${d['নাম']}</option>`).join("");
+
+  if(productsCache.length === 0){
+    const pRes = await cachedApiCall("listProducts", {}, 20000);
+    productsCache = pRes.success ? pRes.products : [];
+  }
+  const pkgRes = await cachedApiCall("listPackages", {}, 15000);
+  window.__siPackagesCache = pkgRes.success ? pkgRes.packages : [];
+
+  document.getElementById("siDate").value = new Date().toISOString().slice(0,10);
+  if(document.getElementById("siItems").children.length === 0) addSiItemRow();
+
+  loadSalesInvoices();
+}
+
+function onSiDealerChange(){
+  const id = document.getElementById("siDealerSelect").value;
+  const d = siDealersCache.find(x => x["DealerID"] === id);
+  document.getElementById("siDealerMobile").value = d ? d["মোবাইল"] : "";
+  document.getElementById("siDealerThikana").value = d ? (d["ঠিকানা"]||"") : "";
+}
+
+function addSiItemRow(){
+  const wrap = document.getElementById("siItems");
+  const packages = window.__siPackagesCache || [];
+  const row = document.createElement("div");
+  row.className = "item-row-v2";
+  row.innerHTML = `
+    <select class="siPackage" onchange="onSiPackageChange(this)">${packages.map(p => `<option value="${p['PackageID']}" data-price="${p['সর্বমোট মূল্য']||0}">${p['নাম']}</option>`).join("")}</select>
+    <input placeholder="একক মূল্য" type="number" min="0" class="siUnitPrice">
+    <input placeholder="সংখ্যা" type="number" min="1" class="siQty" oninput="updateSiTotalsPreview()">
+    <button type="button" class="btn secondary small" onclick="this.parentElement.remove(); updateSiTotalsPreview();">✕</button>`;
+  wrap.appendChild(row);
+  if(row.querySelector(".siPackage").options.length > 0) onSiPackageChange(row.querySelector(".siPackage"));
+}
+
+function onSiPackageChange(sel){
+  const row = sel.closest(".item-row-v2");
+  const opt = sel.options[sel.selectedIndex];
+  if(opt) row.querySelector(".siUnitPrice").value = opt.dataset.price || 0;
+  updateSiTotalsPreview();
+}
+
+function updateSiTotalsPreview(){
+  const rows = [...document.querySelectorAll("#siItems .item-row-v2")];
+  let subtotal = 0;
+  rows.forEach(r => {
+    const qty = Number(r.querySelector(".siQty").value) || 0;
+    const price = Number(r.querySelector(".siUnitPrice").value) || 0;
+    subtotal += qty * price;
+  });
+  const discount = Number(document.getElementById("siDiscount").value) || 0;
+  const paid = Number(document.getElementById("siPaid").value) || 0;
+  const due = subtotal - discount - paid;
+  document.getElementById("siTotalsPreview").textContent =
+    `সাবটোটাল: ${subtotal} | ডিসকাউন্ট: ${discount} | পরিশোধ: ${paid} | বকেয়া: ${due}`;
+}
+
+async function submitSalesInvoice(){
+  const dealerId = document.getElementById("siDealerSelect").value;
+  const msgBox = document.getElementById("siMsg");
+  if(!dealerId){ msgBox.textContent = "ডিলার সিলেক্ট করুন"; msgBox.className = "msg err"; return; }
+
+  const rows = [...document.querySelectorAll("#siItems .item-row-v2")];
+  const items = rows.map(r => ({
+    packageId: r.querySelector(".siPackage").value,
+    packageName: r.querySelector(".siPackage").selectedOptions[0]?.textContent || "",
+    unitPrice: r.querySelector(".siUnitPrice").value,
+    quantity: r.querySelector(".siQty").value
+  })).filter(i => i.packageId && i.quantity);
+
+  if(items.length === 0){ msgBox.textContent = "অন্তত একটি প্যাকেজ ও সংখ্যা দিন"; msgBox.className = "msg err"; return; }
+
+  markSaving("siMsg");
+  const res = await apiCall("addSalesInvoice", {
+    dealerId, items,
+    discount: document.getElementById("siDiscount").value,
+    paid: document.getElementById("siPaid").value
+  });
+  msgBox.textContent = res.message + (res.success ? " (ইনভয়েস নং: " + res.invoiceNo + ", বকেয়া: " + res.due + ")" : "");
+  msgBox.className = "msg " + (res.success?"ok":"err");
+  if(res.success){
+    clearCache();
+    document.getElementById("siItems").innerHTML = "";
+    addSiItemRow();
+    document.getElementById("siDiscount").value = "0";
+    document.getElementById("siPaid").value = "0";
+    updateSiTotalsPreview();
+    loadSalesInvoices();
+  }
+}
+
+async function loadSalesInvoices(){
+  const res = await apiCall("listSalesInvoices", {});
+  salesInvoicesCache = res.success ? res.entries : [];
+  renderSalesInvoiceTable();
+}
+
+function renderSalesInvoiceTable(){
+  const table = document.getElementById("salesInvoiceTable");
+  if(!table) return;
+  const q = (document.getElementById("siSearchBox")?.value || "").trim().toLowerCase();
+  let list = salesInvoicesCache;
+  if(q) list = list.filter(e => (e["ডিলার নাম"]||"").toLowerCase().includes(q) || (e["ইনভয়েস নং"]||"").toLowerCase().includes(q));
+
+  table.innerHTML = "<thead><tr><th>ইনভয়েস নং</th><th>তারিখ</th><th class='cell-left'>ডিলার</th><th class='cell-left'>প্যাকেজ</th><th>একক মূল্য</th><th>সংখ্যা</th><th>মোট মূল্য</th><th>বকেয়া</th><th class='no-print'>একশন</th></tr></thead><tbody></tbody>";
+  const tbody = table.querySelector("tbody");
+  if(list.length === 0){ tbody.innerHTML = emptyRowHtml(9, "এখনো কোনো বিক্রয় ইনভয়েস নেই"); return; }
+  list.forEach(e => {
+    const dt = e["তারিখ"] ? new Date(e["তারিখ"]).toLocaleDateString("bn-BD") : "";
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td>${e["ইনভয়েস নং"]}</td><td>${dt}</td><td class="cell-left">${e["ডিলার নাম"]}</td><td class="cell-left">${e["প্যাকেজ"]}</td><td>${e["একক মূল্য"]}</td><td>${e["সংখ্যা"]}</td><td>${e["মোট মূল্য"]}</td><td>${e["বকেয়া"]}</td>
+      <td class="no-print">
+        <button class="btn small secondary" onclick="editSiEntryRow('${e['EntryID']}')">এডিট</button>
+        <button class="btn small secondary" onclick="printSalesInvoiceById('${e['ইনভয়েস নং']}')">প্রিন্ট</button>
+        <button class="btn small danger" onclick="deleteSalesInvoiceByNo('${e['ইনভয়েস নং']}')">ডিলিট</button>
+      </td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+function editSiEntryRow(entryId){
+  const e = salesInvoicesCache.find(x => x["EntryID"] === entryId);
+  if(!e) return;
+  openEditModal("বিক্রয় ইনভয়েস লাইন এডিট", [
+    { key:"একক মূল্য", label:"একক মূল্য", value:e["একক মূল্য"] },
+    { key:"সংখ্যা", label:"সংখ্যা", value:e["সংখ্যা"] }
+  ], async (values) => {
+    values["মোট মূল্য"] = (Number(values["একক মূল্য"])||0) * (Number(values["সংখ্যা"])||0);
+    const res = await apiCall("updateSalesInvoiceEntry", { entryId, fields: values });
+    if(res.success){ clearCache(); loadSalesInvoices(); }
+    return res;
+  });
+}
+
+async function deleteSalesInvoiceByNo(invoiceNo){
+  if(!confirm("এই পুরো ইনভয়েস (সব লাইনসহ) ডিলিট করবেন?")) return;
+  const res = await apiCall("deleteSalesInvoice", { invoiceNo });
+  if(res.success){ clearCache(); loadSalesInvoices(); } else alert(res.message);
+}
+
+function printSalesInvoiceById(invoiceNo){
+  const lines = salesInvoicesCache.filter(e => e["ইনভয়েস নং"] === invoiceNo);
+  if(lines.length === 0) return;
+  const headers = ["ক্রম", "প্যাকেজ", "একক মূল্য", "সংখ্যা", "মোট মূল্য"];
+  const rows = lines.map((e, i) => [i+1, e["প্যাকেজ"], e["একক মূল্য"], e["সংখ্যা"], e["মোট মূল্য"]]);
+  const first = lines[0];
+  printOfficialTable(
+    "বিক্রয় ইনভয়েস — " + invoiceNo,
+    "ডিলার: " + first["ডিলার নাম"] + " (" + first["মোবাইল"] + ") — " + first["ঠিকানা"],
+    headers, rows,
+    [["", "", "", "সাবটোটাল", first["সাবটোটাল"]], ["", "", "", "ডিসকাউন্ট", first["ডিসকাউন্ট"]],
+     ["", "", "", "পরিশোধ", first["পরিশোধ"]], ["", "", "", "বকেয়া", first["বকেয়া"]]],
+    "@Powered by: AM Shahed: 01605721296"
+  );
+}
+
+function printSalesInvoicesListOfficial(){
+  const q = (document.getElementById("siSearchBox")?.value || "").trim().toLowerCase();
+  let list = salesInvoicesCache;
+  if(q) list = list.filter(e => (e["ডিলার নাম"]||"").toLowerCase().includes(q) || (e["ইনভয়েস নং"]||"").toLowerCase().includes(q));
+  if(list.length === 0){ alert("প্রিন্ট করার জন্য কোনো ডাটা নেই"); return; }
+  const headers = ["ইনভয়েস নং", "তারিখ", "ডিলার", "প্যাকেজ", "একক মূল্য", "সংখ্যা", "মোট মূল্য", "বকেয়া"];
+  const rows = list.map(e => [e["ইনভয়েস নং"], e["তারিখ"] ? new Date(e["তারিখ"]).toLocaleDateString("bn-BD") : "", e["ডিলার নাম"], e["প্যাকেজ"], e["একক মূল্য"], e["সংখ্যা"], e["মোট মূল্য"], e["বকেয়া"]]);
+  printOfficialTable("বিক্রয় ইনভয়েস তালিকা", "মোট এন্ট্রি: " + list.length, headers, rows, null, "@Powered by: AM Shahed: 01605721296");
+}
+
+/* ================= এজেন্সি: রিপোর্ট ================= */
+let agencyReportCurrentTab = "daily";
+
+async function loadAgencyReportSetup(){
+  const res = await cachedApiCall("listDealers", {}, 20000);
+  const sel = document.getElementById("arDealerSelect");
+  if(res.success){
+    dealerListCache = res.dealers;
+    sel.innerHTML = "<option value=''>-- সব ডিলার (মোট) --</option>" + res.dealers.map(d => `<option value="${d['DealerID']}">${d['নাম']}</option>`).join("");
+  }
+  switchAgencyReportTab("daily", document.querySelector("#sec-agencyReports .tabs button"));
+}
+
+function switchAgencyReportTab(tab, btn){
+  agencyReportCurrentTab = tab;
+  document.querySelectorAll("#sec-agencyReports .tabs button").forEach(b => b.classList.remove("active"));
+  if(btn) btn.classList.add("active");
+  const controls = document.getElementById("agencyReportControls");
+  const today = new Date();
+  if(tab === "daily"){
+    controls.innerHTML = `<div class="field"><label>তারিখ</label><input type="date" id="arDate" value="${today.toISOString().slice(0,10)}" onchange="runAgencyReport()"></div>`;
+  } else if(tab === "monthly"){
+    controls.innerHTML = `
+      <div class="field"><label>বছর</label><input type="number" id="arYear" value="${today.getFullYear()}" onchange="runAgencyReport()"></div>
+      <div class="field"><label>মাস (১-১২)</label><input type="number" id="arMonth" min="1" max="12" value="${today.getMonth()+1}" onchange="runAgencyReport()"></div>`;
+  } else {
+    controls.innerHTML = "";
+  }
+  runAgencyReport();
+}
+
+async function runAgencyReport(){
+  const data = { mode: agencyReportCurrentTab, dealerId: document.getElementById("arDealerSelect").value };
+  if(agencyReportCurrentTab === "daily") data.date = document.getElementById("arDate").value;
+  else if(agencyReportCurrentTab === "monthly"){ data.year = document.getElementById("arYear").value; data.month = document.getElementById("arMonth").value; }
+
+  const res = await apiCall("agencySalesReport", data);
+  const box = document.getElementById("agencyReportResult");
+  if(!res.success){ box.innerHTML = res.message; return; }
+
+  const r = res.report;
+  let html = `<div class="cards">
+      <div class="card"><div class="num">${r.totalInvoiceCount}</div><div class="label">মোট ইনভয়েস</div></div>
+      <div class="card"><div class="num">${r.totalSale}</div><div class="label">মোট বিক্রি</div></div>
+      <div class="card"><div class="num">${r.totalDiscount}</div><div class="label">মোট ডিসকাউন্ট</div></div>
+      <div class="card"><div class="num">${r.totalPaid}</div><div class="label">মোট পরিশোধ</div></div>
+      <div class="card"><div class="num">${r.totalDue}</div><div class="label">মোট বকেয়া</div></div>
+    </div>
+    <div class="table-wrap"><table><thead><tr><th class="cell-left">ডিলার</th><th>বিক্রি</th><th>ডিসকাউন্ট</th><th>পরিশোধ</th><th>বকেয়া</th></tr></thead><tbody>`;
+  r.byDealer.forEach(d => {
+    html += `<tr><td class="cell-left">${d.dealerName}</td><td>${d.totalSale}</td><td>${d.totalDiscount}</td><td>${d.totalPaid}</td><td>${d.totalDue}</td></tr>`;
+  });
+  if(r.byDealer.length === 0) html += emptyRowHtml(5, "এই সময়ে কোনো বিক্রি নেই");
+  html += `</tbody></table></div>`;
+  box.innerHTML = html;
 }
 
 /* ================= এজেন্সি: গ্রাহক কার্ড ================= */
@@ -1919,6 +2525,7 @@ async function loadDealerPackages(){
   dealerPackagesCache = res.packages;
   table.innerHTML = "<thead><tr><th class='cell-left'>নাম</th><th>ধরন</th><th>সর্বমোট মূল্য</th><th class='no-print'>একশন</th></tr></thead><tbody></tbody>";
   const tbody = table.querySelector("tbody");
+  if(res.packages.length === 0){ tbody.innerHTML = emptyRowHtml(4, "এখনো কোনো প্যাকেজ যোগ করা হয়নি"); return; }
   res.packages.forEach(p => {
     const tr = document.createElement("tr");
     tr.innerHTML = `<td class="cell-left pkg-click-row">${p["নাম"]}</td><td>${p["ধরন"]}</td><td>${p["সর্বমোট মূল্য"]}</td>
@@ -2026,7 +2633,8 @@ async function submitCustomer(){
     "গ্রাম": document.getElementById("cusGram").value.trim(),
     "ward": document.getElementById("cusWard").value.trim(),
     "union": document.getElementById("cusUnion").value.trim(),
-    "praptirsthan": document.getElementById("cusPraptirSthan").value.trim()
+    "praptirsthan": document.getElementById("cusPraptirSthan").value.trim(),
+    "cardFee": document.getElementById("cusCardFee").value
   };
   const msgBox = document.getElementById("cusMsg");
   markSaving("cusMsg");
@@ -2035,7 +2643,8 @@ async function submitCustomer(){
     const fields = {
       "নাম": data["নাম"], "পিতার নাম": data["পিতারনাম"], "মোবাইল নং": data["mobile"],
       "NID/জন্মসনদ নং": data["nid"], "বাড়ির নাম": data["বাড়িরনাম"], "গ্রাম": data["গ্রাম"],
-      "ওয়ার্ড নং": data["ward"], "ইউনিয়ন/পৌরসভা": data["union"], "প্রাপ্তির স্থান": data["praptirsthan"]
+      "ওয়ার্ড নং": data["ward"], "ইউনিয়ন/পৌরসভা": data["union"], "প্রাপ্তির স্থান": data["praptirsthan"],
+      "কার্ড ফি": data["cardFee"]
     };
     const res = await apiCall("updateCustomer", { customerId: editingCustomerId, fields: fields });
     msgBox.textContent = res.message;
@@ -2048,7 +2657,7 @@ async function submitCustomer(){
   msgBox.textContent = res.message;
   msgBox.className = "msg " + (res.success?"ok":"err");
   if(res.success){ clearCache();
-    ["cusNaam","cusPitarNaam","cusMobile","cusNid","cusBariNaam","cusGram","cusWard","cusUnion","cusPraptirSthan"]
+    ["cusNaam","cusPitarNaam","cusMobile","cusNid","cusBariNaam","cusGram","cusWard","cusUnion","cusPraptirSthan","cusCardFee"]
       .forEach(id => document.getElementById(id).value = "");
     loadCustomers();
   }
@@ -2061,7 +2670,7 @@ function cancelCusEdit(){
   document.getElementById("cusFormLegend").textContent = "নতুন গ্রাহক";
   document.getElementById("cusSubmitBtn").textContent = "গ্রাহক সংরক্ষণ করুন";
   document.getElementById("cusCancelBtn").style.display = "none";
-  ["cusNaam","cusPitarNaam","cusMobile","cusNid","cusBariNaam","cusGram","cusWard","cusUnion","cusPraptirSthan"]
+  ["cusNaam","cusPitarNaam","cusMobile","cusNid","cusBariNaam","cusGram","cusWard","cusUnion","cusPraptirSthan","cusCardFee"]
     .forEach(id => document.getElementById(id).value = "");
   document.getElementById("cusMsg").textContent = "";
 }
@@ -2071,11 +2680,12 @@ async function loadCustomers(){
   const table = document.getElementById("customersTable");
   if(!res.success){ table.innerHTML = res.message; return; }
   window.__customersCache = res.customers;
-  table.innerHTML = "<thead><tr><th>আইডি</th><th class='cell-left'>নাম</th><th>মোবাইল</th><th>প্রাপ্তির স্থান</th><th class='no-print'>একশন</th></tr></thead><tbody></tbody>";
+  table.innerHTML = "<thead><tr><th>আইডি</th><th class='cell-left'>নাম</th><th>মোবাইল</th><th>প্রাপ্তির স্থান</th><th>কার্ড ফি</th><th class='no-print'>একশন</th></tr></thead><tbody></tbody>";
   const tbody = table.querySelector("tbody");
+  if(res.customers.length === 0){ tbody.innerHTML = emptyRowHtml(6, "এখনো কোনো গ্রাহক যোগ করা হয়নি"); return; }
   res.customers.forEach(c => {
     const tr = document.createElement("tr");
-    tr.innerHTML = `<td>${c["CustomerID"]}</td><td class="cell-left">${c["নাম"]}</td><td>${c["মোবাইল নং"]}</td><td>${c["প্রাপ্তির স্থান"]||""}</td>
+    tr.innerHTML = `<td>${c["CustomerID"]}</td><td class="cell-left">${c["নাম"]}</td><td>${c["মোবাইল নং"]}</td><td>${c["প্রাপ্তির স্থান"]||""}</td><td>${c["কার্ড ফি"]||0}</td>
       <td class="no-print">
         <button class="btn small secondary" onclick="editCustomerRow('${c['CustomerID']}')">এডিট</button>
         <button class="btn small secondary" onclick="printCustomerRowById('${c['CustomerID']}')">প্রিন্ট</button>
@@ -2092,11 +2702,11 @@ function printCustomersListOfficial(){
   const customers = window.__customersCache || [];
   if(customers.length === 0){ alert("প্রিন্ট করার জন্য কোনো গ্রাহক নেই"); return; }
 
-  const headers = ["ক্রম", "নাম", "পিতার নাম", "মোবাইল নং", "NID/জন্মসনদ নং", "ঠিকানা", "প্রাপ্তির স্থান"];
+  const headers = ["ক্রম", "নাম", "পিতার নাম", "মোবাইল নং", "NID/জন্মসনদ নং", "ঠিকানা", "প্রাপ্তির স্থান", "কার্ড ফি"];
   const rows = customers.map((c, i) => [
     i+1, c["নাম"]||"", c["পিতার নাম"]||"", c["মোবাইল নং"]||"", c["NID/জন্মসনদ নং"]||"",
     [c["বাড়ির নাম"]||"", c["গ্রাম"]||"", c["ইউনিয়ন/পৌরসভা"]||"", c["ওয়ার্ড নং"]?("ওয়ার্ড-"+c["ওয়ার্ড নং"]):""].filter(Boolean).join(", "),
-    c["প্রাপ্তির স্থান"]||""
+    c["প্রাপ্তির স্থান"]||"", c["কার্ড ফি"]||0
   ]);
 
   printOfficialTable(
@@ -2128,6 +2738,7 @@ function editCustomerRow(customerId){
   document.getElementById("cusWard").value = c["ওয়ার্ড নং"] || "";
   document.getElementById("cusUnion").value = c["ইউনিয়ন/পৌরসভা"] || "";
   document.getElementById("cusPraptirSthan").value = c["প্রাপ্তির স্থান"] || "";
+  document.getElementById("cusCardFee").value = c["কার্ড ফি"] || "";
 
   document.getElementById("sec-customers").scrollIntoView({ behavior:"smooth" });
 }
@@ -2143,7 +2754,8 @@ function printCustomerRowById(customerId){
     { label:"গ্রাম", value:c["গ্রাম"] },
     { label:"ওয়ার্ড নং", value:c["ওয়ার্ড নং"] },
     { label:"ইউনিয়ন/পৌরসভা", value:c["ইউনিয়ন/পৌরসভা"] },
-    { label:"প্রাপ্তির স্থান", value:c["প্রাপ্তির স্থান"] }
+    { label:"প্রাপ্তির স্থান", value:c["প্রাপ্তির স্থান"] },
+    { label:"কার্ড ফি", value:c["কার্ড ফি"] }
   ]);
 }
 
@@ -2171,6 +2783,7 @@ async function loadOrders(){
 
   table.innerHTML = "<thead><tr><th>ইনভয়েস নং</th><th>তারিখ</th><th class='cell-left'>প্যাকেজ</th><th>সংখ্যা</th><th>একক মূল্য</th><th>মোট মূল্য</th><th>কমিশন %</th><th>মোট কমিশন</th><th>সর্বমোট মূল্য</th><th class='no-print'>একশন</th></tr></thead><tbody></tbody>";
   const tbody = table.querySelector("tbody");
+  if(res.orders.length === 0){ tbody.innerHTML = emptyRowHtml(10, "এখনো কোনো অর্ডার যোগ করা হয়নি"); return; }
   res.orders.forEach(o => {
     const dt = o["তারিখ"] ? new Date(o["তারিখ"]).toLocaleDateString("bn-BD") : "";
     const tr = document.createElement("tr");
@@ -2533,6 +3146,7 @@ async function loadDealerExpenseVouchers(){
   if(!res.success){ table.innerHTML = res.message; return; }
   table.innerHTML = "<thead><tr><th>তারিখ</th><th>বিবরণ</th><th>পরিমাণ</th><th class='no-print'>একশন</th></tr></thead><tbody></tbody>";
   const tbody = table.querySelector("tbody");
+  if(res.vouchers.length === 0){ tbody.innerHTML = emptyRowHtml(4, "এখনো কোনো খরচ ভাউচার নেই"); return; }
   res.vouchers.forEach(v => {
     const dt = v["তারিখ"] ? new Date(v["তারিখ"]).toLocaleDateString("bn-BD") : "";
     const vJson = JSON.stringify(v).replace(/'/g, "&#39;");
