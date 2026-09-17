@@ -2108,17 +2108,73 @@ async function deleteSalesInvoiceByNo(invoiceNo){
 function printSalesInvoiceById(invoiceNo){
   const lines = salesInvoicesCache.filter(e => e["ইনভয়েস নং"] === invoiceNo);
   if(lines.length === 0) return;
-  const headers = ["ক্রম", "প্যাকেজ", "একক মূল্য", "সংখ্যা", "মোট মূল্য"];
-  const rows = lines.map((e, i) => [i+1, e["প্যাকেজ"], e["একক মূল্য"], e["সংখ্যা"], e["মোট মূল্য"]]);
   const first = lines[0];
-  printOfficialTable(
-    "বিক্রয় ইনভয়েস — " + invoiceNo,
-    "ডিলার: " + first["ডিলার নাম"] + " (" + first["মোবাইল"] + ") — " + first["ঠিকানা"],
-    headers, rows,
-    [["", "", "", "সাবটোটাল", first["সাবটোটাল"]], ["", "", "", "ডিসকাউন্ট", first["ডিসকাউন্ট"]],
-     ["", "", "", "পরিশোধ", first["পরিশোধ"]], ["", "", "", "বকেয়া", first["বকেয়া"]]],
-    "@Powered by: AM Shahed: 01605721296"
-  );
+  const dateStr = first["তারিখ"] ? new Date(first["তারিখ"]).toLocaleDateString("bn-BD") : "";
+
+  const rowsHtml = lines.map((e, i) => `
+    <tr>
+      <td>${i+1}</td>
+      <td class="cell-left">${e["প্যাকেজ"]||""}</td>
+      <td>${e["একক মূল্য"]||0}</td>
+      <td>${e["সংখ্যা"]||0}</td>
+      <td>${e["মোট মূল্য"]||0}</td>
+    </tr>`).join("");
+
+  const win = window.open("", "_blank", "width=900,height=700");
+  win.document.write(`<html><head><meta charset="utf-8"><title>অর্ডার ফরম — ${invoiceNo}</title>
+    <style>
+      @page{ size:A4; margin:15mm; }
+      html, body{ margin:0; padding:0; }
+      body{ font-family:'Hind Siliguri',sans-serif; color:#1c2b28; font-size:13px; }
+      .letterhead{ text-align:center; border-bottom:3px solid #153f37; padding-bottom:10px; margin-bottom:14px; }
+      .letterhead h1{ margin:0; color:#153f37; font-size:20px; }
+      .letterhead p{ margin:4px 0 0; color:#b5502f; font-weight:600; font-size:12px; }
+      .doc-title{ text-align:center; font-size:16px; font-weight:700; margin:10px 0 16px; text-decoration:underline; }
+      .meta-row{ display:flex; justify-content:space-between; margin-bottom:10px; font-size:12.5px; }
+      .dealer-info{ margin-bottom:14px; font-size:13px; line-height:1.8; }
+      .dealer-info b{ display:inline-block; min-width:64px; }
+      table.items{ width:100%; border-collapse:collapse; margin-top:4px; }
+      table.items th{ border-bottom:2px solid #153f37; padding:6px 8px; font-size:12px; text-align:center; background:#eef0e9; }
+      table.items td{ border-bottom:1px dashed #999; padding:7px 8px; font-size:12.5px; text-align:center; }
+      table.items td.cell-left{ text-align:left; }
+      .totals-wrap{ display:flex; justify-content:flex-end; margin-top:10px; }
+      .totals-box{ min-width:230px; }
+      .totals-box .trow{ display:flex; justify-content:space-between; font-size:13px; }
+      .totals-box .trow span:last-child{ font-weight:600; }
+      .totals-box .trow.due span{ font-weight:700; }
+      .sign-row{ display:flex; justify-content:space-between; margin-top:70px; }
+      .sign-box{ text-align:center; width:40%; }
+      .sign-line{ border-top:1px solid #333; margin-top:40px; padding-top:4px; font-size:12px; }
+      .doc-footer{ margin-top:26px; font-size:9px; color:#6b7570; text-align:center; }
+    </style></head><body>
+    <div class="letterhead"><h1>মানবিক সহায়তা ডেইলি শপ</h1><p>সাশ্রয়ী মূল্যে পণ্য বিক্রি সংস্থা</p></div>
+    <div class="doc-title">অর্ডার ফরম</div>
+    <div class="meta-row"><span>ইনভয়েস নং: <b>${invoiceNo}</b></span><span>তারিখ: <b>${dateStr}</b></span></div>
+    <div class="dealer-info">
+      <div><b>ডিলার</b> : ${first["ডিলার নাম"]||""}</div>
+      <div><b>মোবাইল</b> : ${first["মোবাইল"]||""}</div>
+      <div><b>ঠিকানা</b> : ${first["ঠিকানা"]||""}</div>
+    </div>
+    <table class="items">
+      <thead><tr><th>ক্রম</th><th class="cell-left">প্যাকেজ</th><th>একক মূল্য</th><th>সংখ্যা</th><th>মোট মূল্য</th></tr></thead>
+      <tbody>${rowsHtml}</tbody>
+    </table>
+    <div class="totals-wrap">
+      <div class="totals-box">
+        <div class="trow"><span>সাবটোটাল</span><span>${first["সাবটোটাল"]||0}</span></div>
+        <div class="trow"><span>ডিসকাউন্ট</span><span>${first["ডিসকাউন্ট"]||0}</span></div>
+        <div class="trow"><span>পরিশোধ</span><span>${first["পরিশোধ"]||0}</span></div>
+        <div class="trow due"><span>বকেয়া</span><span>${first["বকেয়া"]||0}</span></div>
+      </div>
+    </div>
+    <div class="sign-row">
+      <div class="sign-box"><div class="sign-line">কোম্পানীর স্বাক্ষর</div></div>
+      <div class="sign-box"><div class="sign-line">ডিপুর স্বাক্ষর</div></div>
+    </div>
+    <div class="doc-footer">@Powered by: AM Shahed: 01605721296</div>
+    <script>window.onload=function(){window.print();}<\/script>
+    </body></html>`);
+  win.document.close();
 }
 
 function printSalesInvoicesListOfficial(){
