@@ -49,12 +49,12 @@ function createAgencyAdminOnce() {
     username,
     password,
     "Admin",
-    "মূল এজেন্সি এডমিন",
+    "মূল ডিপু এডমিন",
     ""
   ]);
 
   SpreadsheetApp.getUi().alert(
-    "এজেন্সি এডমিন তৈরি হয়েছে।\nইউজারনেম: " + username + "\nপাসওয়ার্ড: " + password +
+    "ডিপু এডমিন তৈরি হয়েছে।\nইউজারনেম: " + username + "\nপাসওয়ার্ড: " + password +
     "\n\nঅনুগ্রহ করে লগইন করার পর এই পাসওয়ার্ড অবশ্যই পরিবর্তন করুন।"
   );
 }
@@ -66,7 +66,7 @@ function checkAgencyPermission(token) {
   const perm = checkPermission(token, ["Admin"]);
   if (!perm.ok) return perm;
   if (perm.payload.dealerId !== AGENCY_ID) {
-    return { ok: false, message: "এই কাজ শুধুমাত্র মূল এজেন্সি করতে পারবে" };
+    return { ok: false, message: "এই কাজ শুধুমাত্র মূল ডিপু করতে পারবে" };
   }
   return perm;
 }
@@ -129,7 +129,7 @@ function updateAgencyInfo(data) {
   sheet.getRange(2, 2).setNumberFormat("@"); // মোবাইল কলাম টেক্সট
   invalidateAgencyCaches();
 
-  return { success: true, message: "এজেন্সি তথ্য সংরক্ষিত হয়েছে" + photoWarning };
+  return { success: true, message: "ডিপু তথ্য সংরক্ষিত হয়েছে" + photoWarning };
 }
 
 /*=========================================================

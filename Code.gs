@@ -88,16 +88,18 @@ const MASTER_SHEETS_DEF = {
     "ProductID", "পণ্যের নাম", "ব্র্যান্ড", "বাজার মূল্য", "কম্বো মূল্য", "সাশ্রয়ী"
   ],
   // স্টক ইন ভাউচার — এক ভাউচারে একাধিক পণ্য (ইনভয়েস নং এর মতো ভাউচার নং শেয়ার করে)
+  // কোম্পানি (সাপ্লায়ার) থেকে ক্রয়ের পরিশোধ/বকেয়া ট্র্যাক করার জন্য পরিশোধ/বকেয়া যোগ হয়েছে
   "StockInVoucher": [
     "EntryID", "ভাউচার নং", "তারিখ", "ProductID", "পণ্যের নাম",
-    "বাজার মূল্য", "কম্বো মূল্য", "সাশ্রয়ী", "সংখ্যা", "মোট মূল্য"
+    "বাজার মূল্য", "কম্বো মূল্য", "সাশ্রয়ী", "সংখ্যা", "মোট মূল্য",
+    "সর্বমোট", "পরিশোধ", "বকেয়া"
   ],
-  // বিক্রয় ইনভয়েস — এজেন্সি থেকে ডিলারকে প্যাকেজ বিক্রি
+  // বিক্রয় ইনভয়েস — এজেন্সি থেকে ডিলারকে প্যাকেজ বিক্রি (স্ট্যাটাস: পেন্ডিং/ডেলিভারি সম্পন্ন)
   "SalesInvoice": [
     "EntryID", "ইনভয়েস নং", "তারিখ", "DealerID", "ডিলার নাম", "মোবাইল", "ঠিকানা",
     "PackageID", "প্যাকেজ", "একক মূল্য", "সংখ্যা", "মোট মূল্য",
     "কমিশন %", "কমিশন মূল্য", "পরিশোধযোগ্য মূল্য",
-    "সাবটোটাল", "ডিসকাউন্ট", "পরিশোধ", "বকেয়া"
+    "সাবটোটাল", "ডিসকাউন্ট", "পরিশোধ", "বকেয়া", "স্ট্যাটাস"
   ]
 };
 
@@ -602,6 +604,12 @@ function doPost(e) {
       case "updateSalesInvoiceEntry":
         result = updateSalesInvoiceEntry(data);
         break;
+      case "updateSalesInvoiceFull":
+        result = updateSalesInvoiceFull(data);
+        break;
+      case "updateSalesInvoiceStatus":
+        result = updateSalesInvoiceStatus(data);
+        break;
       case "deleteSalesInvoice":
         result = deleteSalesInvoice(data);
         break;
@@ -609,6 +617,9 @@ function doPost(e) {
       // ---- এজেন্সি রিপোর্ট ----
       case "agencySalesReport":
         result = agencySalesReport(data);
+        break;
+      case "depotReport":
+        result = depotReport(data);
         break;
 
       // ---- খরচ ভাউচার (ডিলারের নিজস্ব) ----

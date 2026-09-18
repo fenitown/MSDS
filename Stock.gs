@@ -86,31 +86,40 @@ function addStockVoucher(data) {
   const masterSS = getMasterSS();
   const sheet = getSheet(masterSS, "StockInVoucher");
   const voucherNo = "SV" + Utilities.formatString("%06d", Math.floor(Math.random() * 900000) + 100000);
-  const now = new Date();
+  const now = data.date ? new Date(data.date) : new Date();
 
   const items = data.items || [];
   let grandTotal = 0;
-  const rows = items.map(function (item) {
+  const lineData = items.map(function (item) {
     const marketPrice = Number(item.marketPrice) || 0;
     const comboPrice = Number(item.comboPrice) || 0;
     const total = (Number(item.quantity) || 0) * comboPrice;
     grandTotal += total;
+    return { item: item, marketPrice: marketPrice, comboPrice: comboPrice, total: total };
+  });
+  const paid = Number(data.paid) || 0;
+  const due = grandTotal - paid;
+
+  const rows = lineData.map(function (ld) {
     return {
       "ভাউচার নং": voucherNo,
       "তারিখ": now,
-      "ProductID": item.productId,
-      "পণ্যের নাম": item.productName || "",
-      "বাজার মূল্য": marketPrice,
-      "কম্বো মূল্য": comboPrice,
-      "সাশ্রয়ী": marketPrice - comboPrice,
-      "সংখ্যা": item.quantity,
-      "মোট মূল্য": total
+      "ProductID": ld.item.productId,
+      "পণ্যের নাম": ld.item.productName || "",
+      "বাজার মূল্য": ld.marketPrice,
+      "কম্বো মূল্য": ld.comboPrice,
+      "সাশ্রয়ী": ld.marketPrice - ld.comboPrice,
+      "সংখ্যা": ld.item.quantity,
+      "মোট মূল্য": ld.total,
+      "সর্বমোট": grandTotal,
+      "পরিশোধ": paid,
+      "বকেয়া": due
     };
   });
 
   batchAppendRows(sheet, rows, "SVE", "EntryID");
 
-  return { success: true, voucherNo: voucherNo, total: grandTotal, message: "স্টক ইন ভাউচার যোগ হয়েছে" };
+  return { success: true, voucherNo: voucherNo, total: grandTotal, paid: paid, due: due, message: "স্টক ইন ভাউচার যোগ হয়েছে" };
 }
 
 function listStockVouchers(data) {
@@ -156,6 +165,64 @@ function deleteStockVoucher(data) {
 /*=========================================================
  *  বিক্রয় ইনভয়েস (SalesInvoice) — এজেন্সি থেকে ডিলারকে বিক্রি
  *=======================================================*/
+/*******************************************************
+ * বিক্রয় ইনভয়েসের সারি তৈরি করার শেয়ার্ড লজিক — addSalesInvoice ও
+ * updateSalesInvoiceFull দুটোতেই ব্যবহৃত হয়
+ *******************************************************/
+function buildSalesInvoiceRows(invoiceNo, dealerInfo, dealerMobile, dealerThikana, date, items, discount, paid, status) {
+  let subtotal = 0, totalPayable = 0;
+  const lineCalc = items.map(function (item) {
+    const total = (Number(item.quantity) || 0) * (Number(item.unitPrice) || 0);
+    const commissionPct = Number(item.commissionPercent) || 0;
+    const commissionAmt = total * commissionPct / 100;
+    subtotal += total;
+    totalPayable += (total - commissionAmt);
+    return { item: item, total: total, commissionPct: commissionPct, commissionAmt: commissionAmt };
+  });
+  const netPayable = totalPayable - discount;
+  const due = netPayable - paid;
+
+  const rows = lineCalc.map(function (lc) {
+    return {
+      "ইনভয়েস নং": invoiceNo,
+      "তারিখ": date,
+      "DealerID": dealerInfo.dealerId,
+      "ডিলার নাম": dealerInfo.name,
+      "মোবাইল": dealerMobile,
+      "ঠিকানা": dealerThikana,
+      "PackageID": lc.item.packageId,
+      "প্যাকেজ": lc.item.packageName || "",
+      "একক মূল্য": lc.item.unitPrice,
+      "সংখ্যা": lc.item.quantity,
+      "মোট মূল্য": lc.total,
+      "কমিশন %": lc.commissionPct,
+      "কমিশন মূল্য": lc.commissionAmt,
+      "পরিশোধযোগ্য মূল্য": lc.total - lc.commissionAmt,
+      "সাবটোটাল": subtotal,
+      "ডিসকাউন্ট": discount,
+      "পরিশোধ": paid,
+      "বকেয়া": due,
+      "স্ট্যাটাস": status
+    };
+  });
+
+  return { rows: rows, subtotal: subtotal, netPayable: netPayable, due: due };
+}
+
+function getDealerContactInfo(dealersSheet, dealerId) {
+  const dealersData = dealersSheet.getDataRange().getValues();
+  const dHeaders = dealersData[0];
+  const idxId = dHeaders.indexOf("DealerID");
+  const idxMobile = dHeaders.indexOf("মোবাইল");
+  const idxThikana = dHeaders.indexOf("ঠিকানা");
+  for (let i = 1; i < dealersData.length; i++) {
+    if (dealersData[i][idxId] === dealerId) {
+      return { mobile: dealersData[i][idxMobile], thikana: dealersData[i][idxThikana] };
+    }
+  }
+  return { mobile: "", thikana: "" };
+}
+
 function addSalesInvoice(data) {
   const perm = checkAgencyPermission(data.token);
   if (!perm.ok) return { success: false, message: perm.message };
@@ -166,65 +233,90 @@ function addSalesInvoice(data) {
   const dealerInfo = getDealerRow(dealersSheet, data.dealerId);
   if (!dealerInfo) return { success: false, message: "ডিলার পাওয়া যায়নি" };
 
-  // ডিলারের মোবাইল/ঠিকানা Dealers ট্যাব থেকে অটো আনা
-  const dealersData = dealersSheet.getDataRange().getValues();
-  const dHeaders = dealersData[0];
-  const idxId = dHeaders.indexOf("DealerID");
-  const idxMobile = dHeaders.indexOf("মোবাইল");
-  const idxThikana = dHeaders.indexOf("ঠিকানা");
-  let dealerMobile = "", dealerThikana = "";
-  for (let i = 1; i < dealersData.length; i++) {
-    if (dealersData[i][idxId] === data.dealerId) {
-      dealerMobile = dealersData[i][idxMobile];
-      dealerThikana = dealersData[i][idxThikana];
-      break;
-    }
-  }
-
+  const contact = getDealerContactInfo(dealersSheet, data.dealerId);
   const invoiceNo = "SI" + Utilities.formatString("%06d", Math.floor(Math.random() * 900000) + 100000);
-  const now = new Date();
+  const now = data.date ? new Date(data.date) : new Date();
 
-  const items = data.items || [];
-  let subtotal = 0;
-  items.forEach(function (item) {
-    subtotal += (Number(item.quantity) || 0) * (Number(item.unitPrice) || 0);
-  });
-  const discount = Number(data.discount) || 0;
-  const paid = Number(data.paid) || 0;
-  const due = subtotal - discount - paid;
+  const built = buildSalesInvoiceRows(
+    invoiceNo, { dealerId: data.dealerId, name: dealerInfo.name }, contact.mobile, contact.thikana,
+    now, data.items || [], Number(data.discount) || 0, Number(data.paid) || 0, "পেন্ডিং"
+  );
 
-  const rows = items.map(function (item) {
-    const total = (Number(item.quantity) || 0) * (Number(item.unitPrice) || 0);
-    const commissionPct = Number(item.commissionPercent) || 0;
-    const commissionAmt = total * commissionPct / 100;
-    return {
-      "ইনভয়েস নং": invoiceNo,
-      "তারিখ": now,
-      "DealerID": data.dealerId,
-      "ডিলার নাম": dealerInfo.name,
-      "মোবাইল": dealerMobile,
-      "ঠিকানা": dealerThikana,
-      "PackageID": item.packageId,
-      "প্যাকেজ": item.packageName || "",
-      "একক মূল্য": item.unitPrice,
-      "সংখ্যা": item.quantity,
-      "মোট মূল্য": total,
-      "কমিশন %": commissionPct,
-      "কমিশন মূল্য": commissionAmt,
-      "পরিশোধযোগ্য মূল্য": total - commissionAmt,
-      "সাবটোটাল": subtotal,
-      "ডিসকাউন্ট": discount,
-      "পরিশোধ": paid,
-      "বকেয়া": due
-    };
-  });
-
-  batchAppendRows(sheet, rows, "SIE", "EntryID");
+  batchAppendRows(sheet, built.rows, "SIE", "EntryID");
 
   return {
-    success: true, invoiceNo: invoiceNo, subtotal: subtotal, discount: discount, paid: paid, due: due,
+    success: true, invoiceNo: invoiceNo, subtotal: built.subtotal, netPayable: built.netPayable, due: built.due,
     message: "বিক্রয় ইনভয়েস যোগ হয়েছে"
   };
+}
+
+/*******************************************************
+ * বিদ্যমান ইনভয়েস সম্পূর্ণ এডিট — পুরনো সব লাইন ডিলিট করে
+ * নতুন করে একই ইনভয়েস নং দিয়ে আবার তৈরি করা হয়
+ *******************************************************/
+function updateSalesInvoiceFull(data) {
+  const perm = checkAgencyPermission(data.token);
+  if (!perm.ok) return { success: false, message: perm.message };
+
+  const masterSS = getMasterSS();
+  const sheet = getSheet(masterSS, "SalesInvoice");
+  const dealersSheet = getSheet(masterSS, "Dealers");
+  const dealerInfo = getDealerRow(dealersSheet, data.dealerId);
+  if (!dealerInfo) return { success: false, message: "ডিলার পাওয়া যায়নি" };
+
+  // পুরনো স্ট্যাটাস সংরক্ষণ (এডিটে স্ট্যাটাস পরিবর্তন হয় না)
+  const values = sheet.getDataRange().getValues();
+  const headers = values[0];
+  const idxInv = headers.indexOf("ইনভয়েস নং");
+  const idxStatus = headers.indexOf("স্ট্যাটাস");
+  let oldStatus = "পেন্ডিং";
+  for (let i = 1; i < values.length; i++) {
+    if (values[i][idxInv] === data.invoiceNo) { oldStatus = values[i][idxStatus] || "পেন্ডিং"; break; }
+  }
+
+  // পুরনো লাইন সব ডিলিট
+  for (let i = values.length - 1; i >= 1; i--) {
+    if (values[i][idxInv] === data.invoiceNo) sheet.deleteRow(i + 1);
+  }
+
+  const contact = getDealerContactInfo(dealersSheet, data.dealerId);
+  const now = data.date ? new Date(data.date) : new Date();
+
+  const built = buildSalesInvoiceRows(
+    data.invoiceNo, { dealerId: data.dealerId, name: dealerInfo.name }, contact.mobile, contact.thikana,
+    now, data.items || [], Number(data.discount) || 0, Number(data.paid) || 0, oldStatus
+  );
+
+  batchAppendRows(sheet, built.rows, "SIE", "EntryID");
+
+  return {
+    success: true, invoiceNo: data.invoiceNo, subtotal: built.subtotal, netPayable: built.netPayable, due: built.due,
+    message: "ইনভয়েস আপডেট হয়েছে"
+  };
+}
+
+/*******************************************************
+ * ইনভয়েসের ডেলিভারি স্ট্যাটাস আপডেট (সব লাইনে একসাথে)
+ *******************************************************/
+function updateSalesInvoiceStatus(data) {
+  const perm = checkAgencyPermission(data.token);
+  if (!perm.ok) return { success: false, message: perm.message };
+
+  const masterSS = getMasterSS();
+  const sheet = getSheet(masterSS, "SalesInvoice");
+  const values = sheet.getDataRange().getValues();
+  const headers = values[0];
+  const idxInv = headers.indexOf("ইনভয়েস নং");
+  const idxStatus = headers.indexOf("স্ট্যাটাস");
+
+  let found = false;
+  for (let i = 1; i < values.length; i++) {
+    if (values[i][idxInv] === data.invoiceNo) {
+      sheet.getRange(i + 1, idxStatus + 1).setValue(data.status || "ডেলিভারি সম্পন্ন");
+      found = true;
+    }
+  }
+  return { success: found, message: found ? "স্ট্যাটাস আপডেট হয়েছে" : "ইনভয়েস পাওয়া যায়নি" };
 }
 
 function listSalesInvoices(data) {
@@ -299,6 +391,7 @@ function agencySalesReport(data) {
 
   const seenInvoices = {};
   let totalSale = 0, totalDiscount = 0, totalPaid = 0, totalDue = 0;
+  let totalOrders = 0, totalDelivered = 0, totalPending = 0;
   const byDealer = {};
 
   entries.forEach(function (e) {
@@ -306,20 +399,30 @@ function agencySalesReport(data) {
 
     const dealerKey = e["DealerID"];
     if (!byDealer[dealerKey]) {
-      byDealer[dealerKey] = { dealerId: dealerKey, dealerName: e["ডিলার নাম"], totalSale: 0, totalDiscount: 0, totalPaid: 0, totalDue: 0 };
+      byDealer[dealerKey] = {
+        dealerId: dealerKey, dealerName: e["ডিলার নাম"],
+        totalSale: 0, totalDiscount: 0, totalPaid: 0, totalDue: 0,
+        totalOrders: 0, totalDelivered: 0, totalPending: 0
+      };
     }
     byDealer[dealerKey].totalSale += Number(e["মোট মূল্য"]) || 0;
 
-    // ইনভয়েস-লেভেল মান (সাবটোটাল/ডিসকাউন্ট/পরিশোধ/বকেয়া) প্রতিটি ইনভয়েসে একবারই গোনা
+    // ইনভয়েস-লেভেল মান (সাবটোটাল/ডিসকাউন্ট/পরিশোধ/বকেয়া/অর্ডার/স্ট্যাটাস) প্রতিটি ইনভয়েসে একবারই গোনা
     const invKey = e["ইনভয়েস নং"];
     if (!seenInvoices[invKey]) {
       seenInvoices[invKey] = true;
       totalDiscount += Number(e["ডিসকাউন্ট"]) || 0;
       totalPaid += Number(e["পরিশোধ"]) || 0;
       totalDue += Number(e["বকেয়া"]) || 0;
+      totalOrders += 1;
+      const status = e["স্ট্যাটাস"] || "পেন্ডিং";
+      if (status === "ডেলিভারি সম্পন্ন") totalDelivered += 1; else totalPending += 1;
+
       byDealer[dealerKey].totalDiscount += Number(e["ডিসকাউন্ট"]) || 0;
       byDealer[dealerKey].totalPaid += Number(e["পরিশোধ"]) || 0;
       byDealer[dealerKey].totalDue += Number(e["বকেয়া"]) || 0;
+      byDealer[dealerKey].totalOrders += 1;
+      if (status === "ডেলিভারি সম্পন্ন") byDealer[dealerKey].totalDelivered += 1; else byDealer[dealerKey].totalPending += 1;
     }
   });
 
@@ -327,11 +430,119 @@ function agencySalesReport(data) {
     success: true,
     report: {
       totalInvoiceCount: Object.keys(seenInvoices).length,
+      totalOrders: totalOrders,
+      totalDelivered: totalDelivered,
+      totalPending: totalPending,
       totalSale: totalSale,
       totalDiscount: totalDiscount,
       totalPaid: totalPaid,
       totalDue: totalDue,
       byDealer: Object.keys(byDealer).map(function (k) { return byDealer[k]; })
+    }
+  };
+}
+
+/*=========================================================
+ *  ডিপু রিপোর্ট — সামগ্রিক ব্যবসায়িক সারসংক্ষেপ (স্টক, বিক্রি,
+ *  খরচ, লাভ/লস, কোম্পানি পরিশোধ/বকেয়া, ডিলার/অর্ডার সংখ্যা)
+ *  data: { token }
+ *=======================================================*/
+function getPackageProductCountMap(masterSS) {
+  const pkgSheet = getSheet(masterSS, "Packages");
+  const packages = genericListRows(pkgSheet);
+  const map = {};
+  packages.forEach(function (p) {
+    let count = 0;
+    for (let i = 1; i <= MAX_PACKAGE_ITEMS; i++) {
+      if (p["পণ্য" + i + " - নাম ও পরিমাণ"]) count++;
+    }
+    map[p["PackageID"]] = count;
+  });
+  return map;
+}
+
+function depotReport(data) {
+  const perm = checkAgencyPermission(data.token);
+  if (!perm.ok) return { success: false, message: perm.message };
+
+  const masterSS = getMasterSS();
+
+  // ---- স্টক (ক্রয়) ----
+  const stockLines = genericListRows(getSheet(masterSS, "StockInVoucher"));
+  const seenStockVouchers = {};
+  let totalStockQty = 0, totalStockPurchaseValue = 0, totalPaidToCompany = 0, totalDueToCompany = 0;
+  stockLines.forEach(function (e) {
+    totalStockQty += Number(e["সংখ্যা"]) || 0;
+    totalStockPurchaseValue += Number(e["মোট মূল্য"]) || 0;
+    const vKey = e["ভাউচার নং"];
+    if (!seenStockVouchers[vKey]) {
+      seenStockVouchers[vKey] = true;
+      totalPaidToCompany += Number(e["পরিশোধ"]) || 0;
+      totalDueToCompany += Number(e["বকেয়া"]) || 0;
+    }
+  });
+  const avgUnitCost = totalStockQty > 0 ? (totalStockPurchaseValue / totalStockQty) : 0;
+
+  // ---- বিক্রি (SalesInvoice + Packages এর পণ্য-সংখ্যা ম্যাপ) ----
+  const pkgProductCountMap = getPackageProductCountMap(masterSS);
+  const salesLines = genericListRows(getSheet(masterSS, "SalesInvoice"));
+  const seenSalesInvoices = {};
+  let totalProductsSoldQty = 0, totalSalesValue = 0, totalPayableSum = 0;
+  let totalOrders = 0, totalDelivered = 0, totalPending = 0, totalDueFromDealers = 0;
+
+  salesLines.forEach(function (e) {
+    totalSalesValue += Number(e["মোট মূল্য"]) || 0;
+    totalPayableSum += Number(e["পরিশোধযোগ্য মূল্য"]) || 0;
+    const productCount = pkgProductCountMap[e["PackageID"]] || 0;
+    totalProductsSoldQty += productCount * (Number(e["সংখ্যা"]) || 0);
+
+    const invKey = e["ইনভয়েস নং"];
+    if (!seenSalesInvoices[invKey]) {
+      seenSalesInvoices[invKey] = true;
+      totalOrders += 1;
+      totalDueFromDealers += Number(e["বকেয়া"]) || 0;
+      const status = e["স্ট্যাটাস"] || "পেন্ডিং";
+      if (status === "ডেলিভারি সম্পন্ন") totalDelivered += 1; else totalPending += 1;
+    }
+  });
+
+  const currentStockQty = totalStockQty - totalProductsSoldQty;
+  const currentStockValue = currentStockQty * avgUnitCost;
+
+  // ---- খরচ (Expense) ----
+  const expenseLines = genericListRows(getSheet(masterSS, "Expense"));
+  let totalExpense = 0;
+  expenseLines.forEach(function (e) { totalExpense += Number(e["টাকা"]) || 0; });
+
+  // ---- লাভ/লস ----
+  const cogs = totalProductsSoldQty * avgUnitCost;
+  const netResult = totalPayableSum - cogs - totalExpense;
+  const totalProfit = netResult > 0 ? netResult : 0;
+  const totalLoss = netResult < 0 ? -netResult : 0;
+
+  // ---- ডিলার সংখ্যা ----
+  const totalDealers = genericListRows(getSheet(masterSS, "Dealers")).length;
+
+  return {
+    success: true,
+    report: {
+      totalStockQty: totalStockQty,
+      totalStockPurchaseValue: totalStockPurchaseValue,
+      totalProductsSoldQty: totalProductsSoldQty,
+      totalSalesValue: totalSalesValue,
+      currentStockQty: currentStockQty,
+      currentStockValue: Math.round(currentStockValue),
+      totalExpense: totalExpense,
+      totalProfit: Math.round(totalProfit),
+      totalLoss: Math.round(totalLoss),
+      totalPaidToCompany: totalPaidToCompany,
+      totalDueToCompany: totalDueToCompany,
+      totalDealers: totalDealers,
+      totalOrders: totalOrders,
+      totalDelivered: totalDelivered,
+      totalPending: totalPending,
+      totalSalesAmount: totalSalesValue,
+      totalDueFromDealers: totalDueFromDealers
     }
   };
 }

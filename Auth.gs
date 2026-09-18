@@ -55,7 +55,7 @@ function loginUser(data) {
   const name = foundUser[idxName];
 
   // ডিলারের স্ট্যাটাস ও নাম যাচাই — AGENCY নিজেই এজেন্সি, Dealers ট্যাবে থাকে না
-  let dealerName = "মূল এজেন্সি";
+  let dealerName = "মূল ডিপু";
   let dealerPhotoUrl = "";
   let dealerMobile = "";
   if (dealerId !== AGENCY_ID) {
