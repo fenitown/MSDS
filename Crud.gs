@@ -612,7 +612,7 @@ function getAgencyDashboardSummary(data) {
   commissions.forEach(function (c) { totalCommission += Number(c["টাকার পরিমাণ"]) || 0; });
 
   let totalExpense = 0;
-  expenses.forEach(function (e) { totalExpense += Number(e["পরিমাণ"]) || 0; });
+  expenses.forEach(function (e) { totalExpense += Number(e["টাকা"]) || 0; });
 
   return {
     success: true,

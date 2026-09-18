@@ -18,12 +18,16 @@ function addProduct(data) {
   const masterSS = getMasterSS();
   const sheet = getSheet(masterSS, "Products");
   const productId = generateId(sheet, "PR");
+  const marketPrice = Number(data.marketPrice) || 0;
+  const comboPrice = Number(data.comboPrice) || 0;
 
   genericAddRow(sheet, {
     "ProductID": productId,
     "পণ্যের নাম": data.নাম,
     "ব্র্যান্ড": data.brand,
-    "মূল্য": data.price
+    "বাজার মূল্য": marketPrice,
+    "কম্বো মূল্য": comboPrice,
+    "সাশ্রয়ী": marketPrice - comboPrice
   });
 
   invalidateAgencyCaches();
@@ -87,14 +91,18 @@ function addStockVoucher(data) {
   const items = data.items || [];
   let grandTotal = 0;
   const rows = items.map(function (item) {
-    const total = (Number(item.quantity) || 0) * (Number(item.price) || 0);
+    const marketPrice = Number(item.marketPrice) || 0;
+    const comboPrice = Number(item.comboPrice) || 0;
+    const total = (Number(item.quantity) || 0) * comboPrice;
     grandTotal += total;
     return {
       "ভাউচার নং": voucherNo,
       "তারিখ": now,
       "ProductID": item.productId,
       "পণ্যের নাম": item.productName || "",
-      "মূল্য": item.price,
+      "বাজার মূল্য": marketPrice,
+      "কম্বো মূল্য": comboPrice,
+      "সাশ্রয়ী": marketPrice - comboPrice,
       "সংখ্যা": item.quantity,
       "মোট মূল্য": total
     };
@@ -187,6 +195,8 @@ function addSalesInvoice(data) {
 
   const rows = items.map(function (item) {
     const total = (Number(item.quantity) || 0) * (Number(item.unitPrice) || 0);
+    const commissionPct = Number(item.commissionPercent) || 0;
+    const commissionAmt = total * commissionPct / 100;
     return {
       "ইনভয়েস নং": invoiceNo,
       "তারিখ": now,
@@ -199,6 +209,9 @@ function addSalesInvoice(data) {
       "একক মূল্য": item.unitPrice,
       "সংখ্যা": item.quantity,
       "মোট মূল্য": total,
+      "কমিশন %": commissionPct,
+      "কমিশন মূল্য": commissionAmt,
+      "পরিশোধযোগ্য মূল্য": total - commissionAmt,
       "সাবটোটাল": subtotal,
       "ডিসকাউন্ট": discount,
       "পরিশোধ": paid,
