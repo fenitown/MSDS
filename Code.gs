@@ -56,7 +56,7 @@ const MASTER_SHEETS_DEF = {
   "Dealers": [
     "DealerID", "তারিখ", "নাম", "পিতার নাম", "NID/জন্মসনদ",
     "মোবাইল", "Gmail", "ট্রেড লাইসেন্স নং", "ঠিকানা", "ডিলারের ছবি(URL)",
-    "SpreadsheetID", "স্ট্যাটাস"
+    "SpreadsheetID", "স্ট্যাটাস", "Facebook Link"
   ],
   "DealerNominee": [
     "NomineeID", "DealerID", "নমিনির নাম", "NID নং", "মোবাইল নং", "সম্পর্ক", "নমিনির ছবি(URL)"
@@ -65,7 +65,9 @@ const MASTER_SHEETS_DEF = {
     "UserID", "DealerID", "ইউজারনেম", "পাসওয়ার্ড", "রোল", "নাম", "মোবাইল"
   ],
   "Agency": [
-    "নাম", "মোবাইল", "লোগো(URL)"
+    "নাম", "মোবাইল", "লোগো(URL)",
+    "ব্যবস্থাপকের নাম", "পদবি", "ব্যবস্থাপকের মোবাইল",
+    "Facebook Link", "Youtube Link"
   ],
   // সংস্থার তথ্য — শুধু এজেন্সি এন্ট্রি করবে, সব ডিলার একই তথ্য দেখবে
   "AboutInfo": [
@@ -345,7 +347,8 @@ function registerDealer(data) {
     data.thikana,
     dealerPhotoUrl,
     newSpreadsheetId,
-    "সক্রিয়"
+    "সক্রিয়",
+    data.facebookLink || ""
   ]);
   dealersSheet.getRange(dealersSheet.getLastRow(), 6).setNumberFormat("@");
 

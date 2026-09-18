@@ -386,6 +386,12 @@ function agencySalesReport(data) {
       const d = (e["তারিখ"] instanceof Date) ? e["তারিখ"] : new Date(e["তারিখ"]);
       return d.getFullYear() === year && (d.getMonth() + 1) === month;
     });
+  } else if (data.mode === "yearly" && data.year) {
+    const year = Number(data.year);
+    entries = entries.filter(function (e) {
+      const d = (e["তারিখ"] instanceof Date) ? e["তারিখ"] : new Date(e["তারিখ"]);
+      return d.getFullYear() === year;
+    });
   }
   // mode === "total" হলে ফিল্টার ছাড়াই সব
 
@@ -461,14 +467,39 @@ function getPackageProductCountMap(masterSS) {
   return map;
 }
 
+/*******************************************************
+ * data.mode অনুযায়ী একটি সারি (তারিখ ফিল্ড সহ) নির্দিষ্ট সময়ের
+ * মধ্যে পড়ে কিনা যাচাই — ডিপু ও ডিলার রিপোর্ট উভয়ে ব্যবহারযোগ্য
+ *******************************************************/
+function isInReportPeriod(dateVal, mode, data) {
+  if (!mode || mode === "total") return true;
+  const d = (dateVal instanceof Date) ? dateVal : new Date(dateVal);
+  if (mode === "daily" && data.date) return toDateStr(d) === data.date;
+  if (mode === "monthly" && data.year && data.month) {
+    return d.getFullYear() === Number(data.year) && (d.getMonth() + 1) === Number(data.month);
+  }
+  if (mode === "yearly" && data.year) return d.getFullYear() === Number(data.year);
+  return true;
+}
+
 function depotReport(data) {
   const perm = checkAgencyPermission(data.token);
   if (!perm.ok) return { success: false, message: perm.message };
 
   const masterSS = getMasterSS();
+  const mode = data.mode || "total";
 
-  // ---- স্টক (ক্রয়) ----
-  const stockLines = genericListRows(getSheet(masterSS, "StockInVoucher"));
+  // ---- স্টক (ক্রয়) — সব সময়ের ডাটা (বর্তমান স্টক হিসাবের জন্য) ----
+  const allStockLines = genericListRows(getSheet(masterSS, "StockInVoucher"));
+  let allStockQty = 0, allStockValue = 0;
+  allStockLines.forEach(function (e) {
+    allStockQty += Number(e["সংখ্যা"]) || 0;
+    allStockValue += Number(e["মোট মূল্য"]) || 0;
+  });
+  const avgUnitCost = allStockQty > 0 ? (allStockValue / allStockQty) : 0;
+
+  // ---- স্টক — নির্বাচিত সময়ের মধ্যে (period metrics) ----
+  const stockLines = allStockLines.filter(function (e) { return isInReportPeriod(e["তারিখ"], mode, data); });
   const seenStockVouchers = {};
   let totalStockQty = 0, totalStockPurchaseValue = 0, totalPaidToCompany = 0, totalDueToCompany = 0;
   stockLines.forEach(function (e) {
@@ -481,11 +512,20 @@ function depotReport(data) {
       totalDueToCompany += Number(e["বকেয়া"]) || 0;
     }
   });
-  const avgUnitCost = totalStockQty > 0 ? (totalStockPurchaseValue / totalStockQty) : 0;
 
-  // ---- বিক্রি (SalesInvoice + Packages এর পণ্য-সংখ্যা ম্যাপ) ----
+  // ---- বিক্রি — সব সময়ের ডাটা (বর্তমান স্টক থেকে বিক্রিত বাদ দেওয়ার জন্য) ----
   const pkgProductCountMap = getPackageProductCountMap(masterSS);
-  const salesLines = genericListRows(getSheet(masterSS, "SalesInvoice"));
+  const allSalesLines = genericListRows(getSheet(masterSS, "SalesInvoice"));
+  let allProductsSoldQty = 0;
+  allSalesLines.forEach(function (e) {
+    const productCount = pkgProductCountMap[e["PackageID"]] || 0;
+    allProductsSoldQty += productCount * (Number(e["সংখ্যা"]) || 0);
+  });
+  const currentStockQty = allStockQty - allProductsSoldQty;
+  const currentStockValue = currentStockQty * avgUnitCost;
+
+  // ---- বিক্রি — নির্বাচিত সময়ের মধ্যে (period metrics) ----
+  const salesLines = allSalesLines.filter(function (e) { return isInReportPeriod(e["তারিখ"], mode, data); });
   const seenSalesInvoices = {};
   let totalProductsSoldQty = 0, totalSalesValue = 0, totalPayableSum = 0;
   let totalOrders = 0, totalDelivered = 0, totalPending = 0, totalDueFromDealers = 0;
@@ -506,21 +546,19 @@ function depotReport(data) {
     }
   });
 
-  const currentStockQty = totalStockQty - totalProductsSoldQty;
-  const currentStockValue = currentStockQty * avgUnitCost;
-
-  // ---- খরচ (Expense) ----
-  const expenseLines = genericListRows(getSheet(masterSS, "Expense"));
+  // ---- খরচ (Expense) — নির্বাচিত সময়ের মধ্যে ----
+  const allExpenseLines = genericListRows(getSheet(masterSS, "Expense"));
+  const expenseLines = allExpenseLines.filter(function (e) { return isInReportPeriod(e["তারিখ"], mode, data); });
   let totalExpense = 0;
   expenseLines.forEach(function (e) { totalExpense += Number(e["টাকা"]) || 0; });
 
-  // ---- লাভ/লস ----
+  // ---- লাভ/লস (নির্বাচিত সময়ের বিক্রি/খরচ ভিত্তিতে) ----
   const cogs = totalProductsSoldQty * avgUnitCost;
   const netResult = totalPayableSum - cogs - totalExpense;
   const totalProfit = netResult > 0 ? netResult : 0;
   const totalLoss = netResult < 0 ? -netResult : 0;
 
-  // ---- ডিলার সংখ্যা ----
+  // ---- ডিলার সংখ্যা (সব সময়ে নথিভুক্ত মোট ডিলার) ----
   const totalDealers = genericListRows(getSheet(masterSS, "Dealers")).length;
 
   return {

@@ -27,7 +27,7 @@ const AGENCY_ID = "AGENCY";
  *******************************************************/
 function invalidateAgencyCaches() {
   const cache = CacheService.getScriptCache();
-  cache.removeAll(["dealers_cache_v1", "agency_info_cache_v1", "about_info_cache_v1"]);
+  cache.removeAll(["dealers_cache_v1", "agency_info_cache_v2", "about_info_cache_v1"]);
 }
 
 /*******************************************************
@@ -75,23 +75,27 @@ function checkAgencyPermission(token) {
  *  এজেন্সি সেটাপ (নাম, মোবাইল নং, লোগো)
  *=======================================================*/
 function getAgencyInfo(data) {
-  // এজেন্সির নাম/মোবাইল/লোগো — স্পর্শকাতর তথ্য না, তাই ডিলার ও
-  // এজেন্সি উভয়েই দেখতে পারবে (মেনুবার লোগো, ফেভিকন, গ্রাহক কার্ড
-  // ইত্যাদিতে ব্যবহারের জন্য); শুধু এডিট (updateAgencyInfo) এজেন্সি-
-  // নির্দিষ্ট থাকবে
+  // এজেন্সির নাম/মোবাইল/লোগো/ব্যবস্থাপক তথ্য/সোশ্যাল লিংক — স্পর্শকাতর তথ্য
+  // না, তাই ডিলার ও এজেন্সি উভয়েই দেখতে পারবে (মেনুবার লোগো, ফেভিকন,
+  // ফুটার, "আমাদের সম্পর্কে" ইত্যাদিতে ব্যবহারের জন্য); শুধু এডিট
+  // (updateAgencyInfo) এজেন্সি-নির্দিষ্ট থাকবে
   const perm = checkPermission(data.token, ["Admin", "প্রতিনিধি"]);
   if (!perm.ok) return { success: false, message: perm.message };
 
   const cache = CacheService.getScriptCache();
-  const cached = cache.get("agency_info_cache_v1");
+  const cached = cache.get("agency_info_cache_v2");
   if (cached) return { success: true, agency: JSON.parse(cached) };
 
   const masterSS = getMasterSS();
   const sheet = getSheet(masterSS, "Agency");
   const rows = genericListRows(sheet);
-  const info = rows.length > 0 ? rows[0] : { "নাম": "", "মোবাইল": "", "লোগো(URL)": "" };
+  const info = rows.length > 0 ? rows[0] : {
+    "নাম": "", "মোবাইল": "", "লোগো(URL)": "",
+    "ব্যবস্থাপকের নাম": "", "পদবি": "", "ব্যবস্থাপকের মোবাইল": "",
+    "Facebook Link": "", "Youtube Link": ""
+  };
 
-  try { cache.put("agency_info_cache_v1", JSON.stringify(info), 60); } catch (e) { /* বাদ */ }
+  try { cache.put("agency_info_cache_v2", JSON.stringify(info), 60); } catch (e) { /* বাদ */ }
 
   return { success: true, agency: info };
 }
@@ -102,7 +106,9 @@ function updateAgencyInfo(data) {
 
   const masterSS = getMasterSS();
   const sheet = getSheet(masterSS, "Agency");
+  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
   const rows = genericListRows(sheet);
+  const existing = rows.length > 0 ? rows[0] : {};
 
   // নতুন লোগো ছবি (base64, ফ্রন্টএন্ডেই কমপ্রেসড) দেওয়া থাকলে সরাসরি সেভ
   let logoUrl = data.logoUrl || "";
@@ -113,20 +119,30 @@ function updateAgencyInfo(data) {
     else { logoUrl = processed; }
   }
 
+  const fieldMap = {
+    "নাম": data.নাম,
+    "মোবাইল": data.mobile,
+    "লোগো(URL)": logoUrl,
+    "ব্যবস্থাপকের নাম": data.managerName,
+    "পদবি": data.managerTitle,
+    "ব্যবস্থাপকের মোবাইল": data.managerMobile,
+    "Facebook Link": data.facebookLink,
+    "Youtube Link": data.youtubeLink
+  };
+
+  const rowValues = headers.map(function (h) {
+    if (h === "লোগো(URL)") return logoUrl || existing[h] || "";
+    const v = fieldMap[h];
+    return (v !== undefined && v !== null && v !== "") ? v : (existing[h] || "");
+  });
+
   if (rows.length === 0) {
-    genericAddRow(sheet, {
-      "নাম": data.নাম || "",
-      "মোবাইল": data.mobile || "",
-      "লোগো(URL)": logoUrl
-    });
+    sheet.appendRow(rowValues);
   } else {
-    sheet.getRange(2, 1, 1, 3).setValues([[
-      data.নাম || rows[0]["নাম"],
-      data.mobile || rows[0]["মোবাইল"],
-      logoUrl || rows[0]["লোগো(URL)"]
-    ]]);
+    sheet.getRange(2, 1, 1, headers.length).setValues([rowValues]);
   }
-  sheet.getRange(2, 2).setNumberFormat("@"); // মোবাইল কলাম টেক্সট
+  sheet.getRange(2, headers.indexOf("মোবাইল") + 1).setNumberFormat("@");
+  sheet.getRange(2, headers.indexOf("ব্যবস্থাপকের মোবাইল") + 1).setNumberFormat("@");
   invalidateAgencyCaches();
 
   return { success: true, message: "ডিপু তথ্য সংরক্ষিত হয়েছে" + photoWarning };

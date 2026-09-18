@@ -197,6 +197,10 @@
   .expense-row > input{ flex:1 1 110px; min-width:0; }
   .expense-row > input.expDesc{ flex:2 1 160px; }
   .expense-row > button{ flex:0 0 auto; }
+  .si-totals-col{ display:flex; flex-direction:column; gap:6px; align-items:flex-end; margin-left:auto; margin-top:8px; width:170px; max-width:100%; }
+  .si-totals-col .field{ width:100%; margin-bottom:0; }
+  .si-totals-col .field label{ font-size:0.78rem; }
+  .si-totals-col .field input{ padding:6px 8px; font-size:0.88rem; }
   /* স্টক ইন ভাউচার — পণ্য তালিকা বক্স নির্দিষ্ট Width, মূল্য/সংখ্যার বক্স ছোট */
   #stockInItems .item-row-v2 > select.stockInProduct{ flex:0 0 200px; width:200px; }
   #stockInItems .item-row-v2 > input.itemBazar,
@@ -230,6 +234,10 @@
     text-align:center; padding:18px; color:var(--muted); font-size:0.82rem;
     background:#faf8f2; border-top:2px solid var(--line);
   }
+  footer.appfoot .foot-manager{ margin-bottom:4px; }
+  footer.appfoot .foot-links{ display:flex; justify-content:center; gap:14px; margin-bottom:4px; flex-wrap:wrap; }
+  footer.appfoot .foot-links a{ color:var(--teal-dark); text-decoration:none; font-weight:600; }
+  footer.appfoot .foot-links a:hover{ text-decoration:underline; }
 
   /* ---------- জেনেরিক মোডাল (এডিট / পাসওয়ার্ড উদ্ধার) ---------- */
   .modal-overlay{
@@ -467,11 +475,12 @@
         </div>
         <div id="siItems"></div>
         <button class="btn secondary small" onclick="addSiItemRow()">+ আরেকটি প্যাকেজ যোগ করুন</button>
-        <div class="form-grid" style="margin-top:10px;">
-          <div class="field"><label>ডিসকাউন্ট</label><input id="siDiscount" type="number" min="0" value="0"></div>
-          <div class="field"><label>পরিশোধ</label><input id="siPaid" type="number" min="0" value="0"></div>
+        <div id="siTotalsPreview" style="font-size:0.9rem;color:var(--muted);margin-top:10px;"></div>
+        <div class="si-totals-col">
+          <div class="field"><label>ডিসকাউন্ট</label><input id="siDiscount" type="number" min="0" value="0" oninput="updateSiTotalsPreview()"></div>
+          <div class="field"><label>পরিশোধ</label><input id="siPaid" type="number" min="0" value="0" oninput="updateSiTotalsPreview()"></div>
+          <div class="field"><label>বকেয়া</label><input id="siDueBox" type="number" readonly></div>
         </div>
-        <div id="siTotalsPreview" style="font-size:0.9rem;color:var(--muted);margin-top:6px;"></div>
         <div class="btn-row">
           <button class="btn" id="siSubmitBtn" onclick="submitSalesInvoice()">সংরক্ষণ করুন</button>
           <button class="btn secondary" id="siCancelBtn" onclick="cancelSiEdit()" style="display:none;">বাতিল</button>
@@ -494,6 +503,16 @@
       </div>
 
       <div id="reportDepotSection">
+        <div class="tabs inner-tabs no-print">
+          <button class="active" onclick="switchDepotReportTab('daily', this)">দৈনিক</button>
+          <button onclick="switchDepotReportTab('monthly', this)">মাসিক</button>
+          <button onclick="switchDepotReportTab('yearly', this)">বাৎসরিক</button>
+          <button onclick="switchDepotReportTab('total', this)">সর্বমোট</button>
+        </div>
+        <div id="depotReportControls" class="form-grid no-print"></div>
+        <div class="toolbar no-print">
+          <button class="btn secondary small" onclick="printDepotReportTable()">🖨 প্রিন্ট করুন</button>
+        </div>
         <div id="depotReportResult"><p>লোড হচ্ছে...</p></div>
       </div>
 
@@ -501,7 +520,8 @@
         <div class="tabs inner-tabs no-print">
           <button class="active" onclick="switchAgencyReportTab('daily', this)">দৈনিক</button>
           <button onclick="switchAgencyReportTab('monthly', this)">মাসিক</button>
-          <button onclick="switchAgencyReportTab('total', this)">মোট</button>
+          <button onclick="switchAgencyReportTab('yearly', this)">বাৎসরিক</button>
+          <button onclick="switchAgencyReportTab('total', this)">সর্বমোট</button>
         </div>
         <div class="form-grid no-print">
           <div class="field">
@@ -510,6 +530,9 @@
           </div>
         </div>
         <div id="agencyReportControls" class="form-grid no-print"></div>
+        <div class="toolbar no-print">
+          <button class="btn secondary small" onclick="printDealerReportTable()">🖨 প্রিন্ট করুন</button>
+        </div>
         <div id="agencyReportResult"></div>
       </div>
     </section>
@@ -610,7 +633,7 @@
 
   </main>
 
-  <footer class="appfoot">@AM Shahed: 01605721296</footer>
+  <footer class="appfoot" id="appFooter">@AM Shahed: 01605721296</footer>
 </div>
 
 <script>
@@ -875,6 +898,7 @@ async function doLogin(){
   state.name = res.name;
   state.dealerPhotoUrl = res.dealerPhotoUrl || "";
   state.dealerMobile = res.dealerMobile || "";
+  state.dealerFacebookLink = res.dealerFacebookLink || "";
 
   // এজেন্সির লোগো ও নাম আনা — মেনুবারে (উভয় সাইটেই) এখন সবসময়
   // সংস্থার লোগো+নাম+ট্যাগলাইন দেখাবে, ফেভিকন হিসেবেও ব্যবহার হবে
@@ -894,12 +918,36 @@ async function doLogin(){
     logoBox.innerHTML = "MSDS";
   }
 
+  loadFooterInfo();
+
   document.getElementById("loginScreen").style.display = "none";
   document.getElementById("appScreen").style.display = "block";
 
   buildSideMenu();
   if(state.dealerId === "AGENCY"){ showSection("agencyDashboard"); }
   else { showSection("dashboard"); }
+}
+
+async function loadFooterInfo(){
+  const res = await cachedApiCall("getAgencyInfo", {}, 30000);
+  const a = res.success ? res.agency : {};
+  const footer = document.getElementById("appFooter");
+  if(!footer) return;
+
+  let managerHtml = "";
+  if(a["ব্যবস্থাপকের নাম"]){
+    managerHtml = `<div class="foot-manager">ব্যবস্থাপক: ${a["ব্যবস্থাপকের নাম"]}${a["পদবি"]?" ("+a["পদবি"]+")":""}${a["ব্যবস্থাপকের মোবাইল"]?" — "+a["ব্যবস্থাপকের মোবাইল"]:""}</div>`;
+  }
+
+  const links = [];
+  if(a["Facebook Link"]) links.push(`<a href="${a["Facebook Link"]}" target="_blank" rel="noopener">Facebook</a>`);
+  if(a["Youtube Link"]) links.push(`<a href="${a["Youtube Link"]}" target="_blank" rel="noopener">Youtube</a>`);
+  if(state.dealerId && state.dealerId !== "AGENCY" && state.dealerFacebookLink){
+    links.push(`<a href="${state.dealerFacebookLink}" target="_blank" rel="noopener">আমাদের Facebook</a>`);
+  }
+  const linksHtml = links.length ? `<div class="foot-links">${links.join("")}</div>` : "";
+
+  footer.innerHTML = managerHtml + linksHtml + `<div>@AM Shahed: 01605721296</div>`;
 }
 
 function doLogout(){
@@ -976,15 +1024,24 @@ function showSection(name){
 async function loadAgencyDashboard(){
   const box = document.getElementById("agencyDashboardCards");
   box.innerHTML = "<p>লোড হচ্ছে...</p>";
-  const res = await cachedApiCall("agencyDashboardSummary", {}, 10000);
+  const res = await cachedApiCall("depotReport", { mode: "total" }, 10000);
   if(!res.success){ box.innerHTML = "<p>"+res.message+"</p>"; return; }
-  const s = res.summary;
+  const r = res.report;
   box.innerHTML = `
-    <div class="card"><div class="num">${s.totalDealers}</div><div class="label">মোট ডিলার</div></div>
-    <div class="card"><div class="num">${s.totalUsers}</div><div class="label">সফটওয়্যার ব্যবহারকারী</div></div>
-    <div class="card"><div class="num">${s.totalMoney}</div><div class="label">মোট টাকা</div></div>
-    <div class="card"><div class="num">${s.totalCommission}</div><div class="label">কমিশন</div></div>
-    <div class="card"><div class="num">${s.totalExpense}</div><div class="label">মোট খরচ</div></div>`;
+    <div class="card"><div class="num">${r.totalStockQty}</div><div class="label">মোট পণ্য স্টক (ক্রয় মূল্য: ${r.totalStockPurchaseValue})</div></div>
+    <div class="card"><div class="num">${r.totalProductsSoldQty}</div><div class="label">মোট পণ্য বিক্রি (বিক্রয় মূল্য: ${r.totalSalesValue})</div></div>
+    <div class="card"><div class="num">${r.currentStockQty}</div><div class="label">বর্তমান স্টক (আনুমানিক মূল্য: ${r.currentStockValue})</div></div>
+    <div class="card"><div class="num">${r.totalExpense}</div><div class="label">মোট খরচ</div></div>
+    <div class="card"><div class="num">${r.totalProfit}</div><div class="label">মোট লাভ</div></div>
+    <div class="card"><div class="num">${r.totalLoss}</div><div class="label">মোট লস</div></div>
+    <div class="card"><div class="num">${r.totalPaidToCompany}</div><div class="label">কোম্পানিকে পরিশোধ</div></div>
+    <div class="card"><div class="num">${r.totalDueToCompany}</div><div class="label">মোট কোম্পানীর বকেয়া</div></div>
+    <div class="card"><div class="num">${r.totalDealers}</div><div class="label">মোট ডিলার</div></div>
+    <div class="card"><div class="num">${r.totalOrders}</div><div class="label">মোট অর্ডার</div></div>
+    <div class="card"><div class="num">${r.totalDelivered}</div><div class="label">মোট ডেলিভারি</div></div>
+    <div class="card"><div class="num">${r.totalPending}</div><div class="label">বর্তমান পেন্ডিং</div></div>
+    <div class="card"><div class="num">${r.totalSalesAmount}</div><div class="label">মোট বিক্রি মূল্য</div></div>
+    <div class="card"><div class="num">${r.totalDueFromDealers}</div><div class="label">মোট বকেয়া (ডিলারদের কাছে)</div></div>`;
 }
 
 /* ================= এজেন্সি: ব্যবস্থাপনা ================= */
@@ -1050,6 +1107,7 @@ function renderRegisterForm(box){
         <div class="field"><label>NID/জন্মসনদ নং</label><input id="rNid"></div>
         <div class="field"><label>ট্রেড লাইসেন্স নং</label><input id="rTrade"></div>
         <div class="field" style="grid-column:1/-1;"><label>ঠিকানা</label><input id="rThikana"></div>
+        <div class="field"><label>Facebook Link (ঐচ্ছিক)</label><input id="rFacebook" type="url"></div>
         <div class="field">
           <label>ডিলারের ছবি</label>
           ${photoUploadBoxHtml('rDealerPhoto', 'rDealerPhotoPreview', 'rDealerPhotoPlaceholder', '')}
@@ -1131,7 +1189,8 @@ async function submitRegister(){
         "Gmail": document.getElementById("rGmail").value.trim(),
         "NID/জন্মসনদ": document.getElementById("rNid").value.trim(),
         "ট্রেড লাইসেন্স নং": document.getElementById("rTrade").value.trim(),
-        "ঠিকানা": document.getElementById("rThikana").value.trim()
+        "ঠিকানা": document.getElementById("rThikana").value.trim(),
+        "Facebook Link": document.getElementById("rFacebook").value.trim()
       },
       nomineeFields: {
         "নমিনির নাম": document.getElementById("rNomNaam").value.trim(),
@@ -1163,6 +1222,7 @@ async function submitRegister(){
     "nid": document.getElementById("rNid").value.trim(),
     "tradeLicense": document.getElementById("rTrade").value.trim(),
     "thikana": document.getElementById("rThikana").value.trim(),
+    "facebookLink": document.getElementById("rFacebook").value.trim(),
     "dealerPhotoBase64": dealerPhotoBase64,
     "adminUsername": document.getElementById("rAdminUser").value.trim(),
     "adminPassword": document.getElementById("rAdminPass").value,
@@ -1245,6 +1305,7 @@ async function editDealerRow(dealerId){
   document.getElementById("rNid").value = d["NID/জন্মসনদ"] || "";
   document.getElementById("rTrade").value = d["ট্রেড লাইসেন্স নং"] || "";
   document.getElementById("rThikana").value = d["ঠিকানা"] || "";
+  document.getElementById("rFacebook").value = d["Facebook Link"] || "";
   if(d["ডিলারের ছবি(URL)"]){
     document.getElementById("rDealerPhotoPreview").src = d["ডিলারের ছবি(URL)"];
     document.getElementById("rDealerPhotoPreview").style.display = "block";
@@ -1403,6 +1464,17 @@ async function renderAgencyInfoEdit(box){
         ${photoUploadBoxHtml('mAgencyLogo_file', 'mAgencyLogo_preview', 'mAgencyLogo_placeholder', a['লোগো(URL)'])}
       </div>
     </div>
+    <h3 style="margin:14px 0 6px;font-size:1rem;color:var(--teal-dark);">ব্যবস্থাপক তথ্য</h3>
+    <div class="form-grid">
+      <div class="field"><label>ব্যবস্থাপকের নাম</label><input id="mManagerName" value="${a['ব্যবস্থাপকের নাম']||''}"></div>
+      <div class="field"><label>পদবি</label><input id="mManagerTitle" value="${a['পদবি']||''}"></div>
+      <div class="field"><label>ব্যবস্থাপকের মোবাইল</label><input id="mManagerMobile" value="${a['ব্যবস্থাপকের মোবাইল']||''}"></div>
+    </div>
+    <h3 style="margin:14px 0 6px;font-size:1rem;color:var(--teal-dark);">সোশ্যাল লিংক (ফুটারে দেখাবে)</h3>
+    <div class="form-grid">
+      <div class="field"><label>Facebook Link</label><input id="mAgencyFacebook" value="${a['Facebook Link']||''}"></div>
+      <div class="field"><label>Youtube Link</label><input id="mAgencyYoutube" value="${a['Youtube Link']||''}"></div>
+    </div>
     <button class="btn" onclick="saveAgency()">সংরক্ষণ করুন</button>
     <div id="mAgencyMsg" class="msg"></div>`;
 }
@@ -1412,10 +1484,15 @@ async function saveAgency(){
   const data = {
     "নাম": document.getElementById("mAgencyNaam").value.trim(),
     "mobile": document.getElementById("mAgencyMobile").value.trim(),
+    "managerName": document.getElementById("mManagerName").value.trim(),
+    "managerTitle": document.getElementById("mManagerTitle").value.trim(),
+    "managerMobile": document.getElementById("mManagerMobile").value.trim(),
+    "facebookLink": document.getElementById("mAgencyFacebook").value.trim(),
+    "youtubeLink": document.getElementById("mAgencyYoutube").value.trim(),
     "logoBase64": logoBase64
   };
   const res = await apiCall("updateAgencyInfo", data);
-  if(res.success) clearCache();
+  if(res.success){ clearCache(); loadFooterInfo(); }
   const msgBox = document.getElementById("mAgencyMsg");
   msgBox.textContent = res.message;
   msgBox.className = "msg " + (res.success?"ok":"err");
@@ -1428,28 +1505,13 @@ function addPkgItemRow(prefill){
   const wrap = document.getElementById("pkgItems");
   const row = document.createElement("div");
   row.className = "item-row-v2";
-  const options = productsCache.map(p => `<option value="${p['পণ্যের নাম']}" data-bazar="${p['বাজার মূল্য']||0}" data-combo="${p['কম্বো মূল্য']||0}">${p['পণ্যের নাম']}</option>`).join("");
   row.innerHTML = `
-    <select class="itemProductSelect" onchange="onPkgProductChange(this)"><option value="">-- পণ্য সিলেক্ট করুন --</option>${options}</select>
-    <input placeholder="পরিমাণ (যেমন: ১ কেজি)" class="itemPoriman" value="${prefill?(prefill.poriman||''):''}">
+    <input placeholder="পণ্যের নাম ও পরিমাণ (যেমন: চিনি - ১ কেজি)" class="itemNaamPoriman" value="${prefill?(prefill.naamPoriman||''):''}">
     <input placeholder="বাজার মূল্য" type="number" min="0" class="itemBazar" oninput="updateItemSaving(this)" value="${prefill?(prefill.bazarMulyo||''):''}">
     <input placeholder="কম্বো মূল্য" type="number" min="0" class="itemCombo" oninput="updateItemSaving(this)" value="${prefill?(prefill.comboMulyo||''):''}">
     <input placeholder="সাশ্রয়" type="number" class="itemSashroy" readonly value="${prefill?((Number(prefill.bazarMulyo)||0)-(Number(prefill.comboMulyo)||0)):''}">
     <button type="button" class="btn secondary small" onclick="this.parentElement.remove()">✕</button>`;
   wrap.appendChild(row);
-  if(prefill && prefill.productName){
-    row.querySelector(".itemProductSelect").value = prefill.productName;
-  }
-}
-
-function onPkgProductChange(sel){
-  const row = sel.closest(".item-row-v2");
-  const opt = sel.options[sel.selectedIndex];
-  if(opt && opt.value){
-    row.querySelector(".itemBazar").value = opt.dataset.bazar || 0;
-    row.querySelector(".itemCombo").value = opt.dataset.combo || 0;
-    updateItemSaving(row.querySelector(".itemCombo"));
-  }
 }
 
 function updateItemSaving(el){
@@ -1460,15 +1522,11 @@ function updateItemSaving(el){
 }
 
 async function submitPackage(){
-  const items = [...document.querySelectorAll("#pkgItems .item-row-v2")].map(r => {
-    const productName = r.querySelector(".itemProductSelect").value.trim();
-    const poriman = r.querySelector(".itemPoriman").value.trim();
-    return {
-      "naamPoriman": poriman ? (productName + " - " + poriman) : productName,
-      "bazarMulyo": r.querySelector(".itemBazar").value,
-      "comboMulyo": r.querySelector(".itemCombo").value
-    };
-  }).filter(i => i["naamPoriman"]);
+  const items = [...document.querySelectorAll("#pkgItems .item-row-v2")].map(r => ({
+    "naamPoriman": r.querySelector(".itemNaamPoriman").value.trim(),
+    "bazarMulyo": r.querySelector(".itemBazar").value,
+    "comboMulyo": r.querySelector(".itemCombo").value
+  })).filter(i => i["naamPoriman"]);
 
   const msgBox = document.getElementById("pkgMsg");
   markSaving("pkgMsg");
@@ -1513,8 +1571,6 @@ function cancelPkgEdit(){
 }
 
 async function loadAgencyPackages(){
-  const pRes = await cachedApiCall("listProducts", {}, 30000);
-  productsCache = pRes.success ? pRes.products : [];
   const res = await cachedApiCall("listPackages", {}, 15000);
   const table = document.getElementById("agencyPackagesTable");
   if(!res.success){ table.innerHTML = res.message; return; }
@@ -1561,18 +1617,11 @@ function editAgencyPackage(packageId){
   document.getElementById("pkgDhoron").value = p["ধরন"] || "এক্টিভ";
 
   document.getElementById("pkgItems").innerHTML = "";
-  (p.items || []).forEach(it => {
-    const raw = it["পণ্যের নাম ও পরিমাণ"] || "";
-    const parts = raw.split(" - ");
-    const productName = parts[0] || "";
-    const poriman = parts.slice(1).join(" - ") || "";
-    addPkgItemRow({
-      productName: productName,
-      poriman: poriman,
-      bazarMulyo: it["বাজার মূল্য"],
-      comboMulyo: it["কম্বো মূল্য"]
-    });
-  });
+  (p.items || []).forEach(it => addPkgItemRow({
+    naamPoriman: it["পণ্যের নাম ও পরিমাণ"],
+    bazarMulyo: it["বাজার মূল্য"],
+    comboMulyo: it["কম্বো মূল্য"]
+  }));
 
   document.getElementById("sec-agencyPackages").scrollIntoView({ behavior:"smooth" });
 }
@@ -2208,8 +2257,9 @@ function updateSiTotalsPreview(){
   const paid = Number(document.getElementById("siPaid").value) || 0;
   const netPayable = totalPayable - discount;
   const due = netPayable - paid;
+  document.getElementById("siDueBox").value = due;
   document.getElementById("siTotalsPreview").textContent =
-    `সাবটোটাল: ${subtotal} | ডিসকাউন্ট: ${discount} | পরিশোধযোগ্য মূল্য: ${netPayable} | পরিশোধ: ${paid} | বকেয়া: ${due}`;
+    `সাবটোটাল: ${subtotal} | পরিশোধযোগ্য মূল্য (নীট): ${netPayable}`;
 }
 
 async function submitSalesInvoice(){
@@ -2435,8 +2485,25 @@ function printSalesInvoicesListOfficial(){
 
 /* ================= ডিপু: রিপোর্ট ================= */
 let reportMainTab = "depot";
+let depotReportCurrentTab = "daily";
 let agencyReportCurrentTab = "daily";
 let dealerReportSetupLoaded = false;
+let depotReportCache = null;
+let dealerReportCache = null;
+
+function reportPeriodControlsHtml(tab, onchangeFn){
+  const today = new Date();
+  if(tab === "daily"){
+    return `<div class="field"><label>তারিখ</label><input type="date" id="__DATE_ID__" value="${today.toISOString().slice(0,10)}" onchange="${onchangeFn}"></div>`;
+  } else if(tab === "monthly"){
+    return `
+      <div class="field"><label>বছর</label><input type="number" id="__YEAR_ID__" value="${today.getFullYear()}" onchange="${onchangeFn}"></div>
+      <div class="field"><label>মাস (১-১২)</label><input type="number" id="__MONTH_ID__" min="1" max="12" value="${today.getMonth()+1}" onchange="${onchangeFn}"></div>`;
+  } else if(tab === "yearly"){
+    return `<div class="field"><label>বছর</label><input type="number" id="__YEAR_ID__" value="${today.getFullYear()}" onchange="${onchangeFn}"></div>`;
+  }
+  return "";
+}
 
 function openReportsSection(){
   switchReportMainTab("depot", document.querySelector("#sec-agencyReports > .tabs.no-print > button"));
@@ -2449,36 +2516,99 @@ function switchReportMainTab(tab, btn){
   document.getElementById("reportDepotSection").style.display = tab === "depot" ? "" : "none";
   document.getElementById("reportDealerSection").style.display = tab === "dealer" ? "" : "none";
   if(tab === "depot"){
-    loadDepotReport();
+    switchDepotReportTab(depotReportCurrentTab, document.querySelector(`#reportDepotSection .inner-tabs button:nth-child(${["daily","monthly","yearly","total"].indexOf(depotReportCurrentTab)+1})`));
   } else if(!dealerReportSetupLoaded){
     dealerReportSetupLoaded = true;
     loadAgencyReportSetup();
   }
 }
 
+function switchDepotReportTab(tab, btn){
+  depotReportCurrentTab = tab;
+  document.querySelectorAll("#reportDepotSection .inner-tabs button").forEach(b => b.classList.remove("active"));
+  if(btn) btn.classList.add("active");
+  const controls = document.getElementById("depotReportControls");
+  controls.innerHTML = reportPeriodControlsHtml(tab, "loadDepotReport()")
+    .replace("__DATE_ID__", "drDate").replace("__YEAR_ID__", "drYear").replace("__MONTH_ID__", "drMonth");
+  loadDepotReport();
+}
+
 async function loadDepotReport(){
   const box = document.getElementById("depotReportResult");
   box.innerHTML = "<p>লোড হচ্ছে...</p>";
-  const res = await apiCall("depotReport", {});
+  const data = { mode: depotReportCurrentTab };
+  if(depotReportCurrentTab === "daily") data.date = document.getElementById("drDate").value;
+  else if(depotReportCurrentTab === "monthly"){ data.year = document.getElementById("drYear").value; data.month = document.getElementById("drMonth").value; }
+  else if(depotReportCurrentTab === "yearly"){ data.year = document.getElementById("drYear").value; }
+
+  const res = await apiCall("depotReport", data);
   if(!res.success){ box.innerHTML = res.message; return; }
-  const r = res.report;
-  box.innerHTML = `
-    <div class="cards">
-      <div class="card"><div class="num">${r.totalStockQty}</div><div class="label">মোট পণ্য স্টক (ক্রয় মূল্য: ${r.totalStockPurchaseValue})</div></div>
-      <div class="card"><div class="num">${r.totalProductsSoldQty}</div><div class="label">মোট পণ্য বিক্রি (বিক্রয় মূল্য: ${r.totalSalesValue})</div></div>
-      <div class="card"><div class="num">${r.currentStockQty}</div><div class="label">বর্তমান স্টক (ক্রয় মূল্য আনুমানিক: ${r.currentStockValue})</div></div>
-      <div class="card"><div class="num">${r.totalExpense}</div><div class="label">মোট খরচ</div></div>
-      <div class="card"><div class="num">${r.totalProfit}</div><div class="label">মোট লাভ</div></div>
-      <div class="card"><div class="num">${r.totalLoss}</div><div class="label">মোট লস</div></div>
-      <div class="card"><div class="num">${r.totalPaidToCompany}</div><div class="label">কোম্পানিকে পরিশোধ</div></div>
-      <div class="card"><div class="num">${r.totalDueToCompany}</div><div class="label">মোট কোম্পানীর বকেয়া</div></div>
-      <div class="card"><div class="num">${r.totalDealers}</div><div class="label">মোট ডিলার</div></div>
-      <div class="card"><div class="num">${r.totalOrders}</div><div class="label">মোট অর্ডার</div></div>
-      <div class="card"><div class="num">${r.totalDelivered}</div><div class="label">মোট ডেলিভারি</div></div>
-      <div class="card"><div class="num">${r.totalPending}</div><div class="label">বর্তমান পেন্ডিং</div></div>
-      <div class="card"><div class="num">${r.totalSalesAmount}</div><div class="label">মোট বিক্রি মূল্য</div></div>
-      <div class="card"><div class="num">${r.totalDueFromDealers}</div><div class="label">মোট বকেয়া (ডিলারদের কাছে)</div></div>
-    </div>`;
+  depotReportCache = res.report;
+  box.innerHTML = depotReportTableHtml(res.report);
+}
+
+function depotReportTableHtml(r){
+  const rowsData = [
+    ["মোট পণ্য স্টক (সংখ্যা)", r.totalStockQty],
+    ["মোট পণ্য স্টক ক্রয় মূল্য", r.totalStockPurchaseValue],
+    ["মোট পণ্য বিক্রি (সংখ্যা)", r.totalProductsSoldQty],
+    ["মোট পণ্য বিক্রি — বিক্রয় মূল্য", r.totalSalesValue],
+    ["বর্তমান স্টক (সংখ্যা)", r.currentStockQty],
+    ["বর্তমান স্টক — আনুমানিক ক্রয় মূল্য", r.currentStockValue],
+    ["মোট খরচ", r.totalExpense],
+    ["মোট লাভ", r.totalProfit],
+    ["মোট লস", r.totalLoss],
+    ["কোম্পানিকে পরিশোধ", r.totalPaidToCompany],
+    ["মোট কোম্পানীর বকেয়া", r.totalDueToCompany],
+    ["মোট ডিলার", r.totalDealers],
+    ["মোট অর্ডার", r.totalOrders],
+    ["মোট ডেলিভারি", r.totalDelivered],
+    ["বর্তমান পেন্ডিং", r.totalPending],
+    ["মোট বিক্রি মূল্য", r.totalSalesAmount],
+    ["মোট বকেয়া (ডিলারদের কাছে)", r.totalDueFromDealers]
+  ];
+  let html = `<div class="table-wrap"><table><thead><tr><th class="cell-left">বিবরণ</th><th>পরিমাণ</th></tr></thead><tbody>`;
+  rowsData.forEach(row => { html += `<tr><td class="cell-left">${row[0]}</td><td>${row[1]}</td></tr>`; });
+  html += `</tbody></table></div>`;
+  return html;
+}
+
+function periodSubtitle(tab, data){
+  if(tab === "daily") return "তারিখ: " + data.date;
+  if(tab === "monthly") return "মাস/বছর: " + data.month + "/" + data.year;
+  if(tab === "yearly") return "বছর: " + data.year;
+  return "সর্বমোট (শুরু থেকে আজ পর্যন্ত)";
+}
+
+function printDepotReportTable(){
+  if(!depotReportCache){ alert("প্রিন্ট করার জন্য কোনো ডাটা নেই"); return; }
+  const r = depotReportCache;
+  const data = { mode: depotReportCurrentTab };
+  if(depotReportCurrentTab === "daily") data.date = document.getElementById("drDate").value;
+  else if(depotReportCurrentTab === "monthly"){ data.year = document.getElementById("drYear").value; data.month = document.getElementById("drMonth").value; }
+  else if(depotReportCurrentTab === "yearly"){ data.year = document.getElementById("drYear").value; }
+
+  const headers = ["বিবরণ", "পরিমাণ"];
+  const rows = [
+    ["মোট পণ্য স্টক (সংখ্যা)", r.totalStockQty],
+    ["মোট পণ্য স্টক ক্রয় মূল্য", r.totalStockPurchaseValue],
+    ["মোট পণ্য বিক্রি (সংখ্যা)", r.totalProductsSoldQty],
+    ["মোট পণ্য বিক্রি — বিক্রয় মূল্য", r.totalSalesValue],
+    ["বর্তমান স্টক (সংখ্যা)", r.currentStockQty],
+    ["বর্তমান স্টক — আনুমানিক ক্রয় মূল্য", r.currentStockValue],
+    ["মোট খরচ", r.totalExpense],
+    ["মোট লাভ", r.totalProfit],
+    ["মোট লস", r.totalLoss],
+    ["কোম্পানিকে পরিশোধ", r.totalPaidToCompany],
+    ["মোট কোম্পানীর বকেয়া", r.totalDueToCompany],
+    ["মোট ডিলার", r.totalDealers],
+    ["মোট অর্ডার", r.totalOrders],
+    ["মোট ডেলিভারি", r.totalDelivered],
+    ["বর্তমান পেন্ডিং", r.totalPending],
+    ["মোট বিক্রি মূল্য", r.totalSalesAmount],
+    ["মোট বকেয়া (ডিলারদের কাছে)", r.totalDueFromDealers]
+  ];
+  printOfficialTable("ডিপু রিপোর্ট", periodSubtitle(depotReportCurrentTab, data), headers, rows, null, "@Powered by: AM Shahed: 01605721296", [0]);
 }
 
 async function loadAgencyReportSetup(){
@@ -2488,24 +2618,16 @@ async function loadAgencyReportSetup(){
     dealerListCache = res.dealers;
     sel.innerHTML = "<option value=''>-- সব ডিলার (মোট) --</option>" + res.dealers.map(d => `<option value="${d['DealerID']}">${d['নাম']}</option>`).join("");
   }
-  switchAgencyReportTab("daily", document.querySelector("#sec-agencyReports .inner-tabs button"));
+  switchAgencyReportTab("daily", document.querySelector("#reportDealerSection .inner-tabs button"));
 }
 
 function switchAgencyReportTab(tab, btn){
   agencyReportCurrentTab = tab;
-  document.querySelectorAll("#sec-agencyReports .inner-tabs button").forEach(b => b.classList.remove("active"));
+  document.querySelectorAll("#reportDealerSection .inner-tabs button").forEach(b => b.classList.remove("active"));
   if(btn) btn.classList.add("active");
   const controls = document.getElementById("agencyReportControls");
-  const today = new Date();
-  if(tab === "daily"){
-    controls.innerHTML = `<div class="field"><label>তারিখ</label><input type="date" id="arDate" value="${today.toISOString().slice(0,10)}" onchange="runAgencyReport()"></div>`;
-  } else if(tab === "monthly"){
-    controls.innerHTML = `
-      <div class="field"><label>বছর</label><input type="number" id="arYear" value="${today.getFullYear()}" onchange="runAgencyReport()"></div>
-      <div class="field"><label>মাস (১-১২)</label><input type="number" id="arMonth" min="1" max="12" value="${today.getMonth()+1}" onchange="runAgencyReport()"></div>`;
-  } else {
-    controls.innerHTML = "";
-  }
+  controls.innerHTML = reportPeriodControlsHtml(tab, "runAgencyReport()")
+    .replace("__DATE_ID__", "arDate").replace("__YEAR_ID__", "arYear").replace("__MONTH_ID__", "arMonth");
   runAgencyReport();
 }
 
@@ -2513,28 +2635,39 @@ async function runAgencyReport(){
   const data = { mode: agencyReportCurrentTab, dealerId: document.getElementById("arDealerSelect").value };
   if(agencyReportCurrentTab === "daily") data.date = document.getElementById("arDate").value;
   else if(agencyReportCurrentTab === "monthly"){ data.year = document.getElementById("arYear").value; data.month = document.getElementById("arMonth").value; }
+  else if(agencyReportCurrentTab === "yearly"){ data.year = document.getElementById("arYear").value; }
 
   const res = await apiCall("agencySalesReport", data);
   const box = document.getElementById("agencyReportResult");
   if(!res.success){ box.innerHTML = res.message; return; }
+  dealerReportCache = res.report;
 
   const r = res.report;
-  let html = `<div class="cards">
-      <div class="card"><div class="num">${r.totalOrders}</div><div class="label">অর্ডার</div></div>
-      <div class="card"><div class="num">${r.totalDelivered}</div><div class="label">ডেলিভারী</div></div>
-      <div class="card"><div class="num">${r.totalPending}</div><div class="label">পেন্ডিং</div></div>
-      <div class="card"><div class="num">${r.totalSale}</div><div class="label">মোট মূল্য</div></div>
-      <div class="card"><div class="num">${r.totalPaid}</div><div class="label">পরিশোধ</div></div>
-      <div class="card"><div class="num">${r.totalDue}</div><div class="label">বকেয়া</div></div>
-    </div>
-    <div class="table-wrap"><table><thead><tr><th class="cell-left">ডিলার</th><th>অর্ডার</th><th>ডেলিভারী</th><th>পেন্ডিং</th><th>মোট মূল্য</th><th>পরিশোধ</th><th>বকেয়া</th></tr></thead><tbody>`;
+  let html = `<div class="table-wrap"><table><thead><tr><th class="cell-left">ডিলার</th><th>অর্ডার</th><th>ডেলিভারী</th><th>পেন্ডিং</th><th>মোট মূল্য</th><th>পরিশোধ</th><th>বকেয়া</th></tr></thead><tbody>`;
   r.byDealer.forEach(d => {
     html += `<tr><td class="cell-left">${d.dealerName}</td><td>${d.totalOrders}</td><td>${d.totalDelivered}</td><td>${d.totalPending}</td><td>${d.totalSale}</td><td>${d.totalPaid}</td><td>${d.totalDue}</td></tr>`;
   });
   if(r.byDealer.length === 0) html += emptyRowHtml(7, "এই সময়ে কোনো বিক্রি নেই");
+  html += `<tr style="font-weight:700;"><td class="cell-left">সর্বমোট</td><td>${r.totalOrders}</td><td>${r.totalDelivered}</td><td>${r.totalPending}</td><td>${r.totalSale}</td><td>${r.totalPaid}</td><td>${r.totalDue}</td></tr>`;
   html += `</tbody></table></div>`;
   box.innerHTML = html;
 }
+
+function printDealerReportTable(){
+  if(!dealerReportCache){ alert("প্রিন্ট করার জন্য কোনো ডাটা নেই"); return; }
+  const r = dealerReportCache;
+  const data = { mode: agencyReportCurrentTab };
+  if(agencyReportCurrentTab === "daily") data.date = document.getElementById("arDate").value;
+  else if(agencyReportCurrentTab === "monthly"){ data.year = document.getElementById("arYear").value; data.month = document.getElementById("arMonth").value; }
+  else if(agencyReportCurrentTab === "yearly"){ data.year = document.getElementById("arYear").value; }
+
+  const headers = ["ডিলার", "অর্ডার", "ডেলিভারী", "পেন্ডিং", "মোট মূল্য", "পরিশোধ", "বকেয়া"];
+  const rows = r.byDealer.map(d => [d.dealerName, d.totalOrders, d.totalDelivered, d.totalPending, d.totalSale, d.totalPaid, d.totalDue]);
+  printOfficialTable("ডিলার রিপোর্ট", periodSubtitle(agencyReportCurrentTab, data), headers, rows,
+    [["সর্বমোট", r.totalOrders, r.totalDelivered, r.totalPending, r.totalSale, r.totalPaid, r.totalDue]],
+    "@Powered by: AM Shahed: 01605721296", [0]);
+}
+
 
 /* ================= এজেন্সি: গ্রাহক কার্ড ================= */
 let ccCustomersCache = [];
@@ -2815,14 +2948,18 @@ async function loadDashboard(){
 async function loadAboutView(){
   const box = document.getElementById("aboutView");
   box.innerHTML = "লোড হচ্ছে...";
-  const res = await cachedApiCall("getAbout", {}, 30000);
-  if(!res.success){ box.innerHTML = res.message; return; }
-  window.__aboutCache = res.about;
-  box.innerHTML = renderAboutBoxes(res.about) +
+  const [aboutRes, agencyRes] = await Promise.all([
+    cachedApiCall("getAbout", {}, 30000),
+    cachedApiCall("getAgencyInfo", {}, 30000)
+  ]);
+  if(!aboutRes.success){ box.innerHTML = aboutRes.message; return; }
+  window.__aboutCache = aboutRes.about;
+  window.__aboutManagerCache = agencyRes.success ? agencyRes.agency : {};
+  box.innerHTML = renderAboutBoxes(aboutRes.about, window.__aboutManagerCache) +
     `<div class="toolbar no-print" style="margin-top:14px;"><button class="btn secondary small" onclick="printAboutA4()">🖨 প্রিন্ট করুন (A4)</button></div>`;
 }
 
-function renderAboutBoxes(a){
+function renderAboutBoxes(a, manager){
   const items = [
     ["সংস্থার প্রতিষ্ঠাকাল", a["প্রতিষ্ঠাকাল"]],
     ["উদ্দেশ্য", a["উদ্দেশ্য"]],
@@ -2831,6 +2968,10 @@ function renderAboutBoxes(a){
     ["নিয়মাবলি", a["নিয়মাবলি"]],
     ["সংক্ষিপ্ত বিবরণ", a["সংক্ষিপ্ত বিবরণ"]]
   ];
+  if(manager && manager["ব্যবস্থাপকের নাম"]){
+    const managerText = `${manager["ব্যবস্থাপকের নাম"]}${manager["পদবি"]?" ("+manager["পদবি"]+")":""}${manager["ব্যবস্থাপকের মোবাইল"]?"\nমোবাইল: "+manager["ব্যবস্থাপকের মোবাইল"]:""}`;
+    items.push(["ব্যবস্থাপক তথ্য", managerText]);
+  }
   return `<div style="display:grid;gap:12px;">` + items.map(it => `
     <div class="pkg-detail-box">
       <div style="font-weight:700;color:var(--teal-dark);margin-bottom:4px;">${it[0]}</div>
@@ -2840,6 +2981,8 @@ function renderAboutBoxes(a){
 
 function printAboutA4(){
   const a = window.__aboutCache || {};
+  const m = window.__aboutManagerCache || {};
+  const managerBoxHtml = m["ব্যবস্থাপকের নাম"] ? `<div class="box"><div class="title">ব্যবস্থাপক তথ্য</div><div class="content">${m["ব্যবস্থাপকের নাম"]}${m["পদবি"]?" ("+m["পদবি"]+")":""}${m["ব্যবস্থাপকের মোবাইল"]?"\nমোবাইল: "+m["ব্যবস্থাপকের মোবাইল"]:""}</div></div>` : "";
   const win = window.open("", "_blank", "width=800,height=900");
   win.document.write(`<html><head><meta charset="utf-8"><title>সংস্থার তথ্য</title>
     <style>
@@ -2858,6 +3001,7 @@ function printAboutA4(){
     <div class="box"><div class="title">জেলা ডিপুর ঠিকানা</div><div class="content">${a["জেলা ডিপুর ঠিকানা"]||""}</div></div>
     <div class="box"><div class="title">নিয়মাবলি</div><div class="content">${a["নিয়মাবলি"]||""}</div></div>
     <div class="box"><div class="title">সংক্ষিপ্ত বিবরণ</div><div class="content">${a["সংক্ষিপ্ত বিবরণ"]||""}</div></div>
+    ${managerBoxHtml}
     <script>window.onload=function(){window.print();}<\/script>
     </body></html>`);
   win.document.close();
