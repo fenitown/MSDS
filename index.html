@@ -817,7 +817,7 @@ function printOfficialTable(title, subtitle, headers, rows, extraFooterRows, foo
 
   win.document.write(`<html><head><meta charset="utf-8"><title>${title}</title>
     <style>
-      @page{ size:A4; margin:15mm; }
+      @page{ size:A4; margin:0.5in; }
       html, body{ margin:0; padding:0; }
       body{ font-family:'Hind Siliguri',sans-serif; color:#1c2b28; }
       .letterhead{ text-align:center; border-bottom:3px solid #153f37; padding-bottom:10px; margin-bottom:14px; }
@@ -935,8 +935,11 @@ async function loadFooterInfo(){
   if(!footer) return;
 
   let managerHtml = "";
-  if(a["ব্যবস্থাপকের নাম"]){
-    managerHtml = `<div class="foot-manager">ব্যবস্থাপক: ${a["ব্যবস্থাপকের নাম"]}${a["পদবি"]?" ("+a["পদবি"]+")":""}${a["ব্যবস্থাপকের মোবাইল"]?" — "+a["ব্যবস্থাপকের মোবাইল"]:""}</div>`;
+  if(a.managers && a.managers.length > 0){
+    const parts = a.managers.filter(m => m.name).map(m =>
+      `${m.name}${m.title?" ("+m.title+")":""}${m.mobile?" — "+m.mobile:""}`
+    );
+    if(parts.length > 0) managerHtml = `<div class="foot-manager">ব্যবস্থাপক: ${parts.join(" | ")}</div>`;
   }
 
   const links = [];
@@ -1385,7 +1388,7 @@ function printOfficialDealerForm(d){
 
   win.document.write(`<html><head><meta charset="utf-8"><title>ডিলার নিয়োগ ফরম</title>
     <style>
-      @page{ size:A4; margin:16mm; }
+      @page{ size:A4; margin:0.5in; }
       html, body{ margin:0; padding:0; }
       body{ font-family:'Hind Siliguri',sans-serif; color:#1c2b28; }
       .letterhead{ text-align:center; border-bottom:3px solid #153f37; padding-bottom:10px; margin-bottom:16px; }
@@ -1464,12 +1467,9 @@ async function renderAgencyInfoEdit(box){
         ${photoUploadBoxHtml('mAgencyLogo_file', 'mAgencyLogo_preview', 'mAgencyLogo_placeholder', a['লোগো(URL)'])}
       </div>
     </div>
-    <h3 style="margin:14px 0 6px;font-size:1rem;color:var(--teal-dark);">ব্যবস্থাপক তথ্য</h3>
-    <div class="form-grid">
-      <div class="field"><label>ব্যবস্থাপকের নাম</label><input id="mManagerName" value="${a['ব্যবস্থাপকের নাম']||''}"></div>
-      <div class="field"><label>পদবি</label><input id="mManagerTitle" value="${a['পদবি']||''}"></div>
-      <div class="field"><label>ব্যবস্থাপকের মোবাইল</label><input id="mManagerMobile" value="${a['ব্যবস্থাপকের মোবাইল']||''}"></div>
-    </div>
+    <h3 style="margin:14px 0 6px;font-size:1rem;color:var(--teal-dark);">ব্যবস্থাপক তথ্য (একাধিক যোগ করা যাবে)</h3>
+    <div id="mManagerRows"></div>
+    <button type="button" class="btn secondary small" onclick="addManagerRow()">+ আরেকজন ব্যবস্থাপক যোগ করুন</button>
     <h3 style="margin:14px 0 6px;font-size:1rem;color:var(--teal-dark);">সোশ্যাল লিংক (ফুটারে দেখাবে)</h3>
     <div class="form-grid">
       <div class="field"><label>Facebook Link</label><input id="mAgencyFacebook" value="${a['Facebook Link']||''}"></div>
@@ -1477,16 +1477,35 @@ async function renderAgencyInfoEdit(box){
     </div>
     <button class="btn" onclick="saveAgency()">সংরক্ষণ করুন</button>
     <div id="mAgencyMsg" class="msg"></div>`;
+
+  const managers = (a.managers && a.managers.length > 0) ? a.managers : [{ name:"", title:"", mobile:"" }];
+  managers.forEach(m => addManagerRow(m));
+}
+
+function addManagerRow(prefill){
+  const wrap = document.getElementById("mManagerRows");
+  const row = document.createElement("div");
+  row.className = "item-row-v2";
+  row.innerHTML = `
+    <input placeholder="ব্যবস্থাপকের নাম" class="mgrName" value="${prefill?(prefill.name||''):''}">
+    <input placeholder="পদবি" class="mgrTitle" value="${prefill?(prefill.title||''):''}">
+    <input placeholder="মোবাইল নং" class="mgrMobile" value="${prefill?(prefill.mobile||''):''}">
+    <button type="button" class="btn secondary small" onclick="this.parentElement.remove()">✕</button>`;
+  wrap.appendChild(row);
 }
 
 async function saveAgency(){
   const logoBase64 = await fileToBase64Compressed(document.getElementById("mAgencyLogo_file"));
+  const managers = [...document.querySelectorAll("#mManagerRows .item-row-v2")].map(r => ({
+    name: r.querySelector(".mgrName").value.trim(),
+    title: r.querySelector(".mgrTitle").value.trim(),
+    mobile: r.querySelector(".mgrMobile").value.trim()
+  })).filter(m => m.name);
+
   const data = {
     "নাম": document.getElementById("mAgencyNaam").value.trim(),
     "mobile": document.getElementById("mAgencyMobile").value.trim(),
-    "managerName": document.getElementById("mManagerName").value.trim(),
-    "managerTitle": document.getElementById("mManagerTitle").value.trim(),
-    "managerMobile": document.getElementById("mManagerMobile").value.trim(),
+    "managers": managers,
     "facebookLink": document.getElementById("mAgencyFacebook").value.trim(),
     "youtubeLink": document.getElementById("mAgencyYoutube").value.trim(),
     "logoBase64": logoBase64
@@ -2415,7 +2434,7 @@ function printSalesInvoiceById(invoiceNo){
   const win = window.open("", "_blank", "width=900,height=700");
   win.document.write(`<html><head><meta charset="utf-8"><title>ডিলার অর্ডার ইনভয়েস — ${invoiceNo}</title>
     <style>
-      @page{ size:A4; margin:15mm; }
+      @page{ size:A4; margin:0.5in; }
       html, body{ margin:0; padding:0; }
       body{ font-family:'Hind Siliguri',sans-serif; color:#1c2b28; font-size:13px; }
       .doc-title{ text-align:center; font-size:16px; font-weight:700; margin:10px 0 0; }
@@ -2858,7 +2877,7 @@ function buildCardsDocument(agency, dealer, dealerId, customers, autoprint){
 
   return `<html><head><meta charset="utf-8"><title>গ্রাহক কার্ড</title>
     <style>
-      @page{ margin:6mm; }
+      @page{ margin:0.5in; }
       html, body{ margin:0; padding:0; }
       *{ box-sizing:border-box; }
       body{ font-family:'Hind Siliguri',sans-serif; background:#fff; }
@@ -2968,9 +2987,11 @@ function renderAboutBoxes(a, manager){
     ["নিয়মাবলি", a["নিয়মাবলি"]],
     ["সংক্ষিপ্ত বিবরণ", a["সংক্ষিপ্ত বিবরণ"]]
   ];
-  if(manager && manager["ব্যবস্থাপকের নাম"]){
-    const managerText = `${manager["ব্যবস্থাপকের নাম"]}${manager["পদবি"]?" ("+manager["পদবি"]+")":""}${manager["ব্যবস্থাপকের মোবাইল"]?"\nমোবাইল: "+manager["ব্যবস্থাপকের মোবাইল"]:""}`;
-    items.push(["ব্যবস্থাপক তথ্য", managerText]);
+  if(manager && manager.managers && manager.managers.length > 0){
+    const parts = manager.managers.filter(m => m.name).map(m =>
+      `${m.name}${m.title?" ("+m.title+")":""}${m.mobile?"\nমোবাইল: "+m.mobile:""}`
+    );
+    if(parts.length > 0) items.push(["ব্যবস্থাপক তথ্য", parts.join("\n\n")]);
   }
   return `<div style="display:grid;gap:12px;">` + items.map(it => `
     <div class="pkg-detail-box">
@@ -2982,11 +3003,14 @@ function renderAboutBoxes(a, manager){
 function printAboutA4(){
   const a = window.__aboutCache || {};
   const m = window.__aboutManagerCache || {};
-  const managerBoxHtml = m["ব্যবস্থাপকের নাম"] ? `<div class="box"><div class="title">ব্যবস্থাপক তথ্য</div><div class="content">${m["ব্যবস্থাপকের নাম"]}${m["পদবি"]?" ("+m["পদবি"]+")":""}${m["ব্যবস্থাপকের মোবাইল"]?"\nমোবাইল: "+m["ব্যবস্থাপকের মোবাইল"]:""}</div></div>` : "";
+  const managerParts = (m.managers || []).filter(x => x.name).map(x =>
+    `${x.name}${x.title?" ("+x.title+")":""}${x.mobile?"\nমোবাইল: "+x.mobile:""}`
+  );
+  const managerBoxHtml = managerParts.length > 0 ? `<div class="box"><div class="title">ব্যবস্থাপক তথ্য</div><div class="content">${managerParts.join("\n\n")}</div></div>` : "";
   const win = window.open("", "_blank", "width=800,height=900");
   win.document.write(`<html><head><meta charset="utf-8"><title>সংস্থার তথ্য</title>
     <style>
-      @page{ size:A4; margin:20mm; }
+      @page{ size:A4; margin:0.5in; }
       html, body{ margin:0; padding:0; }
       body{ font-family:'Hind Siliguri',sans-serif; color:#1c2b28; }
       h1{ text-align:center; color:#153f37; font-size:20px; margin-bottom:24px; }
@@ -3088,7 +3112,7 @@ function printPackagesOfficial(packages, subtitle){
 
   win.document.write(`<html><head><meta charset="utf-8"><title>প্যাকেজ তালিকা</title>
     <style>
-      @page{ size:A4; margin:15mm; }
+      @page{ size:A4; margin:0.5in; }
       html, body{ margin:0; padding:0; }
       body{ font-family:'Hind Siliguri',sans-serif; color:#1c2b28; }
       .letterhead{ text-align:center; border-bottom:3px solid #153f37; padding-bottom:10px; margin-bottom:14px; }
@@ -3538,7 +3562,7 @@ function printThermalReceipt(c, packageId){
   const win = window.open("", "_blank", "width=340,height=520");
   win.document.write(`<html><head><meta charset="utf-8"><title>রসিদ</title>
     <style>
-      @page{ size:80mm auto; margin:2mm; }
+      @page{ size:80mm auto; margin:0.5in; }
       html{ margin:0; padding:0; }
       body{ font-family:'Hind Siliguri',sans-serif; width:76mm; margin:0 auto; color:#000; font-size:12px; }
       h2{ text-align:center; font-size:14px; margin:4px 0 0; }
