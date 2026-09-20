@@ -130,6 +130,22 @@
     background:none; border:none; color:var(--teal-dark); font-size:1.5rem; cursor:pointer;
     padding:4px 8px;
   }
+  .notif-bell{
+    position:relative; background:none; border:none; font-size:1.3rem; cursor:pointer;
+    padding:4px 8px; margin-right:2px;
+  }
+  .notif-badge{
+    position:absolute; top:-2px; right:-2px; background:#c0392b; color:#fff;
+    font-size:0.68rem; font-weight:700; border-radius:999px; min-width:18px; height:18px;
+    display:flex; align-items:center; justify-content:center; padding:0 4px; line-height:1;
+  }
+  .pending-order-card{
+    border:1px solid var(--line); border-radius:10px; padding:12px; margin-bottom:10px; background:#fff;
+  }
+  .pending-order-card .por-head{ display:flex; justify-content:space-between; font-weight:700; margin-bottom:6px; }
+  .pending-order-card table{ width:100%; border-collapse:collapse; margin:6px 0; }
+  .pending-order-card th, .pending-order-card td{ border:1px solid var(--line); padding:4px 6px; font-size:0.85rem; text-align:center; }
+  .pending-order-card th.cell-left, .pending-order-card td.cell-left{ text-align:left; }
 
   nav#sideMenu{
     position:fixed; top:0; right:-280px; width:260px; height:100%;
@@ -328,11 +344,24 @@
         <div class="dealer" id="hdrTagline">সাশ্রয়ী মূল্যে পণ্য বিক্রি সংস্থা</div>
       </div>
     </div>
+    <button class="notif-bell no-print" id="notifBellBtn" onclick="openPendingOrdersModal()" style="display:none;">
+      🔔<span class="notif-badge" id="notifBadge" style="display:none;">0</span>
+    </button>
     <button class="hamburger" onclick="toggleMenu()">☰</button>
   </header>
 
   <div id="menuOverlay" onclick="toggleMenu()"></div>
   <nav id="sideMenu"><!-- role অনুযায়ী JS দিয়ে ভরা হবে --></nav>
+
+  <div class="modal-overlay" id="pendingOrdersModalOverlay">
+    <div class="modal-box" style="max-width:640px;">
+      <h3 style="margin-top:0;">অর্ডার কনফার্মেশন অপেক্ষমান</h3>
+      <div id="pendingOrdersList"><p>লোড হচ্ছে...</p></div>
+      <div class="btn-row" style="margin-top:14px;">
+        <button class="btn secondary" onclick="closePendingOrdersModal()">বন্ধ করুন</button>
+      </div>
+    </div>
+  </div>
 
   <main>
     <!-- ================= এজেন্সি সেকশনসমূহ ================= -->
@@ -459,19 +488,19 @@
       <div id="stockTabContent"></div>
     </section>
 
-    <!-- ================= বিক্রয় ইনভয়েস ================= -->
+    <!-- ================= অর্ডার ইনভয়েস (উভয় সাইটে শেয়ার্ড) ================= -->
     <section class="section" id="sec-salesInvoice">
-      <h2>বিক্রয় ইনভয়েস</h2>
+      <h2>অর্ডার ইনভয়েস</h2>
       <fieldset class="no-print">
-        <legend id="siFormLegend">নতুন বিক্রয় ইনভয়েস</legend>
+        <legend id="siFormLegend">নতুন অর্ডার ইনভয়েস</legend>
         <div class="form-grid">
           <div class="field"><label>তারিখ</label><input id="siDate" type="date"></div>
-          <div class="field">
+          <div class="field" id="siDealerSelectField">
             <label>ডিলার</label>
             <select id="siDealerSelect" onchange="onSiDealerChange()"><option value="">-- সিলেক্ট করুন --</option></select>
           </div>
-          <div class="field"><label>মোবাইল (অটো)</label><input id="siDealerMobile" readonly></div>
-          <div class="field"><label>ঠিকানা (অটো)</label><input id="siDealerThikana" readonly></div>
+          <div class="field" id="siDealerMobileField"><label>মোবাইল (অটো)</label><input id="siDealerMobile" readonly></div>
+          <div class="field" id="siDealerThikanaField"><label>ঠিকানা (অটো)</label><input id="siDealerThikana" readonly></div>
         </div>
         <div id="siItems"></div>
         <button class="btn secondary small" onclick="addSiItemRow()">+ আরেকটি প্যাকেজ যোগ করুন</button>
@@ -580,21 +609,6 @@
       </fieldset>
       <div class="toolbar no-print"><button class="btn secondary small" onclick="printCustomersListOfficial()">🖨 সব গ্রাহক প্রিন্ট করুন</button></div>
       <div class="table-wrap"><table id="customersTable"><thead></thead><tbody></tbody></table></div>
-    </section>
-
-    <section class="section" id="sec-orders">
-      <h2>অর্ডার</h2>
-      <fieldset class="no-print">
-        <legend id="ordFormLegend">নতুন অর্ডার ইনভয়েস (একাধিক প্যাকেজ যোগ করা যাবে)</legend>
-        <div id="ordItems"></div>
-        <button class="btn secondary small" onclick="addOrdItemRow()">+ আরেকটি প্যাকেজ যোগ করুন</button>
-        <div class="btn-row">
-          <button class="btn" id="ordSubmitBtn" onclick="submitOrder()">অর্ডার সংরক্ষণ করুন</button>
-        </div>
-        <div id="ordMsg" class="msg"></div>
-      </fieldset>
-      <div class="toolbar no-print"><button class="btn secondary small" onclick="printOrdersInvoice()">🖨 সব অর্ডার প্রিন্ট করুন</button></div>
-      <div class="table-wrap"><table id="ordersTable"><thead></thead><tbody></tbody></table></div>
     </section>
 
     <section class="section" id="sec-sales">
@@ -919,6 +933,7 @@ async function doLogin(){
   }
 
   loadFooterInfo();
+  checkPendingOrdersBadge();
 
   document.getElementById("loginScreen").style.display = "none";
   document.getElementById("appScreen").style.display = "block";
@@ -971,7 +986,7 @@ function buildSideMenu(){
       <button class="menu-item" onclick="showSection('management')">ব্যবস্থাপনা</button>
       <button class="menu-item" onclick="showSection('agencyPackages')">প্যাকেজ</button>
       <button class="menu-item" onclick="showSection('stock')">স্টক</button>
-      <button class="menu-item" onclick="showSection('salesInvoice')">বিক্রয় ইনভয়েস</button>
+      <button class="menu-item" onclick="showSection('salesInvoice')">অর্ডার ইনভয়েস</button>
       <button class="menu-item" onclick="showSection('commission')">কমিশন</button>
       <button class="menu-item" onclick="showSection('agencyExpense')">খরচ</button>
       <button class="menu-item" onclick="showSection('agencyReports')">রিপোর্ট</button>
@@ -983,7 +998,7 @@ function buildSideMenu(){
       <button class="menu-item" onclick="showSection('about')">আমাদের সম্পর্কে</button>
       <button class="menu-item" onclick="showSection('packages')">প্যাকেজ</button>
       <button class="menu-item" onclick="showSection('customers')">গ্রাহক</button>
-      <button class="menu-item" onclick="showSection('orders')">অর্ডার</button>
+      <button class="menu-item" onclick="showSection('salesInvoice')">অর্ডার ইনভয়েস</button>
       <button class="menu-item" onclick="showSection('sales')">বিক্রি</button>
       <button class="menu-item" onclick="showSection('expenseVoucher')">খরচ ভাউচার</button>
       <button class="menu-item" onclick="showSection('reports')">রিপোর্ট</button>
@@ -1017,7 +1032,6 @@ function showSection(name){
   if(name === "about") loadAboutView();
   if(name === "packages") loadDealerPackages();
   if(name === "customers") loadCustomers();
-  if(name === "orders") loadOrders();
   if(name === "sales") loadSalesSetup();
   if(name === "expenseVoucher") loadDealerExpenseVouchers();
   if(name === "reports") switchReportTab("daily", document.querySelector("#sec-reports .tabs button"));
@@ -2191,16 +2205,23 @@ function printStockVouchersListOfficial(){
   printOfficialTable("স্টক ইন ভাউচার তালিকা", "মোট এন্ট্রি: " + list.length, headers, rows, null, "@Powered by: AM Shahed: 01605721296", [2]);
 }
 
-/* ================= এজেন্সি: বিক্রয় ইনভয়েস ================= */
+/* ================= অর্ডার ইনভয়েস (ডিপু ও ডিলার উভয়ে শেয়ার্ড) ================= */
 let siDealersCache = [];
 let salesInvoicesCache = [];
 
 async function loadSalesInvoiceSetup(){
-  const dealersRes = await cachedApiCall("listDealers", {}, 20000);
-  siDealersCache = dealersRes.success ? dealersRes.dealers : [];
-  dealerListCache = siDealersCache;
-  const sel = document.getElementById("siDealerSelect");
-  sel.innerHTML = "<option value=''>-- সিলেক্ট করুন --</option>" + siDealersCache.map(d => `<option value="${d['DealerID']}">${d['নাম']}</option>`).join("");
+  const isAgency = state.dealerId === "AGENCY";
+  document.getElementById("siDealerSelectField").style.display = isAgency ? "" : "none";
+  document.getElementById("siDealerMobileField").style.display = isAgency ? "" : "none";
+  document.getElementById("siDealerThikanaField").style.display = isAgency ? "" : "none";
+
+  if(isAgency){
+    const dealersRes = await cachedApiCall("listDealers", {}, 20000);
+    siDealersCache = dealersRes.success ? dealersRes.dealers : [];
+    dealerListCache = siDealersCache;
+    const sel = document.getElementById("siDealerSelect");
+    sel.innerHTML = "<option value=''>-- সিলেক্ট করুন --</option>" + siDealersCache.map(d => `<option value="${d['DealerID']}">${d['নাম']}</option>`).join("");
+  }
 
   if(productsCache.length === 0){
     const pRes = await cachedApiCall("listProducts", {}, 20000);
@@ -2282,9 +2303,10 @@ function updateSiTotalsPreview(){
 }
 
 async function submitSalesInvoice(){
-  const dealerId = document.getElementById("siDealerSelect").value;
+  const isAgency = state.dealerId === "AGENCY";
+  const dealerId = isAgency ? document.getElementById("siDealerSelect").value : state.dealerId;
   const msgBox = document.getElementById("siMsg");
-  if(!dealerId){ msgBox.textContent = "ডিলার সিলেক্ট করুন"; msgBox.className = "msg err"; return; }
+  if(isAgency && !dealerId){ msgBox.textContent = "ডিলার সিলেক্ট করুন"; msgBox.className = "msg err"; return; }
 
   const rows = [...document.querySelectorAll("#siItems .item-row-v2")];
   const items = rows.map(r => ({
@@ -2313,23 +2335,28 @@ async function submitSalesInvoice(){
     res = await apiCall("addSalesInvoice", payload);
   }
 
-  msgBox.textContent = res.message + (res.success ? " (ইনভয়েস নং: " + (res.invoiceNo||window.__siEditingInvoiceNo) + ", বকেয়া: " + res.due + ")" : "");
+  const isNewDealerOrder = !window.__siEditingInvoiceNo && state.dealerId !== "AGENCY";
+  msgBox.textContent = res.message + (res.success ? (isNewDealerOrder ? " — ডিপুর কনফার্মেশনের অপেক্ষায় আছে (ইনভয়েস নং: " + res.invoiceNo + ")" : " (ইনভয়েস নং: " + (res.invoiceNo||window.__siEditingInvoiceNo) + ", বকেয়া: " + res.due + ")") : "");
   msgBox.className = "msg " + (res.success?"ok":"err");
   if(res.success){
     clearCache();
     cancelSiEdit();
     loadSalesInvoices();
+    checkPendingOrdersBadge();
   }
 }
 
 function cancelSiEdit(){
+  const isAgency = state.dealerId === "AGENCY";
   window.__siEditingInvoiceNo = null;
-  document.getElementById("siFormLegend").textContent = "নতুন বিক্রয় ইনভয়েস";
+  document.getElementById("siFormLegend").textContent = "নতুন অর্ডার ইনভয়েস";
   document.getElementById("siSubmitBtn").textContent = "সংরক্ষণ করুন";
   document.getElementById("siCancelBtn").style.display = "none";
-  document.getElementById("siDealerSelect").value = "";
-  document.getElementById("siDealerMobile").value = "";
-  document.getElementById("siDealerThikana").value = "";
+  if(isAgency){
+    document.getElementById("siDealerSelect").value = "";
+    document.getElementById("siDealerMobile").value = "";
+    document.getElementById("siDealerThikana").value = "";
+  }
   document.getElementById("siDate").value = new Date().toISOString().slice(0,10);
   document.getElementById("siItems").innerHTML = "";
   addSiItemRow();
@@ -2351,10 +2378,11 @@ function renderSalesInvoiceTable(){
   const q = (document.getElementById("siSearchBox")?.value || "").trim().toLowerCase();
   let list = salesInvoicesCache;
   if(q) list = list.filter(e => (e["ডিলার নাম"]||"").toLowerCase().includes(q) || (e["ইনভয়েস নং"]||"").toLowerCase().includes(q));
+  const isAgency = state.dealerId === "AGENCY";
 
   table.innerHTML = "<thead><tr><th>ইনভয়েস নং</th><th>তারিখ</th><th class='cell-left'>ডিলার</th><th class='cell-left'>প্যাকেজ</th><th>একক মূল্য</th><th>সংখ্যা</th><th>মোট মূল্য</th><th>কমিশন %</th><th>কমিশন মূল্য</th><th>পরিশোধযোগ্য মূল্য</th><th>বকেয়া</th><th>স্ট্যাটাস</th><th class='no-print'>একশন</th></tr></thead><tbody></tbody>";
   const tbody = table.querySelector("tbody");
-  if(list.length === 0){ tbody.innerHTML = emptyRowHtml(13, "এখনো কোনো বিক্রয় ইনভয়েস নেই"); return; }
+  if(list.length === 0){ tbody.innerHTML = emptyRowHtml(13, "এখনো কোনো অর্ডার ইনভয়েস নেই"); return; }
   list.forEach(e => {
     const dt = e["তারিখ"] ? new Date(e["তারিখ"]).toLocaleDateString("bn-BD") : "";
     const status = e["স্ট্যাটাস"] || "পেন্ডিং";
@@ -2363,7 +2391,7 @@ function renderSalesInvoiceTable(){
       <td class="no-print">
         <button class="btn small secondary" onclick="editSalesInvoiceByNo('${e['ইনভয়েস নং']}')">এডিট</button>
         <button class="btn small secondary" onclick="printSalesInvoiceById('${e['ইনভয়েস নং']}')">প্রিন্ট</button>
-        ${status !== "ডেলিভারি সম্পন্ন" ? `<button class="btn small secondary" onclick="markSiDelivered('${e['ইনভয়েস নং']}')">ডেলিভারি সম্পন্ন</button>` : ""}
+        ${isAgency && status !== "ডেলিভারি সম্পন্ন" ? `<button class="btn small secondary" onclick="markSiDelivered('${e['ইনভয়েস নং']}')">ডেলিভারি সম্পন্ন</button>` : ""}
         <button class="btn small danger" onclick="deleteSalesInvoiceByNo('${e['ইনভয়েস নং']}')">ডিলিট</button>
       </td>`;
     tbody.appendChild(tr);
@@ -2371,6 +2399,7 @@ function renderSalesInvoiceTable(){
 }
 
 function editSalesInvoiceByNo(invoiceNo){
+  const isAgency = state.dealerId === "AGENCY";
   const lines = salesInvoicesCache.filter(x => x["ইনভয়েস নং"] === invoiceNo);
   if(lines.length === 0) return;
   const first = lines[0];
@@ -2380,8 +2409,10 @@ function editSalesInvoiceByNo(invoiceNo){
   document.getElementById("siSubmitBtn").textContent = "আপডেট করুন";
   document.getElementById("siCancelBtn").style.display = "inline-block";
 
-  document.getElementById("siDealerSelect").value = first["DealerID"] || "";
-  onSiDealerChange();
+  if(isAgency){
+    document.getElementById("siDealerSelect").value = first["DealerID"] || "";
+    onSiDealerChange();
+  }
   document.getElementById("siDate").value = first["তারিখ"] ? new Date(first["তারিখ"]).toISOString().slice(0,10) : "";
   document.getElementById("siDiscount").value = first["ডিসকাউন্ট"] || 0;
   document.getElementById("siPaid").value = first["পরিশোধ"] || 0;
@@ -2410,7 +2441,95 @@ async function markSiDelivered(invoiceNo){
 async function deleteSalesInvoiceByNo(invoiceNo){
   if(!confirm("এই পুরো ইনভয়েস (সব লাইনসহ) ডিলিট করবেন?")) return;
   const res = await apiCall("deleteSalesInvoice", { invoiceNo });
-  if(res.success){ clearCache(); loadSalesInvoices(); } else alert(res.message);
+  if(res.success){ clearCache(); loadSalesInvoices(); checkPendingOrdersBadge(); } else alert(res.message);
+}
+
+/* ================= অর্ডার কনফার্মেশন নোটিফিকেশন ================= */
+async function checkPendingOrdersBadge(){
+  const res = await apiCall("listPendingOrderConfirmations", {});
+  const bell = document.getElementById("notifBellBtn");
+  const badge = document.getElementById("notifBadge");
+  if(!res.success){ bell.style.display = "none"; return; }
+
+  const seen = {};
+  (res.entries||[]).forEach(e => { seen[e["ইনভয়েস নং"]] = true; });
+  const count = Object.keys(seen).length;
+
+  window.__pendingOrdersCache = res.entries || [];
+
+  if(count > 0){
+    bell.style.display = "inline-block";
+    badge.style.display = "flex";
+    badge.textContent = count;
+  } else {
+    bell.style.display = state.dealerId === "AGENCY" ? "inline-block" : "none";
+    badge.style.display = "none";
+  }
+}
+
+function openPendingOrdersModal(){
+  document.getElementById("pendingOrdersModalOverlay").style.display = "flex";
+  renderPendingOrdersModalList();
+}
+
+function closePendingOrdersModal(){
+  document.getElementById("pendingOrdersModalOverlay").style.display = "none";
+}
+
+function renderPendingOrdersModalList(){
+  const isAgency = state.dealerId === "AGENCY";
+  const box = document.getElementById("pendingOrdersList");
+  const entries = window.__pendingOrdersCache || [];
+  const seenInv = {};
+  const invoices = [];
+  entries.forEach(e => {
+    const inv = e["ইনভয়েস নং"];
+    if(!seenInv[inv]){ seenInv[inv] = true; invoices.push(inv); }
+  });
+
+  if(invoices.length === 0){
+    box.innerHTML = "<p>কনফার্মেশনের অপেক্ষায় কোনো অর্ডার নেই।</p>";
+    return;
+  }
+
+  box.innerHTML = invoices.map(inv => {
+    const lines = entries.filter(e => e["ইনভয়েস নং"] === inv);
+    const first = lines[0];
+    const dt = first["তারিখ"] ? new Date(first["তারিখ"]).toLocaleDateString("bn-BD") : "";
+    const rowsHtml = lines.map(l => `<tr><td class="cell-left">${l["প্যাকেজ"]||""}</td><td>${l["একক মূল্য"]||0}</td><td>${l["সংখ্যা"]||0}</td><td>${l["মোট মূল্য"]||0}</td></tr>`).join("");
+    return `
+      <div class="pending-order-card">
+        <div class="por-head"><span>ইনভয়েস নং: ${inv}</span><span>তারিখ: ${dt}</span></div>
+        ${isAgency ? `<div style="margin-bottom:6px;">ডিলার: ${first["ডিলার নাম"]||""}</div>` : ""}
+        <table><thead><tr><th class="cell-left">প্যাকেজ</th><th>একক মূল্য</th><th>সংখ্যা</th><th>মোট মূল্য</th></tr></thead><tbody>${rowsHtml}</tbody></table>
+        ${isAgency ? `
+          <div class="btn-row">
+            <button class="btn small" onclick="confirmPendingOrder('${inv}')">কনফার্ম করুন</button>
+            <button class="btn small danger" onclick="rejectPendingOrder('${inv}')">বাতিল করুন</button>
+          </div>` : `<div style="color:var(--muted);font-size:0.85rem;">ডিপুর কনফার্মেশনের অপেক্ষায়</div>`}
+      </div>`;
+  }).join("");
+}
+
+async function confirmPendingOrder(invoiceNo){
+  if(!confirm("এই অর্ডারটি কনফার্ম করবেন? কনফার্ম করলে এটি অর্ডার লিস্টে যুক্ত হবে।")) return;
+  const res = await apiCall("confirmPendingOrder", { invoiceNo });
+  if(res.success){
+    clearCache();
+    await checkPendingOrdersBadge();
+    renderPendingOrdersModalList();
+    loadSalesInvoices();
+  } else alert(res.message);
+}
+
+async function rejectPendingOrder(invoiceNo){
+  if(!confirm("এই অর্ডারটি বাতিল করবেন? বাতিল করলে এটি আর অর্ডার লিস্টে যুক্ত হবে না।")) return;
+  const res = await apiCall("rejectPendingOrder", { invoiceNo });
+  if(res.success){
+    clearCache();
+    await checkPendingOrdersBadge();
+    renderPendingOrdersModalList();
+  } else alert(res.message);
 }
 
 function printSalesInvoiceById(invoiceNo){
@@ -2432,7 +2551,7 @@ function printSalesInvoiceById(invoiceNo){
     </tr>`).join("");
 
   const win = window.open("", "_blank", "width=900,height=700");
-  win.document.write(`<html><head><meta charset="utf-8"><title>ডিলার অর্ডার ইনভয়েস — ${invoiceNo}</title>
+  win.document.write(`<html><head><meta charset="utf-8"><title>অর্ডার ইনভয়েস — ${invoiceNo}</title>
     <style>
       @page{ size:A4; margin:0.5in; }
       html, body{ margin:0; padding:0; }
@@ -2461,7 +2580,7 @@ function printSalesInvoiceById(invoiceNo){
     <div class="letterhead">
       <h1>মানবিক সহায়তা ডেইলি শপ</h1>
       <p>সাশ্রয়ী মূল্যে পণ্য বিক্রি সংস্থা</p>
-      <div class="doc-title">ডিলার অর্ডার ইনভয়েস</div>
+      <div class="doc-title">অর্ডার ইনভয়েস</div>
     </div>
     <div class="meta-row"><span>ইনভয়েস নং: <b>${invoiceNo}</b></span><span>তারিখ: <b>${dateStr}</b></span></div>
     <div class="dealer-info">
@@ -2499,7 +2618,7 @@ function printSalesInvoicesListOfficial(){
   if(list.length === 0){ alert("প্রিন্ট করার জন্য কোনো ডাটা নেই"); return; }
   const headers = ["ইনভয়েস নং", "তারিখ", "ডিলার", "প্যাকেজ", "একক মূল্য", "সংখ্যা", "মোট মূল্য", "কমিশন %", "কমিশন মূল্য", "পরিশোধযোগ্য মূল্য", "বকেয়া"];
   const rows = list.map(e => [e["ইনভয়েস নং"], e["তারিখ"] ? new Date(e["তারিখ"]).toLocaleDateString("bn-BD") : "", e["ডিলার নাম"], e["প্যাকেজ"], e["একক মূল্য"], e["সংখ্যা"], e["মোট মূল্য"], e["কমিশন %"]||0, e["কমিশন মূল্য"]||0, e["পরিশোধযোগ্য মূল্য"]||0, e["বকেয়া"]]);
-  printOfficialTable("বিক্রয় ইনভয়েস তালিকা", "মোট এন্ট্রি: " + list.length, headers, rows, null, "@Powered by: AM Shahed: 01605721296");
+  printOfficialTable("অর্ডার ইনভয়েস তালিকা", "মোট এন্ট্রি: " + list.length, headers, rows, null, "@Powered by: AM Shahed: 01605721296");
 }
 
 /* ================= ডিপু: রিপোর্ট ================= */
@@ -3283,179 +3402,6 @@ async function deleteCustomerRow(id){
   const res = await apiCall("deleteCustomer", { customerId:id });
   if(res.success){ clearCache(); loadCustomers(); } else alert(res.message);
 }
-
-/* ================= ডিলার: অর্ডার ================= */
-let editingOrderId = null;
-
-async function loadOrders(){
-  const res = await cachedApiCall("getOrdersPageData", {}, 15000);
-  const table = document.getElementById("ordersTable");
-  if(!res.success){ table.innerHTML = res.message; return; }
-
-  window.__ordersCache = res.orders;
-  window.__orderPackagesCache = res.packages;
-
-  if(document.getElementById("ordItems").children.length === 0) addOrdItemRow();
-
-  const pkgMap = {};
-  res.packages.forEach(p => pkgMap[p["PackageID"]] = p["নাম"]);
-
-  table.innerHTML = "<thead><tr><th>ইনভয়েস নং</th><th>তারিখ</th><th class='cell-left'>প্যাকেজ</th><th>সংখ্যা</th><th>একক মূল্য</th><th>মোট মূল্য</th><th>কমিশন %</th><th>মোট কমিশন</th><th>সর্বমোট মূল্য</th><th class='no-print'>একশন</th></tr></thead><tbody></tbody>";
-  const tbody = table.querySelector("tbody");
-  if(res.orders.length === 0){ tbody.innerHTML = emptyRowHtml(10, "এখনো কোনো অর্ডার যোগ করা হয়নি"); return; }
-  res.orders.forEach(o => {
-    const dt = o["তারিখ"] ? new Date(o["তারিখ"]).toLocaleDateString("bn-BD") : "";
-    const tr = document.createElement("tr");
-    tr.innerHTML = `<td>${o["ইনভয়েস নং"]||o["OrderID"]}</td><td>${dt}</td><td class="cell-left">${pkgMap[o["PackageID"]]||""}</td><td>${o["সংখ্যা"]}</td><td>${o["একক মূল্য"]}</td><td>${o["মোট মূল্য"]}</td><td>${o["কমিশন %"]||0}</td><td>${o["মোট কমিশন"]||0}</td><td>${o["সর্বমোট মূল্য"]!==undefined&&o["সর্বমোট মূল্য"]!==""?o["সর্বমোট মূল্য"]:o["মোট মূল্য"]}</td>
-      <td class="no-print">
-        <button class="btn small secondary" onclick="editOrderRow('${o['OrderID']}')">এডিট</button>
-        <button class="btn small secondary" onclick="printOrderInvoiceById('${o['OrderID']}')">প্রিন্ট</button>
-        <button class="btn small danger" onclick="deleteOrderRow('${o['OrderID']}')">ডিলিট</button>
-      </td>`;
-    tbody.appendChild(tr);
-  });
-}
-
-/*******************************************************
- * অর্ডার ফরমে একাধিক প্যাকেজ যোগ করার সারি
- *******************************************************/
-function addOrdItemRow(){
-  const wrap = document.getElementById("ordItems");
-  const packages = window.__orderPackagesCache || [];
-  const row = document.createElement("div");
-  row.className = "item-row-v2";
-  row.innerHTML = `
-    <select class="ordItemPackage">${packages.map(p => `<option value="${p['PackageID']}">${p['নাম']}</option>`).join("")}</select>
-    <input placeholder="সংখ্যা" type="number" min="1" class="ordItemQty">
-    <input placeholder="একক মূল্য" type="number" min="0" class="ordItemPrice">
-    <input placeholder="কমিশন %" type="number" min="0" max="100" class="ordItemCommission">
-    <button type="button" class="btn secondary small" onclick="this.parentElement.remove()">✕</button>`;
-  wrap.appendChild(row);
-}
-
-/*******************************************************
- * একটি ইনভয়েসের (একই ইনভয়েস নং শেয়ার করা সব লাইন) অফিসিয়াল প্রিন্ট
- *******************************************************/
-function printOrderInvoiceById(orderId){
-  const order = (window.__ordersCache||[]).find(o => o["OrderID"] === orderId);
-  if(!order) return;
-  const invoiceNo = order["ইনভয়েস নং"] || order["OrderID"];
-  const lines = (window.__ordersCache||[]).filter(o => (o["ইনভয়েস নং"]||o["OrderID"]) === invoiceNo);
-
-  const pkgMap = {};
-  (window.__orderPackagesCache||[]).forEach(p => pkgMap[p["PackageID"]] = p["নাম"]);
-
-  const headers = ["ক্রম", "প্যাকেজ", "সংখ্যা", "একক মূল্য", "মোট মূল্য", "কমিশন %", "মোট কমিশন", "সর্বমোট মূল্য"];
-  const rows = lines.map((o, i) => [
-    i+1, pkgMap[o["PackageID"]]||"", o["সংখ্যা"]||0, o["একক মূল্য"]||0, o["মোট মূল্য"]||0,
-    o["কমিশন %"]||0, o["মোট কমিশন"]||0, (o["সর্বমোট মূল্য"]!==undefined&&o["সর্বমোট মূল্য"]!==""?o["সর্বমোট মূল্য"]:o["মোট মূল্য"])||0
-  ]);
-  let grandTotal = 0, grandCommission = 0, grandNet = 0;
-  lines.forEach(o => {
-    grandTotal += Number(o["মোট মূল্য"]) || 0;
-    grandCommission += Number(o["মোট কমিশন"]) || 0;
-    grandNet += Number(o["সর্বমোট মূল্য"]!==undefined&&o["সর্বমোট মূল্য"]!==""?o["সর্বমোট মূল্য"]:o["মোট মূল্য"]) || 0;
-  });
-
-  printOfficialTable(
-    "অর্ডার ইনভয়েস — " + invoiceNo,
-    "ডিলার: " + (state.dealerName||"") + " — তারিখ: " + (lines[0]["তারিখ"] ? new Date(lines[0]["তারিখ"]).toLocaleDateString("bn-BD") : ""),
-    headers, rows,
-    [["", "", "", "", "সর্বমোট", grandTotal, grandCommission, grandNet]],
-    "@Powered by: AM Shahed: 01605721296"
-  );
-}
-
-/*******************************************************
- * অর্ডার ইনভয়েস — সব অর্ডার একসাথে অফিসিয়াল ফরম্যাটে প্রিন্ট
- *******************************************************/
-function printOrdersInvoice(){
-  const orders = window.__ordersCache || [];
-  if(orders.length === 0){ alert("প্রিন্ট করার জন্য কোনো অর্ডার নেই"); return; }
-
-  const pkgMap = {};
-  (window.__orderPackagesCache||[]).forEach(p => pkgMap[p["PackageID"]] = p["নাম"]);
-
-  const headers = ["ক্রম", "ইনভয়েস নং", "তারিখ", "প্যাকেজ", "সংখ্যা", "একক মূল্য", "মোট মূল্য", "কমিশন %", "মোট কমিশন", "সর্বমোট মূল্য"];
-  const rows = orders.map((o, i) => [
-    i+1, o["ইনভয়েস নং"]||o["OrderID"],
-    o["তারিখ"] ? new Date(o["তারিখ"]).toLocaleDateString("bn-BD") : "",
-    pkgMap[o["PackageID"]] || "",
-    o["সংখ্যা"]||0, o["একক মূল্য"]||0, o["মোট মূল্য"]||0,
-    o["কমিশন %"]||0, o["মোট কমিশন"]||0, (o["সর্বমোট মূল্য"]!==undefined&&o["সর্বমোট মূল্য"]!==""?o["সর্বমোট মূল্য"]:o["মোট মূল্য"])||0
-  ]);
-
-  let grandTotal = 0, grandCommission = 0, grandNet = 0;
-  orders.forEach(o => {
-    grandTotal += Number(o["মোট মূল্য"]) || 0;
-    grandCommission += Number(o["মোট কমিশন"]) || 0;
-    grandNet += Number(o["সর্বমোট মূল্য"]!==undefined&&o["সর্বমোট মূল্য"]!==""?o["সর্বমোট মূল্য"]:o["মোট মূল্য"]) || 0;
-  });
-
-  printOfficialTable(
-    "অর্ডার তালিকা",
-    "ডিলার: " + (state.dealerName||"") + " — তারিখ: " + new Date().toLocaleDateString("bn-BD"),
-    headers, rows,
-    [["", "", "", "", "", "সর্বমোট", grandTotal, grandCommission, grandNet]],
-    "@Powered by: AM Shahed: 01605721296"
-  );
-}
-
-/*******************************************************
- * একটি অর্ডার লাইন এডিট (সংখ্যা/একক মূল্য) — ছোট পপ-আপ ফরম
- *******************************************************/
-function editOrderRow(orderId){
-  const o = (window.__ordersCache||[]).find(x => x["OrderID"] === orderId);
-  if(!o) return;
-  openEditModal("অর্ডার এডিট — " + o["OrderID"], [
-    { key:"সংখ্যা", label:"সংখ্যা", value:o["সংখ্যা"] },
-    { key:"একক মূল্য", label:"একক মূল্য", value:o["একক মূল্য"] },
-    { key:"কমিশন %", label:"কমিশন %", value:o["কমিশন %"] }
-  ], async (values) => {
-    const qty = Number(values["সংখ্যা"]) || 0;
-    const unitPrice = Number(values["একক মূল্য"]) || 0;
-    const commissionPercent = Number(values["কমিশন %"]) || 0;
-    const total = qty * unitPrice;
-    const totalCommission = total * commissionPercent / 100;
-    values["মোট মূল্য"] = total;
-    values["মোট কমিশন"] = totalCommission;
-    values["সর্বমোট মূল্য"] = total - totalCommission;
-    const res = await apiCall("updateOrder", { orderId: orderId, fields: values });
-    if(res.success){ clearCache(); loadOrders(); }
-    return res;
-  });
-}
-
-async function submitOrder(){
-  const rows = [...document.querySelectorAll("#ordItems .item-row-v2")];
-  const items = rows.map(r => ({
-    packageId: r.querySelector(".ordItemPackage").value,
-    quantity: r.querySelector(".ordItemQty").value,
-    unitPrice: r.querySelector(".ordItemPrice").value,
-    commissionPercent: r.querySelector(".ordItemCommission").value
-  })).filter(i => i.packageId && i.quantity);
-
-  const msgBox = document.getElementById("ordMsg");
-  if(items.length === 0){ msgBox.textContent = "অন্তত একটি প্যাকেজ ও সংখ্যা দিন"; msgBox.className = "msg err"; return; }
-
-  markSaving("ordMsg");
-  const res = await apiCall("addOrder", { items });
-  msgBox.textContent = res.message + (res.success ? " (ইনভয়েস নং: " + res.invoiceNo + ", সর্বমোট: " + res.netTotal + ")" : "");
-  msgBox.className = "msg " + (res.success?"ok":"err");
-  if(res.success){
-    clearCache();
-    document.getElementById("ordItems").innerHTML = "";
-    addOrdItemRow();
-    loadOrders();
-  }
-}
-
-async function deleteOrderRow(id){
-  if(!confirm("এই অর্ডার লাইন ডিলিট করবেন?")) return;
-  const res = await apiCall("deleteOrder", { orderId:id });
-  if(res.success){ clearCache(); loadOrders(); } else alert(res.message);
-}
-
 
 /* ================= ডিলার: বিক্রি ================= */
 let allPackagesCache = [];

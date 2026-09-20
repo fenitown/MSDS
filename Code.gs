@@ -117,10 +117,9 @@ const DEALER_SHEETS_DEF = {
   "Sales": [
     "SaleID", "CustomerID", "PackageID", "তারিখ", "মূল্য", "স্ট্যাটাস"
   ],
-  "Orders": [
-    "OrderID", "ইনভয়েস নং", "তারিখ", "PackageID", "সংখ্যা", "একক মূল্য",
-    "মোট মূল্য", "কমিশন %", "মোট কমিশন", "সর্বমোট মূল্য"
-  ],
+  // Orders (deprecated) — dealer-side "order" tracking has been replaced
+  // by the shared master-level SalesInvoice system (same as ডিপু's
+  // "অর্ডার ইনভয়েস"), usable by both agency and dealers.
   // খরচ ভাউচার — প্রতিটি ডিলারের নিজস্ব খরচের হিসাব
   "ExpenseVoucher": [
     "VoucherID", "তারিখ", "বিবরণ", "পরিমাণ"
@@ -472,23 +471,6 @@ function doPost(e) {
         result = getSalesPageData(data);
         break;
 
-      // ---- অর্ডার ----
-      case "addOrder":
-        result = addOrder(data);
-        break;
-      case "listOrders":
-        result = listOrders(data);
-        break;
-      case "getOrdersPageData":
-        result = getOrdersPageData(data);
-        break;
-      case "updateOrder":
-        result = updateOrder(data);
-        break;
-      case "deleteOrder":
-        result = deleteOrder(data);
-        break;
-
       // ---- ড্যাশবোর্ড ----
       case "dashboardSummary":
         result = getDashboardSummary(data);
@@ -615,6 +597,15 @@ function doPost(e) {
         break;
       case "deleteSalesInvoice":
         result = deleteSalesInvoice(data);
+        break;
+      case "listPendingOrderConfirmations":
+        result = listPendingOrderConfirmations(data);
+        break;
+      case "confirmPendingOrder":
+        result = confirmPendingOrder(data);
+        break;
+      case "rejectPendingOrder":
+        result = rejectPendingOrder(data);
         break;
 
       // ---- এজেন্সি রিপোর্ট ----

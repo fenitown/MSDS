@@ -223,67 +223,102 @@ function getDealerContactInfo(dealersSheet, dealerId) {
   return { mobile: "", thikana: "" };
 }
 
+/*******************************************************
+ * অনুরোধকারী ডিপু (এজেন্সি) নাকি নির্দিষ্ট ডিলার তা যাচাই —
+ * এজেন্সি হলে null (সব ডিলারের ডাটা দেখতে/এডিট করতে পারবে),
+ * ডিলার হলে তার নিজের DealerID ফেরত দেয় (শুধু নিজের ডাটার সীমা)
+ *******************************************************/
+function resolveRequesterDealerScope(perm) {
+  return perm.payload.dealerId === AGENCY_ID ? null : perm.payload.dealerId;
+}
+
 function addSalesInvoice(data) {
-  const perm = checkAgencyPermission(data.token);
+  const perm = checkPermission(data.token, ["Admin", "প্রতিনিধি"]);
   if (!perm.ok) return { success: false, message: perm.message };
+  const scopeDealerId = resolveRequesterDealerScope(perm);
+
+  let targetDealerId;
+  if (scopeDealerId === null) {
+    // ডিপু থেকে সাবমিট — ফরম থেকে ডিলার সিলেক্ট করা আবশ্যক
+    targetDealerId = data.dealerId;
+    if (!targetDealerId) return { success: false, message: "ডিলার সিলেক্ট করুন" };
+  } else {
+    // ডিলার থেকে সাবমিট — সবসময় নিজের একাউন্টের জন্যই তৈরি হবে
+    targetDealerId = scopeDealerId;
+  }
 
   const masterSS = getMasterSS();
   const sheet = getSheet(masterSS, "SalesInvoice");
   const dealersSheet = getSheet(masterSS, "Dealers");
-  const dealerInfo = getDealerRow(dealersSheet, data.dealerId);
+  const dealerInfo = getDealerRow(dealersSheet, targetDealerId);
   if (!dealerInfo) return { success: false, message: "ডিলার পাওয়া যায়নি" };
 
-  const contact = getDealerContactInfo(dealersSheet, data.dealerId);
+  const contact = getDealerContactInfo(dealersSheet, targetDealerId);
   const invoiceNo = "SI" + Utilities.formatString("%06d", Math.floor(Math.random() * 900000) + 100000);
   const now = data.date ? new Date(data.date) : new Date();
 
+  const initialStatus = scopeDealerId === null ? "পেন্ডিং" : "অপেক্ষমান";
   const built = buildSalesInvoiceRows(
-    invoiceNo, { dealerId: data.dealerId, name: dealerInfo.name }, contact.mobile, contact.thikana,
-    now, data.items || [], Number(data.discount) || 0, Number(data.paid) || 0, "পেন্ডিং"
+    invoiceNo, { dealerId: targetDealerId, name: dealerInfo.name }, contact.mobile, contact.thikana,
+    now, data.items || [], Number(data.discount) || 0, Number(data.paid) || 0, initialStatus
   );
 
   batchAppendRows(sheet, built.rows, "SIE", "EntryID");
 
   return {
     success: true, invoiceNo: invoiceNo, subtotal: built.subtotal, netPayable: built.netPayable, due: built.due,
-    message: "বিক্রয় ইনভয়েস যোগ হয়েছে"
+    status: initialStatus,
+    message: scopeDealerId === null ? "অর্ডার ইনভয়েস যোগ হয়েছে" : "অর্ডার পাঠানো হয়েছে, ডিপুর কনফার্মেশনের অপেক্ষায় আছে"
   };
 }
 
 /*******************************************************
  * বিদ্যমান ইনভয়েস সম্পূর্ণ এডিট — পুরনো সব লাইন ডিলিট করে
- * নতুন করে একই ইনভয়েস নং দিয়ে আবার তৈরি করা হয়
+ * নতুন করে একই ইনভয়েস নং দিয়ে আবার তৈরি করা হয়। ডিপু যেকোনো
+ * ইনভয়েস এডিট করতে পারবে, ডিলার শুধু নিজের ইনভয়েস এডিট করতে পারবে
  *******************************************************/
 function updateSalesInvoiceFull(data) {
-  const perm = checkAgencyPermission(data.token);
+  const perm = checkPermission(data.token, ["Admin", "প্রতিনিধি"]);
   if (!perm.ok) return { success: false, message: perm.message };
+  const scopeDealerId = resolveRequesterDealerScope(perm);
 
   const masterSS = getMasterSS();
   const sheet = getSheet(masterSS, "SalesInvoice");
   const dealersSheet = getSheet(masterSS, "Dealers");
-  const dealerInfo = getDealerRow(dealersSheet, data.dealerId);
-  if (!dealerInfo) return { success: false, message: "ডিলার পাওয়া যায়নি" };
 
-  // পুরনো স্ট্যাটাস সংরক্ষণ (এডিটে স্ট্যাটাস পরিবর্তন হয় না)
+  // পুরনো স্ট্যাটাস ও মালিকানা (DealerID) যাচাই
   const values = sheet.getDataRange().getValues();
   const headers = values[0];
   const idxInv = headers.indexOf("ইনভয়েস নং");
   const idxStatus = headers.indexOf("স্ট্যাটাস");
+  const idxDealerId = headers.indexOf("DealerID");
   let oldStatus = "পেন্ডিং";
+  let existingDealerId = null;
   for (let i = 1; i < values.length; i++) {
-    if (values[i][idxInv] === data.invoiceNo) { oldStatus = values[i][idxStatus] || "পেন্ডিং"; break; }
+    if (values[i][idxInv] === data.invoiceNo) {
+      oldStatus = values[i][idxStatus] || "পেন্ডিং";
+      existingDealerId = values[i][idxDealerId];
+      break;
+    }
   }
+  if (existingDealerId === null) return { success: false, message: "ইনভয়েস পাওয়া যায়নি" };
+  if (scopeDealerId !== null && existingDealerId !== scopeDealerId) {
+    return { success: false, message: "এই ইনভয়েস এডিট করার অনুমতি আপনার নেই" };
+  }
+  const targetDealerId = scopeDealerId === null ? (data.dealerId || existingDealerId) : scopeDealerId;
 
   // পুরনো লাইন সব ডিলিট
   for (let i = values.length - 1; i >= 1; i--) {
     if (values[i][idxInv] === data.invoiceNo) sheet.deleteRow(i + 1);
   }
 
-  const contact = getDealerContactInfo(dealersSheet, data.dealerId);
+  const dealerInfo = getDealerRow(dealersSheet, targetDealerId);
+  if (!dealerInfo) return { success: false, message: "ডিলার পাওয়া যায়নি" };
+  const contact = getDealerContactInfo(dealersSheet, targetDealerId);
   const now = data.date ? new Date(data.date) : new Date();
 
   const built = buildSalesInvoiceRows(
-    data.invoiceNo, { dealerId: data.dealerId, name: dealerInfo.name }, contact.mobile, contact.thikana,
+    data.invoiceNo, { dealerId: targetDealerId, name: dealerInfo.name }, contact.mobile, contact.thikana,
     now, data.items || [], Number(data.discount) || 0, Number(data.paid) || 0, oldStatus
   );
 
@@ -296,7 +331,7 @@ function updateSalesInvoiceFull(data) {
 }
 
 /*******************************************************
- * ইনভয়েসের ডেলিভারি স্ট্যাটাস আপডেট (সব লাইনে একসাথে)
+ * ইনভয়েসের ডেলিভারি স্ট্যাটাস আপডেট (সব লাইনে একসাথে) — শুধু ডিপু
  *******************************************************/
 function updateSalesInvoiceStatus(data) {
   const perm = checkAgencyPermission(data.token);
@@ -319,13 +354,22 @@ function updateSalesInvoiceStatus(data) {
   return { success: found, message: found ? "স্ট্যাটাস আপডেট হয়েছে" : "ইনভয়েস পাওয়া যায়নি" };
 }
 
+/*******************************************************
+ * ইনভয়েস লিস্ট — ডিপু সব ডিলারের ইনভয়েস দেখবে, ডিলার শুধু
+ * নিজের ইনভয়েসগুলো দেখবে (এজেন্সি বা যেকোনো ডিলার থেকে তৈরি হোক না কেন)
+ *******************************************************/
 function listSalesInvoices(data) {
-  const perm = checkAgencyPermission(data.token);
+  const perm = checkPermission(data.token, ["Admin", "প্রতিনিধি"]);
   if (!perm.ok) return { success: false, message: perm.message };
+  const scopeDealerId = resolveRequesterDealerScope(perm);
 
   const masterSS = getMasterSS();
   const sheet = getSheet(masterSS, "SalesInvoice");
-  return { success: true, entries: genericListRows(sheet) };
+  let rows = genericListRows(sheet).filter(function (r) { return r["স্ট্যাটাস"] !== "অপেক্ষমান"; });
+  if (scopeDealerId !== null) {
+    rows = rows.filter(function (r) { return r["DealerID"] === scopeDealerId; });
+  }
+  return { success: true, entries: rows };
 }
 
 function updateSalesInvoiceEntry(data) {
@@ -338,7 +382,61 @@ function updateSalesInvoiceEntry(data) {
   return { success: ok, message: ok ? "আপডেট হয়েছে" : "এন্ট্রি পাওয়া যায়নি" };
 }
 
+/*******************************************************
+ * ইনভয়েস ডিলিট — ডিপু যেকোনো ইনভয়েস ডিলিট করতে পারবে,
+ * ডিলার শুধু নিজের ইনভয়েস ডিলিট করতে পারবে
+ *******************************************************/
 function deleteSalesInvoice(data) {
+  const perm = checkPermission(data.token, ["Admin", "প্রতিনিধি"]);
+  if (!perm.ok) return { success: false, message: perm.message };
+  const scopeDealerId = resolveRequesterDealerScope(perm);
+
+  const masterSS = getMasterSS();
+  const sheet = getSheet(masterSS, "SalesInvoice");
+  const values = sheet.getDataRange().getValues();
+  const headers = values[0];
+  const idx = headers.indexOf("ইনভয়েস নং");
+  const idxDealerId = headers.indexOf("DealerID");
+
+  // মালিকানা যাচাই (ডিলার হলে শুধু নিজের ইনভয়েস)
+  if (scopeDealerId !== null) {
+    for (let i = 1; i < values.length; i++) {
+      if (values[i][idx] === data.invoiceNo && values[i][idxDealerId] !== scopeDealerId) {
+        return { success: false, message: "এই ইনভয়েস ডিলিট করার অনুমতি আপনার নেই" };
+      }
+    }
+  }
+
+  let found = false;
+  for (let i = values.length - 1; i >= 1; i--) {
+    if (values[i][idx] === data.invoiceNo) {
+      sheet.deleteRow(i + 1);
+      found = true;
+    }
+  }
+  return { success: found, message: found ? "ইনভয়েস ডিলিট হয়েছে" : "ইনভয়েস পাওয়া যায়নি" };
+}
+
+/*=========================================================
+ *  অর্ডার কনফার্মেশন নোটিফিকেশন — ডিলার থেকে সরাসরি সাবমিট করা
+ *  অর্ডার প্রথমে "অপেক্ষমান" থাকে, ডিপু কনফার্ম করলে তবেই সেটি
+ *  স্বাভাবিক অর্ডার লিস্টে (উভয় সাইটে) দেখা যায়
+ *=======================================================*/
+function listPendingOrderConfirmations(data) {
+  const perm = checkPermission(data.token, ["Admin", "প্রতিনিধি"]);
+  if (!perm.ok) return { success: false, message: perm.message };
+  const scopeDealerId = resolveRequesterDealerScope(perm);
+
+  const masterSS = getMasterSS();
+  const sheet = getSheet(masterSS, "SalesInvoice");
+  let rows = genericListRows(sheet).filter(function (r) { return r["স্ট্যাটাস"] === "অপেক্ষমান"; });
+  if (scopeDealerId !== null) {
+    rows = rows.filter(function (r) { return r["DealerID"] === scopeDealerId; });
+  }
+  return { success: true, entries: rows };
+}
+
+function confirmPendingOrder(data) {
   const perm = checkAgencyPermission(data.token);
   if (!perm.ok) return { success: false, message: perm.message };
 
@@ -346,14 +444,38 @@ function deleteSalesInvoice(data) {
   const sheet = getSheet(masterSS, "SalesInvoice");
   const values = sheet.getDataRange().getValues();
   const headers = values[0];
-  const idx = headers.indexOf("ইনভয়েস নং");
+  const idxInv = headers.indexOf("ইনভয়েস নং");
+  const idxStatus = headers.indexOf("স্ট্যাটাস");
 
-  for (let i = values.length - 1; i >= 1; i--) {
-    if (values[i][idx] === data.invoiceNo) {
-      sheet.deleteRow(i + 1);
+  let found = false;
+  for (let i = 1; i < values.length; i++) {
+    if (values[i][idxInv] === data.invoiceNo && values[i][idxStatus] === "অপেক্ষমান") {
+      sheet.getRange(i + 1, idxStatus + 1).setValue("পেন্ডিং");
+      found = true;
     }
   }
-  return { success: true, message: "ইনভয়েস ডিলিট হয়েছে" };
+  return { success: found, message: found ? "অর্ডার কনফার্ম হয়েছে" : "অপেক্ষমান অর্ডার পাওয়া যায়নি" };
+}
+
+function rejectPendingOrder(data) {
+  const perm = checkAgencyPermission(data.token);
+  if (!perm.ok) return { success: false, message: perm.message };
+
+  const masterSS = getMasterSS();
+  const sheet = getSheet(masterSS, "SalesInvoice");
+  const values = sheet.getDataRange().getValues();
+  const headers = values[0];
+  const idxInv = headers.indexOf("ইনভয়েস নং");
+  const idxStatus = headers.indexOf("স্ট্যাটাস");
+
+  let found = false;
+  for (let i = values.length - 1; i >= 1; i--) {
+    if (values[i][idxInv] === data.invoiceNo && values[i][idxStatus] === "অপেক্ষমান") {
+      sheet.deleteRow(i + 1);
+      found = true;
+    }
+  }
+  return { success: found, message: found ? "অর্ডার বাতিল হয়েছে" : "অপেক্ষমান অর্ডার পাওয়া যায়নি" };
 }
 
 /*=========================================================

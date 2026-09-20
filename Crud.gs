@@ -421,101 +421,6 @@ function getSalesPageData(data) {
 }
 
 /*=========================================================
- *  অর্ডার (Orders) — শুধু Admin
- *=======================================================*/
-/*******************************************************
- * একটি অর্ডার এন্ট্রি (ইনভয়েস) — একাধিক প্যাকেজ একই ইনভয়েসে থাকতে
- * পারে। data.items = [{ packageId, quantity, unitPrice }, ...]
- * সবগুলো একই "ইনভয়েস নং" শেয়ার করবে (একবারে ব্যাচ-রাইট, দ্রুত)
- *******************************************************/
-function addOrder(data) {
-  const perm = checkPermission(data.token, ["Admin"]);
-  if (!perm.ok) return { success: false, message: perm.message };
-
-  const ss = getDealerSpreadsheet(perm.payload.dealerId);
-  const sheet = getSheet(ss, "Orders");
-  const invoiceNo = "INV" + Utilities.formatString("%06d", Math.floor(Math.random() * 900000) + 100000);
-  const now = new Date();
-
-  const items = data.items || [];
-  let grandTotal = 0;
-  let grandCommission = 0;
-  let grandNetTotal = 0;
-  const rows = items.map(function (item) {
-    const total = (Number(item.quantity) || 0) * (Number(item.unitPrice) || 0);
-    const commissionPercent = Number(item.commissionPercent) || 0;
-    const totalCommission = total * commissionPercent / 100;
-    const netTotal = total - totalCommission;
-    grandTotal += total;
-    grandCommission += totalCommission;
-    grandNetTotal += netTotal;
-    return {
-      "ইনভয়েস নং": invoiceNo,
-      "তারিখ": now,
-      "PackageID": item.packageId,
-      "সংখ্যা": item.quantity,
-      "একক মূল্য": item.unitPrice,
-      "মোট মূল্য": total,
-      "কমিশন %": commissionPercent,
-      "মোট কমিশন": totalCommission,
-      "সর্বমোট মূল্য": netTotal
-    };
-  });
-
-  const orderIds = batchAppendRows(sheet, rows, "O", "OrderID");
-
-  return {
-    success: true, invoiceNo: invoiceNo, orderIds: orderIds,
-    total: grandTotal, totalCommission: grandCommission, netTotal: grandNetTotal,
-    message: "অর্ডার ইনভয়েস যোগ হয়েছে"
-  };
-}
-
-function listOrders(data) {
-  const perm = checkPermission(data.token, ["Admin"]);
-  if (!perm.ok) return { success: false, message: perm.message };
-  const ss = getDealerSpreadsheet(perm.payload.dealerId);
-  const sheet = getSheet(ss, "Orders");
-  return { success: true, orders: genericListRows(sheet) };
-}
-
-/*******************************************************
- * পারফরম্যান্স: অর্ডার পেজের জন্য প্যাকেজ+অর্ডার একবারে
- *******************************************************/
-function getOrdersPageData(data) {
-  const perm = checkPermission(data.token, ["Admin"]);
-  if (!perm.ok) return { success: false, message: perm.message };
-
-  const ss = getDealerSpreadsheet(perm.payload.dealerId);
-  const pkgResult = listPackages(data);
-  const orders = genericListRows(getSheet(ss, "Orders"));
-
-  return {
-    success: true,
-    packages: pkgResult.success ? pkgResult.packages : [],
-    orders: orders
-  };
-}
-
-function updateOrder(data) {
-  const perm = checkPermission(data.token, ["Admin"]);
-  if (!perm.ok) return { success: false, message: perm.message };
-  const ss = getDealerSpreadsheet(perm.payload.dealerId);
-  const sheet = getSheet(ss, "Orders");
-  const ok = genericUpdateRow(sheet, "OrderID", data.orderId, data.fields);
-  return { success: ok, message: ok ? "আপডেট হয়েছে" : "অর্ডার পাওয়া যায়নি" };
-}
-
-function deleteOrder(data) {
-  const perm = checkPermission(data.token, ["Admin"]);
-  if (!perm.ok) return { success: false, message: perm.message };
-  const ss = getDealerSpreadsheet(perm.payload.dealerId);
-  const sheet = getSheet(ss, "Orders");
-  const ok = genericDeleteRow(sheet, "OrderID", data.orderId);
-  return { success: ok, message: ok ? "ডিলিট হয়েছে" : "অর্ডার পাওয়া যায়নি" };
-}
-
-/*=========================================================
  *  ড্যাশবোর্ড সামারি — Admin + প্রতিনিধি
  *=======================================================*/
 function getDashboardSummary(data) {
@@ -526,8 +431,15 @@ function getDashboardSummary(data) {
   const masterSS = getMasterSS();
   const packages = genericListRows(getSheet(masterSS, "Packages"));
   const customers = genericListRows(getSheet(ss, "Customers"));
-  const orders = genericListRows(getSheet(ss, "Orders"));
   const sales = genericListRows(getSheet(ss, "Sales")).filter(function (s) { return s["স্ট্যাটাস"] === "বিক্রিত"; });
+
+  // অর্ডার ইনভয়েস এখন শেয়ার্ড মাস্টার SalesInvoice শীটে থাকে (ইনভয়েস নং
+  // অনুযায়ী ডিডুপ করে গোনা হচ্ছে, নিজের DealerID এর সীমার মধ্যে)
+  const invoiceLines = genericListRows(getSheet(masterSS, "SalesInvoice"))
+    .filter(function (e) { return e["DealerID"] === perm.payload.dealerId; });
+  const seenInvoiceNos = {};
+  invoiceLines.forEach(function (e) { seenInvoiceNos[e["ইনভয়েস নং"]] = true; });
+  const totalOrders = Object.keys(seenInvoiceNos).length;
 
   const runningPackages = packages.filter(function (p) { return p["ধরন"] === "এক্টিভ"; });
 
@@ -537,7 +449,7 @@ function getDashboardSummary(data) {
       totalPackages: packages.length,
       runningPackages: runningPackages.length,
       totalCustomers: customers.length,
-      totalOrders: orders.length,
+      totalOrders: totalOrders,
       totalSales: sales.length
     }
   };
