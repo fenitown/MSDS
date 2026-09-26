@@ -353,6 +353,37 @@
   <div id="menuOverlay" onclick="toggleMenu()"></div>
   <nav id="sideMenu"><!-- role অনুযায়ী JS দিয়ে ভরা হবে --></nav>
 
+  <div class="modal-overlay" id="messageModalOverlay">
+    <div class="modal-box" style="max-width:480px;">
+      <h3 id="msgModalTitle">মেসেজ পাঠান</h3>
+      <div class="field">
+        <label>মোবাইল নং (যে নাম্বার থেকে SMS যাবে)</label>
+        <input id="msgFromMobile" maxlength="11" placeholder="যেমন: 01XXXXXXXXX">
+      </div>
+      <div class="field" id="msgTypeField" style="display:none;">
+        <label>ধরন</label>
+        <select id="msgType" onchange="onMsgTypeChange()">
+          <option value="all">সকল গ্রাহক</option>
+          <option value="location">প্রাপ্তির স্থান তালিকা</option>
+        </select>
+      </div>
+      <div class="field" id="msgLocationField" style="display:none;">
+        <label>প্রাপ্তির স্থান সিলেক্ট করুন</label>
+        <div id="msgLocationChecks" style="max-height:140px;overflow-y:auto;border:1px solid #d8d2c2;border-radius:8px;padding:8px;"></div>
+      </div>
+      <div class="field">
+        <label>মেসেজ</label>
+        <textarea id="msgText" rows="4" style="width:100%;resize:vertical;"></textarea>
+      </div>
+      <p id="msgChannelNote" style="font-size:0.78rem;color:var(--muted);">মেসেজটি SMS ও (সেটআপ থাকলে) WhatsApp — যাদের নাম্বারে চালু আছে তাদের কাছে একসাথে যাবে।</p>
+      <div id="msgResult" class="msg"></div>
+      <div class="modal-actions">
+        <button class="btn secondary" onclick="closeMessageModal()">বাতিল</button>
+        <button class="btn" id="msgSendBtn" onclick="sendBulkMessage()">Send</button>
+      </div>
+    </div>
+  </div>
+
   <div class="modal-overlay" id="pendingOrdersModalOverlay">
     <div class="modal-box" style="max-width:640px;">
       <h3 style="margin-top:0;">অর্ডার কনফার্মেশন অপেক্ষমান</h3>
@@ -373,12 +404,20 @@
     <section class="section" id="sec-management">
       <h2>ব্যবস্থাপনা</h2>
       <div class="tabs no-print">
-        <button class="active" onclick="switchMgmtTab('register', this)">ডিলার রেজিস্ট্রেশন</button>
-        <button onclick="switchMgmtTab('dealerList', this)">ডিলার লিস্ট</button>
-        <button onclick="switchMgmtTab('agencyInfo', this)">ডিপু সেটাপ</button>
+        <button class="active" onclick="switchMgmtTab('agencyInfo', this)">ডিপু সেটাপ</button>
         <button onclick="switchMgmtTab('aboutInfo', this)">সংস্থার তথ্য</button>
       </div>
       <div id="mgmtContent"></div>
+    </section>
+
+    <!-- ================= এজেন্সি: ডিলার (রেজিস্ট্রেশন + লিস্ট) ================= -->
+    <section class="section" id="sec-dealerMgmt">
+      <h2>ডিলার</h2>
+      <div class="tabs no-print">
+        <button class="active" onclick="switchDealerMgmtTab('register', this)">ডিলার রেজিস্ট্রেশন</button>
+        <button onclick="switchDealerMgmtTab('dealerList', this)">ডিলার লিস্ট</button>
+      </div>
+      <div id="dealerMgmtContent"></div>
     </section>
 
     <section class="section" id="sec-agencyPackages">
@@ -491,6 +530,10 @@
     <!-- ================= অর্ডার ইনভয়েস (উভয় সাইটে শেয়ার্ড) ================= -->
     <section class="section" id="sec-salesInvoice">
       <h2>অর্ডার ইনভয়েস</h2>
+      <div class="toolbar no-print">
+        <button class="btn" id="siFormToggleBtn" onclick="toggleSiForm()">+ অর্ডার ইনভয়েস ফরম</button>
+      </div>
+      <div id="siFormWrap" style="display:none;">
       <fieldset class="no-print">
         <legend id="siFormLegend">নতুন অর্ডার ইনভয়েস</legend>
         <div class="form-grid">
@@ -516,6 +559,7 @@
         </div>
         <div id="siMsg" class="msg"></div>
       </fieldset>
+      </div>
       <div class="toolbar no-print">
         <input type="text" id="siSearchBox" placeholder="🔍 সার্চ করুন (ডিলার/ইনভয়েস নং)" oninput="renderSalesInvoiceTable()" style="flex:1;min-width:160px;">
         <button class="btn secondary small" onclick="printSalesInvoicesListOfficial()">🖨 প্রিন্ট করুন</button>
@@ -587,6 +631,11 @@
 
     <section class="section" id="sec-customers">
       <h2>গ্রাহক</h2>
+      <div class="toolbar no-print">
+        <button class="btn" id="cusFormToggleBtn" onclick="toggleCustomerForm()">+ গ্রাহক ফরম</button>
+        <button class="btn secondary" onclick="openMessageModal('customers')">✉ মেসেজ</button>
+      </div>
+      <div id="cusFormWrap" style="display:none;">
       <fieldset class="no-print">
         <legend id="cusFormLegend">নতুন গ্রাহক</legend>
         <div class="form-grid">
@@ -607,6 +656,7 @@
         </div>
         <div id="cusMsg" class="msg"></div>
       </fieldset>
+      </div>
       <div class="toolbar no-print"><button class="btn secondary small" onclick="printCustomersListOfficial()">🖨 সব গ্রাহক প্রিন্ট করুন</button></div>
       <div class="table-wrap"><table id="customersTable"><thead></thead><tbody></tbody></table></div>
     </section>
@@ -983,6 +1033,7 @@ function buildSideMenu(){
   if(state.dealerId === "AGENCY"){
     nav.innerHTML = `
       <button class="menu-item" onclick="showSection('agencyDashboard')">ড্যাশবোর্ড</button>
+      <button class="menu-item" onclick="showSection('dealerMgmt')">ডিলার</button>
       <button class="menu-item" onclick="showSection('management')">ব্যবস্থাপনা</button>
       <button class="menu-item" onclick="showSection('agencyPackages')">প্যাকেজ</button>
       <button class="menu-item" onclick="showSection('stock')">স্টক</button>
@@ -1012,6 +1063,145 @@ function toggleMenu(){
   document.getElementById("menuOverlay").classList.toggle("open");
 }
 
+/* ---------------- গ্রাহক ফরম টগল (দেখানো/লুকানো) ---------------- */
+function toggleCustomerForm(){
+  const wrap = document.getElementById("cusFormWrap");
+  const btn = document.getElementById("cusFormToggleBtn");
+  const show = wrap.style.display === "none";
+  wrap.style.display = show ? "block" : "none";
+  btn.textContent = show ? "✕ ফরম বন্ধ করুন" : "+ গ্রাহক ফরম";
+}
+function showCustomerForm(){
+  document.getElementById("cusFormWrap").style.display = "block";
+  document.getElementById("cusFormToggleBtn").textContent = "✕ ফরম বন্ধ করুন";
+}
+
+/* ---------------- অর্ডার ইনভয়েস ফরম টগল (দেখানো/লুকানো) ---------------- */
+function toggleSiForm(){
+  const wrap = document.getElementById("siFormWrap");
+  const btn = document.getElementById("siFormToggleBtn");
+  const show = wrap.style.display === "none";
+  wrap.style.display = show ? "block" : "none";
+  btn.textContent = show ? "✕ ফরম বন্ধ করুন" : "+ অর্ডার ইনভয়েস ফরম";
+}
+function showSiForm(){
+  document.getElementById("siFormWrap").style.display = "block";
+  document.getElementById("siFormToggleBtn").textContent = "✕ ফরম বন্ধ করুন";
+}
+
+/* ================= মেসেজ (SMS/WhatsApp) মোডাল =================
+ * context: "customers" (ডিলার নিজের গ্রাহকদের মেসেজ পাঠাবে)
+ *          "dealers"   (এজেন্সি ডিলারদের মেসেজ পাঠাবে)
+ * singleTarget (ঐচ্ছিক): { id, name } — শুধু একজন নির্দিষ্ট ডিলারকে
+ *          মেসেজ পাঠানোর জন্য (ডিলার লিস্টের রো থেকে)
+ *************************************************************/
+let msgModalContext = null;
+let msgModalSingleTarget = null;
+
+function openMessageModal(context, singleTarget){
+  msgModalContext = context;
+  msgModalSingleTarget = singleTarget || null;
+
+  document.getElementById("msgFromMobile").value = (context === "customers" ? (state.dealerMobile || "") : "");
+  document.getElementById("msgText").value = "";
+  document.getElementById("msgResult").innerHTML = "";
+  document.getElementById("msgResult").className = "msg";
+
+  const typeField = document.getElementById("msgTypeField");
+  const locField = document.getElementById("msgLocationField");
+
+  if(context === "customers"){
+    document.getElementById("msgModalTitle").textContent = "গ্রাহকদের মেসেজ পাঠান";
+    typeField.style.display = "block";
+    document.getElementById("msgType").value = "all";
+    locField.style.display = "none";
+  } else {
+    document.getElementById("msgModalTitle").textContent = singleTarget
+      ? ("মেসেজ পাঠান — " + singleTarget.name)
+      : "সকল ডিলারকে মেসেজ পাঠান";
+    typeField.style.display = "none";
+    locField.style.display = "none";
+  }
+
+  document.getElementById("messageModalOverlay").style.display = "flex";
+}
+
+function closeMessageModal(){
+  document.getElementById("messageModalOverlay").style.display = "none";
+}
+
+/*******************************************************
+ * ডিলার লিস্টের রো থেকে "মেসেজ" বাটনে ক্লিক করলে — dealerId দিয়ে
+ * ক্যাশ থেকে নাম খুঁজে বের করে মোডাল খোলা হয় (attribute এ সরাসরি
+ * নাম বসালে অ্যাপোস্ট্রফি জাতীয় ক্যারেক্টারে সমস্যা হতে পারত)
+ *******************************************************/
+function openDealerMessageModal(dealerId){
+  const d = (window.__dealersCache || []).find(x => x["DealerID"] === dealerId);
+  openMessageModal("dealers", { id: dealerId, name: d ? (d["নাম"]||"") : "" });
+}
+
+function onMsgTypeChange(){
+  const type = document.getElementById("msgType").value;
+  const locField = document.getElementById("msgLocationField");
+  if(type !== "location"){ locField.style.display = "none"; return; }
+
+  locField.style.display = "block";
+  const customers = window.__customersCache || [];
+  const locations = Array.from(new Set(customers.map(c => c["প্রাপ্তির স্থান"]).filter(Boolean)));
+  const box = document.getElementById("msgLocationChecks");
+  if(locations.length === 0){
+    box.innerHTML = "<p style='color:var(--muted);font-size:0.85rem;margin:0;'>কোনো প্রাপ্তির স্থান পাওয়া যায়নি</p>";
+  } else {
+    box.innerHTML = locations.map(loc =>
+      `<label style="display:block;font-size:0.88rem;margin-bottom:4px;"><input type="checkbox" value="${loc}" class="msgLocChk" checked> ${loc}</label>`
+    ).join("");
+  }
+}
+
+async function sendBulkMessage(){
+  const fromMobile = document.getElementById("msgFromMobile").value.trim();
+  const message = document.getElementById("msgText").value.trim();
+  const resultBox = document.getElementById("msgResult");
+
+  if(!fromMobile){ resultBox.className = "msg err"; resultBox.textContent = "মোবাইল নং (যে নাম্বার থেকে SMS যাবে) দিন"; return; }
+  if(!message){ resultBox.className = "msg err"; resultBox.textContent = "মেসেজ লিখুন"; return; }
+
+  const sendBtn = document.getElementById("msgSendBtn");
+  sendBtn.disabled = true;
+  resultBox.className = "msg";
+  resultBox.textContent = "পাঠানো হচ্ছে...";
+
+  let res;
+  try {
+    if(msgModalContext === "customers"){
+      const type = document.getElementById("msgType").value;
+      let locations = [];
+      if(type === "location"){
+        locations = Array.from(document.querySelectorAll(".msgLocChk:checked")).map(el => el.value);
+        if(locations.length === 0){
+          resultBox.className = "msg err"; resultBox.textContent = "অন্তত একটি প্রাপ্তির স্থান সিলেক্ট করুন";
+          sendBtn.disabled = false; return;
+        }
+      }
+      res = await apiCall("sendCustomerMessage", { fromMobile, message, type, locations });
+    } else {
+      const dealerIds = msgModalSingleTarget ? [msgModalSingleTarget.id] : [];
+      res = await apiCall("sendDealerMessage", { fromMobile, message, dealerIds });
+    }
+  } finally {
+    sendBtn.disabled = false;
+  }
+
+  if(!res.success){ resultBox.className = "msg err"; resultBox.textContent = res.message; return; }
+
+  const lines = [];
+  lines.push("মোট প্রাপক: " + res.total);
+  lines.push(res.smsEnabled ? ("SMS পাঠানো হয়েছে: " + res.smsSent + " (ব্যর্থ: " + res.smsFailed + ")") : "SMS: গেটওয়ে এখনো সেটআপ করা হয়নি");
+  lines.push(res.waEnabled ? ("WhatsApp পাঠানো হয়েছে: " + res.waSent + " (ব্যর্থ: " + res.waFailed + ")") : "WhatsApp: এখনো সেটআপ করা হয়নি");
+  resultBox.className = "msg ok";
+  resultBox.innerHTML = lines.join("<br>");
+}
+
 function showSection(name){
   document.querySelectorAll(".section").forEach(s => s.classList.remove("active"));
   document.getElementById("sec-" + name).classList.add("active");
@@ -1019,7 +1209,8 @@ function showSection(name){
   document.getElementById("menuOverlay").classList.remove("open");
 
   if(name === "agencyDashboard") loadAgencyDashboard();
-  if(name === "management") switchMgmtTab("register", document.querySelector("#sec-management .tabs button"));
+  if(name === "management") switchMgmtTab("agencyInfo", document.querySelector("#sec-management .tabs button"));
+  if(name === "dealerMgmt") switchDealerMgmtTab("register", document.querySelector("#sec-dealerMgmt .tabs button"));
   if(name === "agencyPackages") loadAgencyPackages();
   if(name === "commission") loadCommissionSetup();
   if(name === "agencyExpense") loadAgencyExpenses();
@@ -1066,10 +1257,17 @@ function switchMgmtTab(tab, btn){
   document.querySelectorAll("#sec-management .tabs button").forEach(b => b.classList.remove("active"));
   if(btn) btn.classList.add("active");
   const box = document.getElementById("mgmtContent");
-  if(tab === "register") renderRegisterForm(box);
-  else if(tab === "dealerList") renderDealersList(box);
-  else if(tab === "aboutInfo") renderAboutInfoEdit(box);
+  if(tab === "aboutInfo") renderAboutInfoEdit(box);
   else renderAgencyInfoEdit(box);
+}
+
+/* ================= এজেন্সি: ডিলার (রেজিস্ট্রেশন + লিস্ট) ================= */
+function switchDealerMgmtTab(tab, btn){
+  document.querySelectorAll("#sec-dealerMgmt .tabs button").forEach(b => b.classList.remove("active"));
+  if(btn) btn.classList.add("active");
+  const box = document.getElementById("dealerMgmtContent");
+  if(tab === "dealerList") renderDealersList(box);
+  else renderRegisterForm(box);
 }
 
 async function renderAboutInfoEdit(box){
@@ -1226,7 +1424,7 @@ async function submitRegister(){
     if(res.success){
       clearCache();
       editingDealerId = null;
-      switchMgmtTab("dealerList", document.querySelectorAll("#sec-management .tabs button")[1]);
+      switchDealerMgmtTab("dealerList", document.querySelectorAll("#sec-dealerMgmt .tabs button")[1]);
     }
     return;
   }
@@ -1256,7 +1454,7 @@ async function submitRegister(){
   const res = await apiCall("registerDealer", data);
   msgBox.textContent = res.message;
   msgBox.className = "msg " + (res.success ? "ok" : "err");
-  if(res.success){ clearCache(); switchMgmtTab("dealerList", document.querySelectorAll("#sec-management .tabs button")[1]); }
+  if(res.success){ clearCache(); switchDealerMgmtTab("dealerList", document.querySelectorAll("#sec-dealerMgmt .tabs button")[1]); }
 }
 
 async function renderDealersList(box){
@@ -1264,7 +1462,11 @@ async function renderDealersList(box){
   const res = await cachedApiCall("listDealers", {}, 20000);
   if(!res.success){ box.innerHTML = "<p>"+res.message+"</p>"; return; }
 
-  let html = `<div class="toolbar no-print"><button class="btn secondary small" onclick="window.print()">🖨 প্রিন্ট করুন</button></div>
+  window.__dealersCache = res.dealers;
+  let html = `<div class="toolbar no-print">
+    <button class="btn secondary small" onclick="openMessageModal('dealers')">✉ সকল ডিলারকে মেসেজ</button>
+    <button class="btn secondary small" onclick="window.print()">🖨 প্রিন্ট করুন</button>
+    </div>
     <div class="table-wrap"><table><thead><tr>
     <th>ছবি</th><th>আইডি</th><th class="cell-left">নাম</th><th>মোবাইল</th><th class="cell-left">ঠিকানা</th><th>স্ট্যাটাস</th><th class="no-print">একশন</th>
     </tr></thead><tbody>`;
@@ -1281,6 +1483,7 @@ async function renderDealersList(box){
       <td class="no-print">
         <button class="btn small" onclick="toggleDealerStatus('${d["DealerID"]}','${d["স্ট্যাটাস"]}')">${d["স্ট্যাটাস"]==="সক্রিয়" ? "নিষ্ক্রিয়" : "সক্রিয়"}</button>
         <button class="btn small secondary" onclick="editDealerRow('${d["DealerID"]}')">এডিট</button>
+        <button class="btn small secondary" onclick="openDealerMessageModal('${d["DealerID"]}')">মেসেজ</button>
         <button class="btn small secondary" onclick='printDealerRow(${dJson})'>প্রিন্ট</button>
       </td></tr>`;
   });
@@ -1292,7 +1495,7 @@ async function renderDealersList(box){
 async function toggleDealerStatus(dealerId, currentStatus){
   const newStatus = currentStatus === "সক্রিয়" ? "নিষ্ক্রিয়" : "সক্রিয়";
   const res = await apiCall("setDealerStatus", { dealerId, status:newStatus });
-  if(res.success){ clearCache(); renderDealersList(document.getElementById("mgmtContent")); }
+  if(res.success){ clearCache(); renderDealersList(document.getElementById("dealerMgmtContent")); }
   else alert(res.message);
 }
 
@@ -1303,7 +1506,7 @@ let editingDealerId = null;
  * পাসওয়ার্ড) লোড করে রেজিস্ট্রেশন ফরমেই বসিয়ে দেওয়া হয়
  *******************************************************/
 async function editDealerRow(dealerId){
-  switchMgmtTab("register", document.querySelectorAll("#sec-management .tabs button")[0]);
+  switchDealerMgmtTab("register", document.querySelectorAll("#sec-dealerMgmt .tabs button")[0]);
 
   const res = await apiCall("getDealerFullInfo", { dealerId });
   if(!res.success){ alert(res.message); return; }
@@ -1343,12 +1546,12 @@ async function editDealerRow(dealerId){
   document.getElementById("rAdminPass").value = u["পাসওয়ার্ড"] || "";
   document.getElementById("rAdminName").value = u["নাম"] || "";
 
-  document.getElementById("sec-management").scrollIntoView({ behavior:"smooth" });
+  document.getElementById("sec-dealerMgmt").scrollIntoView({ behavior:"smooth" });
 }
 
 function cancelDealerEdit(){
   editingDealerId = null;
-  renderRegisterForm(document.getElementById("mgmtContent"));
+  renderRegisterForm(document.getElementById("dealerMgmtContent"));
 }
 
 function printDealerRow(d){
@@ -1472,6 +1675,8 @@ async function renderAgencyInfoEdit(box){
   const res = await cachedApiCall("getAgencyInfo", {}, 30000);
   if(!res.success){ box.innerHTML = "<p>"+res.message+"</p>"; return; }
   const a = res.agency;
+  const msgCfgRes = await apiCall("getMessagingConfig", {});
+  const mc = msgCfgRes.success ? msgCfgRes.config : {};
   box.innerHTML = `
     <div class="form-grid">
       <div class="field"><label>নাম</label><input id="mAgencyNaam" value="${a['নাম']||''}"></div>
@@ -1490,10 +1695,47 @@ async function renderAgencyInfoEdit(box){
       <div class="field"><label>Youtube Link</label><input id="mAgencyYoutube" value="${a['Youtube Link']||''}"></div>
     </div>
     <button class="btn" onclick="saveAgency()">সংরক্ষণ করুন</button>
-    <div id="mAgencyMsg" class="msg"></div>`;
+    <div id="mAgencyMsg" class="msg"></div>
+
+    <h3 style="margin:22px 0 6px;font-size:1rem;color:var(--teal-dark);">মেসেজিং সেটাপ (SMS / WhatsApp) — গ্রাহক/ডিলার মেসেজ পাঠাতে</h3>
+    <p style="font-size:0.82rem;color:var(--muted);">
+      যতক্ষণ নিচের তথ্য দেওয়া না হবে, ততক্ষণ "মেসেজ" বাটন থেকে পাঠানো মেসেজ শুধু হিসাবে/লগে থাকবে, প্রকৃতপক্ষে যাবে না।
+      SMS এর জন্য বাংলাদেশের যেকোনো Bulk SMS গেটওয়ে (যেমন BulkSMSBD, Alpha SMS, MimSMS ইত্যাদি) থেকে API URL ও API Key নিয়ে
+      নিচে বসান — URL এর মধ্যে <code>{to}</code>, <code>{message}</code>, <code>{from}</code>, <code>{api_key}</code>
+      অংশগুলো ঠিক এভাবেই লিখুন (সিস্টেম নিজে থেকে আসল মান বসিয়ে নেবে)। WhatsApp এর জন্য Meta এর অফিসিয়াল
+      WhatsApp Business Cloud API (অথবা Twilio/360dialog এর মতো প্রোভাইডার) থেকে Endpoint URL ও Access Token লাগবে।
+      কোনো একটা এখনো সেটআপ না থাকলে, শুধু অন্যটা দিয়েই মেসেজ পাঠানো চলবে।
+    </p>
+    <div class="form-grid">
+      <div class="field" style="grid-column:1/-1;">
+        <label>SMS গেটওয়ে URL টেমপ্লেট</label>
+        <input id="msgSmsUrl" placeholder="http://example-gateway.com/api?api_key={api_key}&senderid={from}&number={to}&message={message}" value="${mc.smsGatewayUrlTemplate||''}">
+      </div>
+      <div class="field"><label>SMS API Key</label><input id="msgSmsKey" value="${mc.smsApiKey||''}"></div>
+      <div class="field" style="grid-column:1/-1;">
+        <label>WhatsApp API Endpoint URL</label>
+        <input id="msgWaUrl" placeholder="https://graph.facebook.com/v20.0/&lt;PHONE_NUMBER_ID&gt;/messages" value="${mc.whatsappApiUrl||''}">
+      </div>
+      <div class="field"><label>WhatsApp Access Token</label><input id="msgWaToken" value="${mc.whatsappToken||''}"></div>
+    </div>
+    <button class="btn" onclick="saveMessagingConfig()">মেসেজিং সেটিংস সংরক্ষণ করুন</button>
+    <div id="msgCfgMsg" class="msg"></div>`;
 
   const managers = (a.managers && a.managers.length > 0) ? a.managers : [{ name:"", title:"", mobile:"" }];
   managers.forEach(m => addManagerRow(m));
+}
+
+async function saveMessagingConfig(){
+  const data = {
+    smsGatewayUrlTemplate: document.getElementById("msgSmsUrl").value.trim(),
+    smsApiKey: document.getElementById("msgSmsKey").value.trim(),
+    whatsappApiUrl: document.getElementById("msgWaUrl").value.trim(),
+    whatsappToken: document.getElementById("msgWaToken").value.trim()
+  };
+  const res = await apiCall("saveMessagingConfig", data);
+  const msgBox = document.getElementById("msgCfgMsg");
+  msgBox.textContent = res.message;
+  msgBox.className = "msg " + (res.success ? "ok" : "err");
 }
 
 function addManagerRow(prefill){
@@ -2404,6 +2646,7 @@ function editSalesInvoiceByNo(invoiceNo){
   if(lines.length === 0) return;
   const first = lines[0];
 
+  showSiForm();
   window.__siEditingInvoiceNo = invoiceNo;
   document.getElementById("siFormLegend").textContent = "ইনভয়েস এডিট — " + invoiceNo;
   document.getElementById("siSubmitBtn").textContent = "আপডেট করুন";
@@ -3362,6 +3605,7 @@ function editCustomerRow(customerId){
   const c = (window.__customersCache||[]).find(x => x["CustomerID"] === customerId);
   if(!c) return;
 
+  showCustomerForm();
   editingCustomerId = customerId;
   document.getElementById("cusFormLegend").textContent = "গ্রাহক এডিট — " + c["নাম"];
   document.getElementById("cusSubmitBtn").textContent = "আপডেট করুন";
