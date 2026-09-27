@@ -635,18 +635,15 @@ function doPost(e) {
         result = getAgencyDashboardSummary(data);
         break;
 
-      // ---- মেসেজিং (SMS/WhatsApp) ----
-      case "getMessagingConfig":
-        result = getMessagingConfig(data);
+      // ---- মেসেজিং (SMS/WhatsApp) — শুধু ডিলার সাইট ----
+      case "getDealerMessagingConfig":
+        result = getDealerMessagingConfig(data);
         break;
-      case "saveMessagingConfig":
-        result = saveMessagingConfig(data);
+      case "saveDealerMessagingConfig":
+        result = saveDealerMessagingConfig(data);
         break;
       case "sendCustomerMessage":
         result = sendCustomerMessage(data);
-        break;
-      case "sendDealerMessage":
-        result = sendDealerMessage(data);
         break;
 
       default:

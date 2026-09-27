@@ -360,7 +360,7 @@
         <label>মোবাইল নং (যে নাম্বার থেকে SMS যাবে)</label>
         <input id="msgFromMobile" maxlength="11" placeholder="যেমন: 01XXXXXXXXX">
       </div>
-      <div class="field" id="msgTypeField" style="display:none;">
+      <div class="field" id="msgTypeField">
         <label>ধরন</label>
         <select id="msgType" onchange="onMsgTypeChange()">
           <option value="all">সকল গ্রাহক</option>
@@ -633,7 +633,35 @@
       <h2>গ্রাহক</h2>
       <div class="toolbar no-print">
         <button class="btn" id="cusFormToggleBtn" onclick="toggleCustomerForm()">+ গ্রাহক ফরম</button>
-        <button class="btn secondary" onclick="openMessageModal('customers')">✉ মেসেজ</button>
+        <button class="btn secondary" onclick="openMessageModal()">✉ মেসেজ</button>
+        <button class="btn secondary" id="msgSetupToggleBtn" style="display:none;" onclick="toggleMsgSetupForm()">⚙ মেসেজিং সেটাপ</button>
+      </div>
+      <div id="msgSetupWrap" style="display:none;">
+        <fieldset class="no-print">
+          <legend>মেসেজিং সেটাপ (SMS / WhatsApp)</legend>
+          <p style="font-size:0.82rem;color:var(--muted);">
+            যতক্ষণ নিচের তথ্য দেওয়া না হবে, ততক্ষণ "মেসেজ" বাটন থেকে পাঠানো মেসেজ প্রকৃতপক্ষে যাবে না।
+            SMS এর জন্য বাংলাদেশের যেকোনো Bulk SMS গেটওয়ে (যেমন BulkSMSBD, Alpha SMS, MimSMS ইত্যাদি) থেকে API URL ও API Key নিয়ে
+            নিচে বসান — URL এর মধ্যে <code>{to}</code>, <code>{message}</code>, <code>{from}</code>, <code>{api_key}</code>
+            অংশগুলো ঠিক এভাবেই লিখুন। WhatsApp এর জন্য Meta এর অফিসিয়াল WhatsApp Business Cloud API (অথবা Twilio/360dialog এর মতো
+            প্রোভাইডার) থেকে Endpoint URL ও Access Token লাগবে। একটা সেটআপ না থাকলেও অন্যটা দিয়ে মেসেজ পাঠানো চলবে — এই সেটিংস
+            শুধু এই ডিলারের নিজের জন্য, অন্য কোনো ডিলারের সাথে শেয়ার হবে না।
+          </p>
+          <div class="form-grid">
+            <div class="field" style="grid-column:1/-1;">
+              <label>SMS গেটওয়ে URL টেমপ্লেট</label>
+              <input id="msgSmsUrl" placeholder="http://example-gateway.com/api?api_key={api_key}&senderid={from}&number={to}&message={message}">
+            </div>
+            <div class="field"><label>SMS API Key</label><input id="msgSmsKey"></div>
+            <div class="field" style="grid-column:1/-1;">
+              <label>WhatsApp API Endpoint URL</label>
+              <input id="msgWaUrl" placeholder="https://graph.facebook.com/v20.0/&lt;PHONE_NUMBER_ID&gt;/messages">
+            </div>
+            <div class="field"><label>WhatsApp Access Token</label><input id="msgWaToken"></div>
+          </div>
+          <button class="btn" onclick="saveDealerMessagingConfig()">মেসেজিং সেটিংস সংরক্ষণ করুন</button>
+          <div id="msgCfgMsg" class="msg"></div>
+        </fieldset>
       </div>
       <div id="cusFormWrap" style="display:none;">
       <fieldset class="no-print">
@@ -1090,39 +1118,17 @@ function showSiForm(){
 }
 
 /* ================= মেসেজ (SMS/WhatsApp) মোডাল =================
- * context: "customers" (ডিলার নিজের গ্রাহকদের মেসেজ পাঠাবে)
- *          "dealers"   (এজেন্সি ডিলারদের মেসেজ পাঠাবে)
- * singleTarget (ঐচ্ছিক): { id, name } — শুধু একজন নির্দিষ্ট ডিলারকে
- *          মেসেজ পাঠানোর জন্য (ডিলার লিস্টের রো থেকে)
+ * শুধুমাত্র ডিলার সাইটে — ডিলার নিজের গ্রাহকদের মেসেজ পাঠাবে,
+ * নিজের সেট করা SMS/WhatsApp API দিয়ে
  *************************************************************/
-let msgModalContext = null;
-let msgModalSingleTarget = null;
-
-function openMessageModal(context, singleTarget){
-  msgModalContext = context;
-  msgModalSingleTarget = singleTarget || null;
-
-  document.getElementById("msgFromMobile").value = (context === "customers" ? (state.dealerMobile || "") : "");
+function openMessageModal(){
+  document.getElementById("msgModalTitle").textContent = "গ্রাহকদের মেসেজ পাঠান";
+  document.getElementById("msgFromMobile").value = state.dealerMobile || "";
   document.getElementById("msgText").value = "";
   document.getElementById("msgResult").innerHTML = "";
   document.getElementById("msgResult").className = "msg";
-
-  const typeField = document.getElementById("msgTypeField");
-  const locField = document.getElementById("msgLocationField");
-
-  if(context === "customers"){
-    document.getElementById("msgModalTitle").textContent = "গ্রাহকদের মেসেজ পাঠান";
-    typeField.style.display = "block";
-    document.getElementById("msgType").value = "all";
-    locField.style.display = "none";
-  } else {
-    document.getElementById("msgModalTitle").textContent = singleTarget
-      ? ("মেসেজ পাঠান — " + singleTarget.name)
-      : "সকল ডিলারকে মেসেজ পাঠান";
-    typeField.style.display = "none";
-    locField.style.display = "none";
-  }
-
+  document.getElementById("msgType").value = "all";
+  document.getElementById("msgLocationField").style.display = "none";
   document.getElementById("messageModalOverlay").style.display = "flex";
 }
 
@@ -1130,14 +1136,36 @@ function closeMessageModal(){
   document.getElementById("messageModalOverlay").style.display = "none";
 }
 
-/*******************************************************
- * ডিলার লিস্টের রো থেকে "মেসেজ" বাটনে ক্লিক করলে — dealerId দিয়ে
- * ক্যাশ থেকে নাম খুঁজে বের করে মোডাল খোলা হয় (attribute এ সরাসরি
- * নাম বসালে অ্যাপোস্ট্রফি জাতীয় ক্যারেক্টারে সমস্যা হতে পারত)
- *******************************************************/
-function openDealerMessageModal(dealerId){
-  const d = (window.__dealersCache || []).find(x => x["DealerID"] === dealerId);
-  openMessageModal("dealers", { id: dealerId, name: d ? (d["নাম"]||"") : "" });
+/* ---------------- মেসেজিং সেটাপ (SMS/WhatsApp) — শুধু Admin ---------------- */
+let msgSetupLoaded = false;
+async function toggleMsgSetupForm(){
+  const wrap = document.getElementById("msgSetupWrap");
+  const show = wrap.style.display === "none";
+  wrap.style.display = show ? "block" : "none";
+  if(show && !msgSetupLoaded){
+    msgSetupLoaded = true;
+    const res = await apiCall("getDealerMessagingConfig", {});
+    if(res.success){
+      const c = res.config || {};
+      document.getElementById("msgSmsUrl").value = c.smsGatewayUrlTemplate || "";
+      document.getElementById("msgSmsKey").value = c.smsApiKey || "";
+      document.getElementById("msgWaUrl").value = c.whatsappApiUrl || "";
+      document.getElementById("msgWaToken").value = c.whatsappToken || "";
+    }
+  }
+}
+
+async function saveDealerMessagingConfig(){
+  const data = {
+    smsGatewayUrlTemplate: document.getElementById("msgSmsUrl").value.trim(),
+    smsApiKey: document.getElementById("msgSmsKey").value.trim(),
+    whatsappApiUrl: document.getElementById("msgWaUrl").value.trim(),
+    whatsappToken: document.getElementById("msgWaToken").value.trim()
+  };
+  const res = await apiCall("saveDealerMessagingConfig", data);
+  const msgBox = document.getElementById("msgCfgMsg");
+  msgBox.textContent = res.message;
+  msgBox.className = "msg " + (res.success ? "ok" : "err");
 }
 
 function onMsgTypeChange(){
@@ -1152,9 +1180,9 @@ function onMsgTypeChange(){
   if(locations.length === 0){
     box.innerHTML = "<p style='color:var(--muted);font-size:0.85rem;margin:0;'>কোনো প্রাপ্তির স্থান পাওয়া যায়নি</p>";
   } else {
-    box.innerHTML = locations.map(loc =>
-      `<label style="display:block;font-size:0.88rem;margin-bottom:4px;"><input type="checkbox" value="${loc}" class="msgLocChk" checked> ${loc}</label>`
-    ).join("");
+    box.innerHTML = `<div style="display:flex;flex-wrap:wrap;gap:4px 14px;">` + locations.map(loc =>
+      `<label style="display:inline-flex;align-items:center;gap:5px;font-size:0.88rem;white-space:nowrap;"><input type="checkbox" value="${loc}" class="msgLocChk" checked> ${loc}</label>`
+    ).join("") + `</div>`;
   }
 }
 
@@ -1166,6 +1194,16 @@ async function sendBulkMessage(){
   if(!fromMobile){ resultBox.className = "msg err"; resultBox.textContent = "মোবাইল নং (যে নাম্বার থেকে SMS যাবে) দিন"; return; }
   if(!message){ resultBox.className = "msg err"; resultBox.textContent = "মেসেজ লিখুন"; return; }
 
+  const type = document.getElementById("msgType").value;
+  let locations = [];
+  if(type === "location"){
+    locations = Array.from(document.querySelectorAll(".msgLocChk:checked")).map(el => el.value);
+    if(locations.length === 0){
+      resultBox.className = "msg err"; resultBox.textContent = "অন্তত একটি প্রাপ্তির স্থান সিলেক্ট করুন";
+      return;
+    }
+  }
+
   const sendBtn = document.getElementById("msgSendBtn");
   sendBtn.disabled = true;
   resultBox.className = "msg";
@@ -1173,21 +1211,7 @@ async function sendBulkMessage(){
 
   let res;
   try {
-    if(msgModalContext === "customers"){
-      const type = document.getElementById("msgType").value;
-      let locations = [];
-      if(type === "location"){
-        locations = Array.from(document.querySelectorAll(".msgLocChk:checked")).map(el => el.value);
-        if(locations.length === 0){
-          resultBox.className = "msg err"; resultBox.textContent = "অন্তত একটি প্রাপ্তির স্থান সিলেক্ট করুন";
-          sendBtn.disabled = false; return;
-        }
-      }
-      res = await apiCall("sendCustomerMessage", { fromMobile, message, type, locations });
-    } else {
-      const dealerIds = msgModalSingleTarget ? [msgModalSingleTarget.id] : [];
-      res = await apiCall("sendDealerMessage", { fromMobile, message, dealerIds });
-    }
+    res = await apiCall("sendCustomerMessage", { fromMobile, message, type, locations });
   } finally {
     sendBtn.disabled = false;
   }
@@ -1222,7 +1246,10 @@ function showSection(name){
   if(name === "dashboard") loadDashboard();
   if(name === "about") loadAboutView();
   if(name === "packages") loadDealerPackages();
-  if(name === "customers") loadCustomers();
+  if(name === "customers"){
+    loadCustomers();
+    document.getElementById("msgSetupToggleBtn").style.display = (state.role === "Admin") ? "inline-block" : "none";
+  }
   if(name === "sales") loadSalesSetup();
   if(name === "expenseVoucher") loadDealerExpenseVouchers();
   if(name === "reports") switchReportTab("daily", document.querySelector("#sec-reports .tabs button"));
@@ -1464,7 +1491,6 @@ async function renderDealersList(box){
 
   window.__dealersCache = res.dealers;
   let html = `<div class="toolbar no-print">
-    <button class="btn secondary small" onclick="openMessageModal('dealers')">✉ সকল ডিলারকে মেসেজ</button>
     <button class="btn secondary small" onclick="window.print()">🖨 প্রিন্ট করুন</button>
     </div>
     <div class="table-wrap"><table><thead><tr>
@@ -1483,7 +1509,6 @@ async function renderDealersList(box){
       <td class="no-print">
         <button class="btn small" onclick="toggleDealerStatus('${d["DealerID"]}','${d["স্ট্যাটাস"]}')">${d["স্ট্যাটাস"]==="সক্রিয়" ? "নিষ্ক্রিয়" : "সক্রিয়"}</button>
         <button class="btn small secondary" onclick="editDealerRow('${d["DealerID"]}')">এডিট</button>
-        <button class="btn small secondary" onclick="openDealerMessageModal('${d["DealerID"]}')">মেসেজ</button>
         <button class="btn small secondary" onclick='printDealerRow(${dJson})'>প্রিন্ট</button>
       </td></tr>`;
   });
@@ -1675,8 +1700,6 @@ async function renderAgencyInfoEdit(box){
   const res = await cachedApiCall("getAgencyInfo", {}, 30000);
   if(!res.success){ box.innerHTML = "<p>"+res.message+"</p>"; return; }
   const a = res.agency;
-  const msgCfgRes = await apiCall("getMessagingConfig", {});
-  const mc = msgCfgRes.success ? msgCfgRes.config : {};
   box.innerHTML = `
     <div class="form-grid">
       <div class="field"><label>নাম</label><input id="mAgencyNaam" value="${a['নাম']||''}"></div>
@@ -1695,47 +1718,10 @@ async function renderAgencyInfoEdit(box){
       <div class="field"><label>Youtube Link</label><input id="mAgencyYoutube" value="${a['Youtube Link']||''}"></div>
     </div>
     <button class="btn" onclick="saveAgency()">সংরক্ষণ করুন</button>
-    <div id="mAgencyMsg" class="msg"></div>
-
-    <h3 style="margin:22px 0 6px;font-size:1rem;color:var(--teal-dark);">মেসেজিং সেটাপ (SMS / WhatsApp) — গ্রাহক/ডিলার মেসেজ পাঠাতে</h3>
-    <p style="font-size:0.82rem;color:var(--muted);">
-      যতক্ষণ নিচের তথ্য দেওয়া না হবে, ততক্ষণ "মেসেজ" বাটন থেকে পাঠানো মেসেজ শুধু হিসাবে/লগে থাকবে, প্রকৃতপক্ষে যাবে না।
-      SMS এর জন্য বাংলাদেশের যেকোনো Bulk SMS গেটওয়ে (যেমন BulkSMSBD, Alpha SMS, MimSMS ইত্যাদি) থেকে API URL ও API Key নিয়ে
-      নিচে বসান — URL এর মধ্যে <code>{to}</code>, <code>{message}</code>, <code>{from}</code>, <code>{api_key}</code>
-      অংশগুলো ঠিক এভাবেই লিখুন (সিস্টেম নিজে থেকে আসল মান বসিয়ে নেবে)। WhatsApp এর জন্য Meta এর অফিসিয়াল
-      WhatsApp Business Cloud API (অথবা Twilio/360dialog এর মতো প্রোভাইডার) থেকে Endpoint URL ও Access Token লাগবে।
-      কোনো একটা এখনো সেটআপ না থাকলে, শুধু অন্যটা দিয়েই মেসেজ পাঠানো চলবে।
-    </p>
-    <div class="form-grid">
-      <div class="field" style="grid-column:1/-1;">
-        <label>SMS গেটওয়ে URL টেমপ্লেট</label>
-        <input id="msgSmsUrl" placeholder="http://example-gateway.com/api?api_key={api_key}&senderid={from}&number={to}&message={message}" value="${mc.smsGatewayUrlTemplate||''}">
-      </div>
-      <div class="field"><label>SMS API Key</label><input id="msgSmsKey" value="${mc.smsApiKey||''}"></div>
-      <div class="field" style="grid-column:1/-1;">
-        <label>WhatsApp API Endpoint URL</label>
-        <input id="msgWaUrl" placeholder="https://graph.facebook.com/v20.0/&lt;PHONE_NUMBER_ID&gt;/messages" value="${mc.whatsappApiUrl||''}">
-      </div>
-      <div class="field"><label>WhatsApp Access Token</label><input id="msgWaToken" value="${mc.whatsappToken||''}"></div>
-    </div>
-    <button class="btn" onclick="saveMessagingConfig()">মেসেজিং সেটিংস সংরক্ষণ করুন</button>
-    <div id="msgCfgMsg" class="msg"></div>`;
+    <div id="mAgencyMsg" class="msg"></div>`;
 
   const managers = (a.managers && a.managers.length > 0) ? a.managers : [{ name:"", title:"", mobile:"" }];
   managers.forEach(m => addManagerRow(m));
-}
-
-async function saveMessagingConfig(){
-  const data = {
-    smsGatewayUrlTemplate: document.getElementById("msgSmsUrl").value.trim(),
-    smsApiKey: document.getElementById("msgSmsKey").value.trim(),
-    whatsappApiUrl: document.getElementById("msgWaUrl").value.trim(),
-    whatsappToken: document.getElementById("msgWaToken").value.trim()
-  };
-  const res = await apiCall("saveMessagingConfig", data);
-  const msgBox = document.getElementById("msgCfgMsg");
-  msgBox.textContent = res.message;
-  msgBox.className = "msg " + (res.success ? "ok" : "err");
 }
 
 function addManagerRow(prefill){
