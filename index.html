@@ -1171,7 +1171,7 @@ async function openMessageModal(){
   document.getElementById("msgLocationField").style.display = "none";
   document.getElementById("messageModalOverlay").style.display = "flex";
 
-  const c = await loadDealerMsgConfig();
+  const c = await loadMessagingStatus();
   // নিজের ফোনের সিম (textbee) দিয়ে পাঠালে আলাদা Sender ID লাগে না —
   // ওই ক্ষেত্রে এই ফিল্ডটা লুকিয়ে রাখা হয়
   const fromField = document.getElementById("msgFromMobileField");
@@ -1180,6 +1180,10 @@ async function openMessageModal(){
   } else {
     fromField.style.display = "block";
     document.getElementById("msgFromMobile").value = c.smsSenderId || "";
+  }
+  if(!c.smsReady && !c.waReady){
+    document.getElementById("msgResult").className = "msg err";
+    document.getElementById("msgResult").textContent = "এখনো কোনো SMS/WhatsApp সেটআপ করা হয়নি (Admin কে জানান)";
   }
 }
 
@@ -1190,12 +1194,22 @@ function closeMessageModal(){
 /* ---------------- মেসেজিং সেটাপ (SMS/WhatsApp) — শুধু Admin ---------------- */
 let msgSetupLoaded = false;
 let dealerMsgConfigCache = null;
+let messagingStatusCache = null;
 
 async function loadDealerMsgConfig(){
   if(dealerMsgConfigCache) return dealerMsgConfigCache;
   const res = await apiCall("getDealerMessagingConfig", {});
   dealerMsgConfigCache = res.success ? (res.config || {}) : {};
   return dealerMsgConfigCache;
+}
+
+/* মেসেজ পাঠানোর ফরমের জন্য হালকা স্ট্যাটাস — Admin ও প্রতিনিধি
+ * দুজনেই কল করতে পারবে (getDealerMessagingConfig শুধু Admin-only) */
+async function loadMessagingStatus(){
+  if(messagingStatusCache) return messagingStatusCache;
+  const res = await apiCall("getMessagingStatus", {});
+  messagingStatusCache = res.success ? res : { smsProviderType:"textbee", smsSenderId:"", smsReady:false, waReady:false };
+  return messagingStatusCache;
 }
 
 function onSmsProviderTypeChange(){
@@ -1243,7 +1257,10 @@ async function saveDealerMessagingConfig(){
   const msgBox = document.getElementById("msgCfgMsg");
   msgBox.textContent = res.message;
   msgBox.className = "msg " + (res.success ? "ok" : "err");
-  if(res.success) dealerMsgConfigCache = data; // ক্যাশ আপডেট, যাতে মেসেজ ফরমে সাথে সাথে নতুন তথ্য দেখায়
+  if(res.success){
+    dealerMsgConfigCache = data;
+    messagingStatusCache = null; // পরের বার মেসেজ ফরম খুললে নতুন স্ট্যাটাস আনবে
+  }
 }
 
 function onMsgTypeChange(){

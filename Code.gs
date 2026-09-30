@@ -636,6 +636,9 @@ function doPost(e) {
         break;
 
       // ---- মেসেজিং (SMS/WhatsApp) — শুধু ডিলার সাইট ----
+      case "getMessagingStatus":
+        result = getMessagingStatus(data);
+        break;
       case "getDealerMessagingConfig":
         result = getDealerMessagingConfig(data);
         break;

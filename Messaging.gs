@@ -91,6 +91,29 @@ function saveDealerMessagingConfig(data) {
 }
 
 /*******************************************************
+ * "মেসেজ" ফরম খোলার সময় ব্যবহারের জন্য হালকা স্ট্যাটাস —
+ * Admin ও প্রতিনিধি দুজনেই পড়তে পারবে (আসল API Key/Token
+ * শেয়ার না করে শুধু দরকারি তথ্যটুকু দেওয়া হয়, যাতে মেসেজ ফরমে
+ * ঠিকভাবে বোঝা যায় textbee/গেটওয়ে সেটআপ করা আছে কিনা)
+ *******************************************************/
+function getMessagingStatus(data) {
+  const perm = checkPermission(data.token, ["Admin", "প্রতিনিধি"]);
+  if (!perm.ok) return { success: false, message: perm.message };
+
+  const config = getDealerMessagingConfigRaw(perm.payload.dealerId);
+  const smsReady = config.smsProviderType === "textbee" ? !!config.smsApiKey : !!config.smsGatewayUrlTemplate;
+  const waReady = !!(config.whatsappApiUrl && config.whatsappToken);
+
+  return {
+    success: true,
+    smsProviderType: config.smsProviderType || "textbee",
+    smsSenderId: config.smsSenderId || "",
+    smsReady: smsReady,
+    waReady: waReady
+  };
+}
+
+/*******************************************************
  * বাংলাদেশি লোকাল নম্বর (01XXXXXXXXX) কে আন্তর্জাতিক ফরম্যাটে
  * (৮৮01XXXXXXXXX) রূপান্তর — অধিকাংশ BD SMS/WhatsApp গেটওয়ে এই
  * ফরম্যাটই চায়। ইতিমধ্যে + বা ৮৮ দিয়ে শুরু থাকলে অপরিবর্তিত রাখা হয়
