@@ -356,9 +356,9 @@
   <div class="modal-overlay" id="messageModalOverlay">
     <div class="modal-box" style="max-width:480px;">
       <h3 id="msgModalTitle">মেসেজ পাঠান</h3>
-      <div class="field">
+      <div class="field" id="msgFromMobileField">
         <label>Sender ID / মোবাইল নং (গেটওয়ে যেভাবে চায়)</label>
-        <input id="msgFromMobile" maxlength="11" placeholder="যেমন: 01XXXXXXXXX">
+        <input id="msgFromMobile" placeholder="যেমন: 01XXXXXXXXX">
       </div>
       <div class="field" id="msgTypeField">
         <label>ধরন</label>
@@ -641,20 +641,58 @@
           <legend>মেসেজিং সেটাপ (SMS / WhatsApp)</legend>
           <p style="font-size:0.82rem;color:var(--muted);">
             যতক্ষণ নিচের তথ্য দেওয়া না হবে, ততক্ষণ "মেসেজ" বাটন থেকে পাঠানো মেসেজ প্রকৃতপক্ষে যাবে না।
-            SMS এর জন্য বাংলাদেশের যেকোনো Bulk SMS গেটওয়ে (যেমন BulkSMSBD, Alpha SMS, MimSMS ইত্যাদি) থেকে API URL ও API Key নিয়ে
-            নিচে বসান — URL এর মধ্যে <code>{to}</code>, <code>{message}</code>, <code>{from}</code>, <code>{api_key}</code>
-            অংশগুলো ঠিক এভাবেই লিখুন। <b>খেয়াল রাখুন:</b> "মেসেজ" ফরমের Sender ID বক্সে যা লিখবেন সেটাই <code>{from}</code> এর জায়গায় বসবে —
-            অনেক গেটওয়েতে (যেমন BulkSMSBD) এটা মোবাইল নম্বর না, বরং তাদের ড্যাশবোর্ডে দেখানো একটা নির্দিষ্ট Approved Sender ID কোড হয়,
-            হুবহু সেটাই কপি করে বসাতে হবে। WhatsApp এর জন্য Meta এর অফিসিয়াল WhatsApp Business Cloud API (অথবা Twilio/360dialog এর মতো
-            প্রোভাইডার) থেকে Endpoint URL ও Access Token লাগবে। একটা সেটআপ না থাকলেও অন্যটা দিয়ে মেসেজ পাঠানো চলবে — এই সেটিংস
-            শুধু এই ডিলারের নিজের জন্য, অন্য কোনো ডিলারের সাথে শেয়ার হবে না।
+            এই সেটিংস শুধু এই ডিলারের নিজের জন্য, অন্য কোনো ডিলারের সাথে শেয়ার হবে না।
           </p>
+
           <div class="form-grid">
             <div class="field" style="grid-column:1/-1;">
-              <label>SMS গেটওয়ে URL টেমপ্লেট</label>
-              <input id="msgSmsUrl" placeholder="http://example-gateway.com/api?api_key={api_key}&senderid={from}&number={to}&message={message}">
+              <label>SMS কীভাবে পাঠাবেন?</label>
+              <select id="msgSmsProviderType" onchange="onSmsProviderTypeChange()">
+                <option value="textbee">নিজের ফোনের সিম দিয়ে (ফ্রি — textbee অ্যাপ)</option>
+                <option value="url_template">পেইড SMS গেটওয়ে (BulkSMSBD, Alpha SMS ইত্যাদি)</option>
+              </select>
             </div>
-            <div class="field"><label>SMS API Key</label><input id="msgSmsKey"></div>
+          </div>
+
+          <div id="msgTextbeeHelp" style="display:none;">
+            <p style="font-size:0.82rem;color:var(--muted);">
+              <b>যা লাগবে:</b> একটা পুরনো/স্পেয়ার Android ফোন, তাতে সচল SIM (SMS প্যাকেজ/ব্যালেন্স সহ), ফোনটা সবসময় চালু ও
+              ইন্টারনেটে কানেক্টেড থাকতে হবে। <a href="https://textbee.dev" target="_blank" rel="noopener">textbee.dev</a> থেকে
+              অ্যাপ ইনস্টল করে সাইন-ইন করুন, SMS পাঠানোর পারমিশন দিন, তারপর ড্যাশবোর্ড থেকে <b>API Key</b> কপি করে নিচে বসান।
+              মেসেজ পাঠালে ঠিক ম্যানুয়ালি ফোন থেকে পাঠানোর মতোই ওই সিমের প্যাকেজ/ব্যালেন্স থেকে কাটবে।
+            </p>
+            <div class="form-grid">
+              <div class="field" style="grid-column:1/-1;"><label>textbee API Key</label><input id="msgSmsKey"></div>
+            </div>
+          </div>
+
+          <div id="msgUrlTemplateHelp" style="display:none;">
+            <p style="font-size:0.82rem;color:var(--muted);">
+              বাংলাদেশের যেকোনো Bulk SMS গেটওয়ে (যেমন BulkSMSBD, Alpha SMS, MimSMS ইত্যাদি) থেকে API URL ও API Key নিয়ে
+              নিচে বসান — URL এর মধ্যে <code>{to}</code>, <code>{message}</code>, <code>{from}</code>, <code>{api_key}</code>
+              অংশগুলো ঠিক এভাবেই লিখুন। নিচের <b>"SMS Sender ID"</b> বক্সে যা বসাবেন সেটাই <code>{from}</code> এর জায়গায় বসবে —
+              অনেক গেটওয়েতে (যেমন BulkSMSBD) এটা মোবাইল নম্বর না, বরং তাদের ড্যাশবোর্ডে দেখানো একটা নির্দিষ্ট Approved Sender ID
+              কোড হয়, হুবহু সেটাই কপি করে বসাতে হবে। এটা পেইড সার্ভিস — প্যাকেজ কিনতে হয়।
+            </p>
+            <div class="form-grid">
+              <div class="field" style="grid-column:1/-1;">
+                <label>SMS গেটওয়ে URL টেমপ্লেট</label>
+                <input id="msgSmsUrlTemplate" placeholder="http://example-gateway.com/api?api_key={api_key}&senderid={from}&number={to}&message={message}">
+              </div>
+              <div class="field"><label>SMS API Key</label><input id="msgSmsKeyTemplate"></div>
+              <div class="field">
+                <label>SMS Sender ID</label>
+                <input id="msgSmsSenderId" placeholder="গেটওয়ে যা দিয়েছে — নম্বর অথবা কোড">
+              </div>
+            </div>
+          </div>
+
+          <h4 style="margin:16px 0 6px;font-size:0.95rem;color:var(--teal-dark);">WhatsApp (ঐচ্ছিক)</h4>
+          <p style="font-size:0.82rem;color:var(--muted);">
+            Meta এর অফিসিয়াল WhatsApp Business Cloud API (অথবা Twilio/360dialog এর মতো প্রোভাইডার) থেকে Endpoint URL ও
+            Access Token লাগবে। এটা সেটআপ না করলেও শুধু SMS দিয়েই মেসেজ পাঠানো চলবে।
+          </p>
+          <div class="form-grid">
             <div class="field" style="grid-column:1/-1;">
               <label>WhatsApp API Endpoint URL</label>
               <input id="msgWaUrl" placeholder="https://graph.facebook.com/v20.0/&lt;PHONE_NUMBER_ID&gt;/messages">
@@ -1123,15 +1161,26 @@ function showSiForm(){
  * শুধুমাত্র ডিলার সাইটে — ডিলার নিজের গ্রাহকদের মেসেজ পাঠাবে,
  * নিজের সেট করা SMS/WhatsApp API দিয়ে
  *************************************************************/
-function openMessageModal(){
+async function openMessageModal(){
   document.getElementById("msgModalTitle").textContent = "গ্রাহকদের মেসেজ পাঠান";
-  document.getElementById("msgFromMobile").value = state.dealerMobile || "";
+  document.getElementById("msgFromMobile").value = "";
   document.getElementById("msgText").value = "";
   document.getElementById("msgResult").innerHTML = "";
   document.getElementById("msgResult").className = "msg";
   document.getElementById("msgType").value = "all";
   document.getElementById("msgLocationField").style.display = "none";
   document.getElementById("messageModalOverlay").style.display = "flex";
+
+  const c = await loadDealerMsgConfig();
+  // নিজের ফোনের সিম (textbee) দিয়ে পাঠালে আলাদা Sender ID লাগে না —
+  // ওই ক্ষেত্রে এই ফিল্ডটা লুকিয়ে রাখা হয়
+  const fromField = document.getElementById("msgFromMobileField");
+  if(c.smsProviderType === "textbee"){
+    fromField.style.display = "none";
+  } else {
+    fromField.style.display = "block";
+    document.getElementById("msgFromMobile").value = c.smsSenderId || "";
+  }
 }
 
 function closeMessageModal(){
@@ -1140,27 +1189,53 @@ function closeMessageModal(){
 
 /* ---------------- মেসেজিং সেটাপ (SMS/WhatsApp) — শুধু Admin ---------------- */
 let msgSetupLoaded = false;
+let dealerMsgConfigCache = null;
+
+async function loadDealerMsgConfig(){
+  if(dealerMsgConfigCache) return dealerMsgConfigCache;
+  const res = await apiCall("getDealerMessagingConfig", {});
+  dealerMsgConfigCache = res.success ? (res.config || {}) : {};
+  return dealerMsgConfigCache;
+}
+
+function onSmsProviderTypeChange(){
+  const type = document.getElementById("msgSmsProviderType").value;
+  document.getElementById("msgTextbeeHelp").style.display = (type === "textbee") ? "block" : "none";
+  document.getElementById("msgUrlTemplateHelp").style.display = (type === "url_template") ? "block" : "none";
+}
+
 async function toggleMsgSetupForm(){
   const wrap = document.getElementById("msgSetupWrap");
   const show = wrap.style.display === "none";
   wrap.style.display = show ? "block" : "none";
   if(show && !msgSetupLoaded){
     msgSetupLoaded = true;
-    const res = await apiCall("getDealerMessagingConfig", {});
-    if(res.success){
-      const c = res.config || {};
-      document.getElementById("msgSmsUrl").value = c.smsGatewayUrlTemplate || "";
+    const c = await loadDealerMsgConfig();
+    const type = c.smsProviderType || "textbee";
+    document.getElementById("msgSmsProviderType").value = type;
+    onSmsProviderTypeChange();
+    if(type === "textbee"){
       document.getElementById("msgSmsKey").value = c.smsApiKey || "";
-      document.getElementById("msgWaUrl").value = c.whatsappApiUrl || "";
-      document.getElementById("msgWaToken").value = c.whatsappToken || "";
+    } else {
+      document.getElementById("msgSmsKeyTemplate").value = c.smsApiKey || "";
     }
+    document.getElementById("msgSmsUrlTemplate").value = c.smsGatewayUrlTemplate || "";
+    document.getElementById("msgSmsSenderId").value = c.smsSenderId || "";
+    document.getElementById("msgWaUrl").value = c.whatsappApiUrl || "";
+    document.getElementById("msgWaToken").value = c.whatsappToken || "";
   }
 }
 
 async function saveDealerMessagingConfig(){
+  const type = document.getElementById("msgSmsProviderType").value;
+  const apiKey = (type === "textbee")
+    ? document.getElementById("msgSmsKey").value.trim()
+    : document.getElementById("msgSmsKeyTemplate").value.trim();
   const data = {
-    smsGatewayUrlTemplate: document.getElementById("msgSmsUrl").value.trim(),
-    smsApiKey: document.getElementById("msgSmsKey").value.trim(),
+    smsProviderType: type,
+    smsGatewayUrlTemplate: document.getElementById("msgSmsUrlTemplate").value.trim(),
+    smsApiKey: apiKey,
+    smsSenderId: document.getElementById("msgSmsSenderId").value.trim(),
     whatsappApiUrl: document.getElementById("msgWaUrl").value.trim(),
     whatsappToken: document.getElementById("msgWaToken").value.trim()
   };
@@ -1168,6 +1243,7 @@ async function saveDealerMessagingConfig(){
   const msgBox = document.getElementById("msgCfgMsg");
   msgBox.textContent = res.message;
   msgBox.className = "msg " + (res.success ? "ok" : "err");
+  if(res.success) dealerMsgConfigCache = data; // ক্যাশ আপডেট, যাতে মেসেজ ফরমে সাথে সাথে নতুন তথ্য দেখায়
 }
 
 function onMsgTypeChange(){
@@ -1189,11 +1265,12 @@ function onMsgTypeChange(){
 }
 
 async function sendBulkMessage(){
+  const fromFieldVisible = document.getElementById("msgFromMobileField").style.display !== "none";
   const fromMobile = document.getElementById("msgFromMobile").value.trim();
   const message = document.getElementById("msgText").value.trim();
   const resultBox = document.getElementById("msgResult");
 
-  if(!fromMobile){ resultBox.className = "msg err"; resultBox.textContent = "Sender ID / মোবাইল নং দিন"; return; }
+  if(fromFieldVisible && !fromMobile){ resultBox.className = "msg err"; resultBox.textContent = "Sender ID / মোবাইল নং দিন"; return; }
   if(!message){ resultBox.className = "msg err"; resultBox.textContent = "মেসেজ লিখুন"; return; }
 
   const type = document.getElementById("msgType").value;

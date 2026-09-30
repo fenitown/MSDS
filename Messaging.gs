@@ -15,9 +15,19 @@
  * (ডিপু) সাইটে কোনো মেসেজিং সুবিধা নেই।
  *
  * Google Apps Script নিজে থেকে SMS/WhatsApp পাঠাতে পারে না —
- * এর জন্য একটি তৃতীয় পক্ষের গেটওয়ে/API লাগে:
+ * SMS এর জন্য দুইটা অপশন আছে (ডিলার সেটাপ ফরম থেকে যেকোনো একটা
+ * বেছে নেবে):
  *
- * ১) SMS গেটওয়ে URL টেমপ্লেট (উদাহরণ — BulkSMSBD):
+ * === অপশন A: নিজের ফোনের সিম দিয়ে (textbee) ===
+ * একটা পুরনো/স্পেয়ার Android ফোনে সিম ভরে (SMS প্যাকেজ/ব্যালেন্স
+ * থাকতে হবে, ফোনটা সবসময় চালু ও ইন্টারনেটে কানেক্টেড থাকতে হবে)
+ * https://textbee.dev থেকে অ্যাপ ইনস্টল করে সাইন-ইন করুন, SMS
+ * পারমিশন দিন, ড্যাশবোর্ড থেকে API Key কপি করে সেটাপ ফরমে বসান।
+ * মেসেজ পাঠালে ঠিক ম্যানুয়ালি ওই ফোন থেকে পাঠানোর মতোই সেই সিমের
+ * প্যাকেজ/ব্যালেন্স থেকে কাটবে — সম্পূর্ণ ফ্রি সফটওয়্যার, শুধু
+ * ফোনের সিমের স্বাভাবিক SMS খরচ লাগবে।
+ *
+ * === অপশন B: পেইড SMS গেটওয়ে (BulkSMSBD ইত্যাদি) ===
  *    http://bulksmsbd.net/api/smsapi?api_key={api_key}&type=text&number={to}&senderid={from}&message={message}
  *    URL এর ভেতরে {api_key}, {from}, {to}, {message} — এই চারটি
  *    প্লেসহোল্ডার ঠিক এভাবেই থাকতে হবে, বাকিটা প্রতিটি গেটওয়ের
@@ -35,7 +45,10 @@
  * কাজ করবে (কনফিগ ফাঁকা থাকলে সেই চ্যানেলটি শুধু স্কিপ হবে)।
  *******************************************************/
 
-const MESSAGING_CONFIG_KEYS = ["smsGatewayUrlTemplate", "smsApiKey", "whatsappApiUrl", "whatsappToken"];
+const MESSAGING_CONFIG_KEYS = ["smsProviderType", "smsGatewayUrlTemplate", "smsApiKey", "smsSenderId", "whatsappApiUrl", "whatsappToken"];
+// smsProviderType সম্ভাব্য মান:
+//  "url_template" — পেইড SMS গেটওয়ে (BulkSMSBD ইত্যাদি), URL টেমপ্লেট দিয়ে GET রিকোয়েস্ট
+//  "textbee"       — নিজের Android ফোনের সিম দিয়ে পাঠানো (textbee অ্যাপ, ফ্রি ওপেন-সোর্স)
 
 /*******************************************************
  * ScriptProperties থেকে একটি নির্দিষ্ট ডিলারের মেসেজিং কনফিগ পড়া
@@ -141,11 +154,38 @@ function sendWhatsAppMessage(config, toMobile, message) {
 }
 
 /*******************************************************
+ * textbee (https://textbee.dev) — নিজের Android ফোনকে SMS
+ * গেটওয়ে বানিয়ে সেই ফোনের সিম দিয়ে মেসেজ পাঠানো। একসাথে অনেক
+ * নম্বরে (bulk) একটাই রিকোয়েস্টে পাঠানো যায়
+ *******************************************************/
+function sendSmsViaTextbee(config, numbers, message) {
+  if (!config.smsApiKey) return { ok: false, skipped: true };
+  try {
+    const recipients = numbers.map(function (n) { return "+" + normalizeMobileBD(n); });
+    const resp = UrlFetchApp.fetch("https://api.textbee.dev/api/v1/gateway/send-sms", {
+      method: "post",
+      contentType: "application/json",
+      headers: { "x-api-key": config.smsApiKey },
+      payload: JSON.stringify({ recipients: recipients, message: message }),
+      muteHttpExceptions: true
+    });
+    const code = resp.getResponseCode();
+    return { ok: code >= 200 && code < 300, response: resp.getContentText() };
+  } catch (e) {
+    return { ok: false, reason: e.toString() };
+  }
+}
+
+/*******************************************************
  * একাধিক নম্বরে (ডুপ্লিকেট/খালি বাদ দিয়ে) SMS + WhatsApp —
- * যেটা কনফিগার করা আছে সেটাই পাঠানো হবে, অন্যটা স্কিপ হবে
+ * যেটা কনফিগার করা আছে সেটাই পাঠানো হবে, অন্যটা স্কিপ হবে।
+ * smsProviderType অনুযায়ী SMS হয় textbee (নিজের ফোনের সিম, একটা
+ * bulk কল) দিয়ে, নয়তো url_template (BulkSMSBD জাতীয় গেটওয়ে,
+ * প্রতি নম্বরে আলাদা কল) দিয়ে পাঠানো হয়
  *******************************************************/
 function sendBulkToNumbers(config, fromMobile, message, numbers) {
-  const smsEnabled = !!config.smsGatewayUrlTemplate;
+  const isTextbee = config.smsProviderType === "textbee";
+  const smsEnabled = isTextbee ? !!config.smsApiKey : !!config.smsGatewayUrlTemplate;
   const waEnabled = !!(config.whatsappApiUrl && config.whatsappToken);
 
   const uniqueNumbers = [];
@@ -156,16 +196,25 @@ function sendBulkToNumbers(config, fromMobile, message, numbers) {
   });
 
   let smsSent = 0, smsFailed = 0, waSent = 0, waFailed = 0;
-  uniqueNumbers.forEach(function (num) {
-    if (smsEnabled) {
-      const r = sendSmsViaGateway(config, fromMobile, num, message);
-      if (r.ok) smsSent++; else smsFailed++;
+
+  if (smsEnabled) {
+    if (isTextbee) {
+      const r = sendSmsViaTextbee(config, uniqueNumbers, message);
+      if (r.ok) smsSent = uniqueNumbers.length; else smsFailed = uniqueNumbers.length;
+    } else {
+      uniqueNumbers.forEach(function (num) {
+        const r = sendSmsViaGateway(config, fromMobile, num, message);
+        if (r.ok) smsSent++; else smsFailed++;
+      });
     }
-    if (waEnabled) {
+  }
+
+  if (waEnabled) {
+    uniqueNumbers.forEach(function (num) {
       const r2 = sendWhatsAppMessage(config, num, message);
       if (r2.ok) waSent++; else waFailed++;
-    }
-  });
+    });
+  }
 
   return {
     total: uniqueNumbers.length,
@@ -188,8 +237,10 @@ function sendCustomerMessage(data) {
 
   const dealerId = perm.payload.dealerId;
   const config = getDealerMessagingConfigRaw(dealerId);
-  if (!config.smsGatewayUrlTemplate && !(config.whatsappApiUrl && config.whatsappToken)) {
-    return { success: false, message: "এখনো কোনো SMS/WhatsApp API সেটআপ করা হয়নি। গ্রাহক → মেসেজিং সেটাপ থেকে আগে সেটআপ করুন।" };
+  const smsReady = config.smsProviderType === "textbee" ? !!config.smsApiKey : !!config.smsGatewayUrlTemplate;
+  const waReady = !!(config.whatsappApiUrl && config.whatsappToken);
+  if (!smsReady && !waReady) {
+    return { success: false, message: "এখনো কোনো SMS/WhatsApp সেটআপ করা হয়নি। গ্রাহক → মেসেজিং সেটাপ থেকে আগে সেটআপ করুন।" };
   }
 
   const ss = getDealerSpreadsheet(dealerId);
