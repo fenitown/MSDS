@@ -78,11 +78,11 @@ function saveDealerMessagingConfig(data) {
 }
 
 /*******************************************************
- * বাংলাদেশি লোকাল নম্বর (01XXXXXXXXX) কে WhatsApp/আন্তর্জাতিক
- * ফরম্যাটে (৮৮01XXXXXXXXX) রূপান্তর — ইতিমধ্যে + বা ৮৮ দিয়ে
- * শুরু থাকলে অপরিবর্তিত রাখা হয়
+ * বাংলাদেশি লোকাল নম্বর (01XXXXXXXXX) কে আন্তর্জাতিক ফরম্যাটে
+ * (৮৮01XXXXXXXXX) রূপান্তর — অধিকাংশ BD SMS/WhatsApp গেটওয়ে এই
+ * ফরম্যাটই চায়। ইতিমধ্যে + বা ৮৮ দিয়ে শুরু থাকলে অপরিবর্তিত রাখা হয়
  *******************************************************/
-function normalizeMobileForWhatsApp(mobile) {
+function normalizeMobileBD(mobile) {
   let m = String(mobile || "").replace(/[^0-9+]/g, "");
   if (m.indexOf("+") === 0) m = m.substring(1);
   if (m.indexOf("880") === 0) return m;
@@ -94,6 +94,8 @@ function normalizeMobileForWhatsApp(mobile) {
  * একটি নম্বরে SMS গেটওয়ে দিয়ে মেসেজ পাঠানো
  * config.smsGatewayUrlTemplate এ {api_key},{from},{to},{message}
  * প্লেসহোল্ডারগুলো আসল মান দিয়ে বদলে দিয়ে GET রিকোয়েস্ট পাঠানো হয়
+ * {from} এর জায়গায় Sender ID (BulkSMSBD এর ক্ষেত্রে এটা মোবাইল
+ * নম্বর না, তাদের দেওয়া Approved Sender ID কোড) বসে
  *******************************************************/
 function sendSmsViaGateway(config, fromMobile, toMobile, message) {
   if (!config.smsGatewayUrlTemplate) return { ok: false, skipped: true };
@@ -101,7 +103,7 @@ function sendSmsViaGateway(config, fromMobile, toMobile, message) {
     const url = config.smsGatewayUrlTemplate
       .replace(/\{api_key\}/g, encodeURIComponent(config.smsApiKey || ""))
       .replace(/\{from\}/g, encodeURIComponent(fromMobile || ""))
-      .replace(/\{to\}/g, encodeURIComponent(toMobile))
+      .replace(/\{to\}/g, encodeURIComponent(normalizeMobileBD(toMobile)))
       .replace(/\{message\}/g, encodeURIComponent(message));
     const resp = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
     const code = resp.getResponseCode();
@@ -120,7 +122,7 @@ function sendWhatsAppMessage(config, toMobile, message) {
   try {
     const payload = {
       messaging_product: "whatsapp",
-      to: normalizeMobileForWhatsApp(toMobile),
+      to: normalizeMobileBD(toMobile),
       type: "text",
       text: { body: message }
     };

@@ -357,7 +357,7 @@
     <div class="modal-box" style="max-width:480px;">
       <h3 id="msgModalTitle">মেসেজ পাঠান</h3>
       <div class="field">
-        <label>মোবাইল নং (যে নাম্বার থেকে SMS যাবে)</label>
+        <label>Sender ID / মোবাইল নং (গেটওয়ে যেভাবে চায়)</label>
         <input id="msgFromMobile" maxlength="11" placeholder="যেমন: 01XXXXXXXXX">
       </div>
       <div class="field" id="msgTypeField">
@@ -643,7 +643,9 @@
             যতক্ষণ নিচের তথ্য দেওয়া না হবে, ততক্ষণ "মেসেজ" বাটন থেকে পাঠানো মেসেজ প্রকৃতপক্ষে যাবে না।
             SMS এর জন্য বাংলাদেশের যেকোনো Bulk SMS গেটওয়ে (যেমন BulkSMSBD, Alpha SMS, MimSMS ইত্যাদি) থেকে API URL ও API Key নিয়ে
             নিচে বসান — URL এর মধ্যে <code>{to}</code>, <code>{message}</code>, <code>{from}</code>, <code>{api_key}</code>
-            অংশগুলো ঠিক এভাবেই লিখুন। WhatsApp এর জন্য Meta এর অফিসিয়াল WhatsApp Business Cloud API (অথবা Twilio/360dialog এর মতো
+            অংশগুলো ঠিক এভাবেই লিখুন। <b>খেয়াল রাখুন:</b> "মেসেজ" ফরমের Sender ID বক্সে যা লিখবেন সেটাই <code>{from}</code> এর জায়গায় বসবে —
+            অনেক গেটওয়েতে (যেমন BulkSMSBD) এটা মোবাইল নম্বর না, বরং তাদের ড্যাশবোর্ডে দেখানো একটা নির্দিষ্ট Approved Sender ID কোড হয়,
+            হুবহু সেটাই কপি করে বসাতে হবে। WhatsApp এর জন্য Meta এর অফিসিয়াল WhatsApp Business Cloud API (অথবা Twilio/360dialog এর মতো
             প্রোভাইডার) থেকে Endpoint URL ও Access Token লাগবে। একটা সেটআপ না থাকলেও অন্যটা দিয়ে মেসেজ পাঠানো চলবে — এই সেটিংস
             শুধু এই ডিলারের নিজের জন্য, অন্য কোনো ডিলারের সাথে শেয়ার হবে না।
           </p>
@@ -1191,7 +1193,7 @@ async function sendBulkMessage(){
   const message = document.getElementById("msgText").value.trim();
   const resultBox = document.getElementById("msgResult");
 
-  if(!fromMobile){ resultBox.className = "msg err"; resultBox.textContent = "মোবাইল নং (যে নাম্বার থেকে SMS যাবে) দিন"; return; }
+  if(!fromMobile){ resultBox.className = "msg err"; resultBox.textContent = "Sender ID / মোবাইল নং দিন"; return; }
   if(!message){ resultBox.className = "msg err"; resultBox.textContent = "মেসেজ লিখুন"; return; }
 
   const type = document.getElementById("msgType").value;
