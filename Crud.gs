@@ -60,13 +60,25 @@ function getDealerSpreadsheetId(dealerId) {
 /*******************************************************
  * জেনেরিক: হেডার-ভিত্তিক রো যোগ (ফরমের ফিল্ড ছাড়া অতিরিক্ত কিছু যোগ হবে না)
  *******************************************************/
+function isTextColumnHeader(h) {
+  // মোবাইল/NID এর মতো কলামে শুরুর ০ রাখতে হয় — এগুলো সবসময় টেক্সট হিসেবে লেখা হয়
+  return /মোবাইল|mobile|NID|জন্মসনদ/i.test(String(h));
+}
+
 function genericAddRow(sheet, rowObject) {
   const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
-  const row = headers.map(function (h) {
-    return rowObject.hasOwnProperty(h) ? rowObject[h] : "";
+  const newRow = sheet.getLastRow() + 1;
+  const row = headers.map(function (h, i) {
+    let v = rowObject.hasOwnProperty(h) ? rowObject[h] : "";
+    if (isTextColumnHeader(h)) {
+      // লেখার আগেই ঘরটিকে টেক্সট ফরম্যাট করা হয়, নাহলে শীট 01712.. কে সংখ্যা ধরে ০ কেটে দেয়
+      sheet.getRange(newRow, i + 1).setNumberFormat("@");
+      if (v !== "" && v !== null && v !== undefined) v = String(v);
+    }
+    return v;
   });
-  sheet.appendRow(row);
-  return sheet.getLastRow();
+  sheet.getRange(newRow, 1, 1, headers.length).setValues([row]);
+  return newRow;
 }
 
 /*******************************************************
@@ -109,7 +121,13 @@ function genericUpdateRow(sheet, idColumnName, idValue, updatedFields) {
   const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
   headers.forEach(function (h, colIdx) {
     if (updatedFields.hasOwnProperty(h)) {
-      sheet.getRange(rowIndex, colIdx + 1).setValue(updatedFields[h]);
+      const cell = sheet.getRange(rowIndex, colIdx + 1);
+      let v = updatedFields[h];
+      if (isTextColumnHeader(h)) {
+        cell.setNumberFormat("@");
+        if (v !== "" && v !== null && v !== undefined) v = String(v);
+      }
+      cell.setValue(v);
     }
   });
   return true;

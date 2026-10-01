@@ -139,11 +139,19 @@ function getMessagingStatus(data) {
  * ফরম্যাটই চায়। ইতিমধ্যে + বা ৮৮ দিয়ে শুরু থাকলে অপরিবর্তিত রাখা হয়
  *******************************************************/
 function normalizeMobileBD(mobile) {
-  let m = String(mobile || "").replace(/[^0-9+]/g, "");
+  let m = String(mobile === undefined || mobile === null ? "" : mobile);
+  m = m.replace(/[০-৯]/g, function (d) { return "০১২৩৪৫৬৭৮৯".indexOf(d); }); // বাংলা অঙ্ক → ইংরেজি
+  m = m.replace(/[^0-9+]/g, "");
   if (m.indexOf("+") === 0) m = m.substring(1);
   if (m.indexOf("880") === 0) return m;
   if (m.indexOf("0") === 0) return "88" + m;
+  // শীটে শুরুর ০ কেটে গিয়ে ১০ ডিজিট (1712345678) থাকলে ০ বসিয়ে নেওয়া
+  if (m.length === 10 && m.charAt(0) === "1") return "880" + m;
   return m;
+}
+
+function isValidBdMobile(normalized) {
+  return /^8801[0-9]{9}$/.test(normalized);
 }
 
 /*******************************************************
@@ -223,17 +231,27 @@ function sendSmsViaTraccar(config, toMobile, message) {
  * ডিলারের নাম ও ঠিকানা (Master "Dealers" ট্যাব থেকে) — মেসেজের নিচে অটো বসে
  *******************************************************/
 function getDealerNameAndAddress(dealerId) {
+  const cache = CacheService.getScriptCache();
+  const key = "dealer_nameaddr_" + dealerId;
+  try {
+    const hit = cache.get(key);
+    if (hit) return JSON.parse(hit);
+  } catch (e) { /* ক্যাশ না থাকলে সরাসরি পড়া হবে */ }
+
   const sheet = getSheet(getMasterSS(), "Dealers");
   const rows = genericListRows(sheet);
+  let info = { name: "", address: "" };
   for (let i = 0; i < rows.length; i++) {
     if (rows[i]["DealerID"] === dealerId) {
-      return {
+      info = {
         name: String(rows[i]["নাম"] || "").trim(),
         address: String(rows[i]["ঠিকানা"] || "").trim()
       };
+      break;
     }
   }
-  return { name: "", address: "" };
+  try { cache.put(key, JSON.stringify(info), 600); } catch (e) { /* বাদ */ }
+  return info;
 }
 
 /*******************************************************
@@ -265,37 +283,99 @@ function sendBulkToRecipients(config, fromMobile, mainText, recipients, dealerIn
   const smsEnabled = isSmsReady(config);
   const waEnabled = isWhatsAppReady(config);
 
+  // ডুপ্লিকেট/খালি/ভুল নম্বর বাদ
   const unique = [];
   const seen = {};
+  let invalid = 0;
   (recipients || []).forEach(function (r) {
-    const clean = String((r && r.mobile) || "").trim();
-    if (clean && !seen[clean]) { seen[clean] = true; unique.push({ mobile: clean, name: r.name }); }
+    const clean = normalizeMobileBD(r && r.mobile);
+    if (!clean) return;
+    if (!isValidBdMobile(clean)) { invalid++; return; }
+    if (!seen[clean]) { seen[clean] = true; unique.push({ norm: clean, name: r.name }); }
   });
+
+  // সব রিকোয়েস্ট আগে তৈরি করে একসাথে (প্যারালাল) পাঠানো হয় — একটা একটা করে পাঠালে অনেক ধীর
+  const smsReqs = [], waReqs = [];
+  unique.forEach(function (rcp) {
+    const text = composeCustomerMessage(rcp.name, mainText, dealerInfo.name, dealerInfo.address);
+    if (smsEnabled) {
+      if (providerType === "traccar") {
+        smsReqs.push({
+          url: config.smsTraccarUrl, method: "post", contentType: "application/json",
+          headers: { Authorization: config.smsApiKey },
+          payload: JSON.stringify({ to: "+" + rcp.norm, message: text }),
+          muteHttpExceptions: true
+        });
+      } else {
+        smsReqs.push({
+          url: config.smsGatewayUrlTemplate
+            .replace(/\{api_key\}/g, encodeURIComponent(config.smsApiKey || ""))
+            .replace(/\{from\}/g, encodeURIComponent(fromMobile || ""))
+            .replace(/\{to\}/g, encodeURIComponent(rcp.norm))
+            .replace(/\{message\}/g, encodeURIComponent(text)),
+          method: "get", muteHttpExceptions: true
+        });
+      }
+    }
+    if (waEnabled) {
+      waReqs.push({
+        url: config.whatsappApiUrl, method: "post", contentType: "application/json",
+        headers: { Authorization: "Bearer " + config.whatsappToken },
+        payload: JSON.stringify({ messaging_product: "whatsapp", to: rcp.norm, type: "text", text: { body: text } }),
+        muteHttpExceptions: true
+      });
+    }
+  });
+
+  const smsRes = smsEnabled ? fetchAllSafe(smsReqs) : [];
+  const waRes = waEnabled ? fetchAllSafe(waReqs) : [];
 
   let smsSent = 0, smsFailed = 0, waSent = 0, waFailed = 0;
   let smsLastError = "", waLastError = "";
-
-  unique.forEach(function (rcp) {
-    const text = composeCustomerMessage(rcp.name, mainText, dealerInfo.name, dealerInfo.address);
-
-    if (smsEnabled) {
-      const r = (providerType === "traccar")
-        ? sendSmsViaTraccar(config, rcp.mobile, text)
-        : sendSmsViaGateway(config, fromMobile, rcp.mobile, text);
-      if (r.ok) smsSent++; else { smsFailed++; smsLastError = String(r.response || r.reason || "").substring(0, 300); }
-    }
-
-    if (waEnabled) {
-      const r2 = sendWhatsAppMessage(config, rcp.mobile, text);
-      if (r2.ok) waSent++; else { waFailed++; waLastError = String(r2.response || r2.reason || "").substring(0, 300); }
-    }
+  smsRes.forEach(function (r) {
+    if (r.ok) smsSent++; else { smsFailed++; smsLastError = String(r.response || r.reason || "").substring(0, 300); }
+  });
+  waRes.forEach(function (r) {
+    if (r.ok) waSent++; else { waFailed++; waLastError = String(r.response || r.reason || "").substring(0, 300); }
   });
 
   return {
-    total: unique.length,
+    total: unique.length, invalid: invalid,
+    firstNumber: unique.length ? unique[0].norm : "",
     smsEnabled: smsEnabled, smsSent: smsSent, smsFailed: smsFailed, smsLastError: smsLastError,
     waEnabled: waEnabled, waSent: waSent, waFailed: waFailed, waLastError: waLastError
   };
+}
+
+/*******************************************************
+ * UrlFetchApp.fetchAll দিয়ে প্যারালালে পাঠানো (২০টি করে ব্যাচ)।
+ * ফেরত: প্রতিটি রিকোয়েস্টের জন্য { ok, response, reason }
+ *******************************************************/
+function fetchAllSafe(requests) {
+  const out = [];
+  const CHUNK = 20;
+  for (let i = 0; i < requests.length; i += CHUNK) {
+    const chunk = requests.slice(i, i + CHUNK);
+    try {
+      const resps = UrlFetchApp.fetchAll(chunk);
+      resps.forEach(function (resp) {
+        const code = resp.getResponseCode();
+        out.push({ ok: code >= 200 && code < 300, response: resp.getContentText() });
+      });
+    } catch (e) {
+      // ব্যাচে কোনো একটা রিকোয়েস্ট ভুল হলে পুরো ব্যাচ ব্যর্থ হয় — একটা একটা করে আবার চেষ্টা
+      chunk.forEach(function (req) {
+        try {
+          const resp = UrlFetchApp.fetch(req.url, req);
+          const code = resp.getResponseCode();
+          out.push({ ok: code >= 200 && code < 300, response: resp.getContentText() });
+        } catch (e2) {
+          out.push({ ok: false, reason: e2.toString() });
+        }
+      });
+    }
+  }
+  return out;
 }
 
 /*******************************************************
@@ -311,6 +391,20 @@ function sendCustomerMessage(data) {
   if (!data.message || !String(data.message).trim()) return { success: false, message: "মেসেজ লিখুন" };
 
   const dealerId = perm.payload.dealerId;
+
+  // একই অনুরোধ দুইবার এলে (ডাবল ক্লিক/ধীর নেটওয়ার্কে আবার চাপা) দ্বিতীয়টি আটকে দেওয়া হয়
+  if (data.requestId) {
+    const lock = LockService.getScriptLock();
+    lock.waitLock(5000);
+    try {
+      const cache = CacheService.getScriptCache();
+      const key = "msgreq_" + dealerId + "_" + data.requestId;
+      if (cache.get(key)) return { success: false, message: "এই মেসেজটি ইতিমধ্যে পাঠানো হয়েছে বা পাঠানো চলছে" };
+      cache.put(key, "1", 600);
+    } finally {
+      lock.releaseLock();
+    }
+  }
   const config = getDealerMessagingConfigRaw(dealerId);
   const providerType = getSmsProviderType(config);
   if (!isSmsReady(config) && !isWhatsAppReady(config)) {
@@ -354,7 +448,8 @@ function sendCustomerMessage(data) {
   // মেসেজ তালিকায় সংরক্ষণ (ব্যর্থ হলেও পাঠানোর ফলাফল আটকাবে না)
   try {
     const msgSheet = getMessagesSheet(ss);
-    const msgId = generateId(msgSheet, "MS");
+    // সারি ডিলিট করা যায় বলে সারি-সংখ্যা ভিত্তিক আইডি না নিয়ে সময় ভিত্তিক ইউনিক আইডি
+    const msgId = "MS" + Utilities.formatDate(new Date(), "UTC", "yyMMddHHmmss") + Math.floor(100 + Math.random() * 900);
     genericAddRow(msgSheet, {
       "MessageID": msgId,
       "মেসেজ": String(data.message).trim(),
@@ -391,6 +486,21 @@ function listMessages(data) {
   const ss = getDealerSpreadsheet(perm.payload.dealerId);
   const sheet = getMessagesSheet(ss);
   return { success: true, messages: genericListRows(sheet) };
+}
+
+/*******************************************************
+ * মেসেজ তালিকা থেকে একটি মেসেজ ডিলিট (শুধু তালিকার রেকর্ড মোছে,
+ * আগে পাঠানো মেসেজ ফেরত যায় না) — Admin + প্রতিনিধি
+ * data: { token, messageId }
+ *******************************************************/
+function deleteMessage(data) {
+  const perm = checkPermission(data.token, ["Admin", "প্রতিনিধি"]);
+  if (!perm.ok) return { success: false, message: perm.message };
+
+  const ss = getDealerSpreadsheet(perm.payload.dealerId);
+  const sheet = getMessagesSheet(ss);
+  const ok = genericDeleteRow(sheet, "MessageID", data.messageId);
+  return { success: ok, message: ok ? "মেসেজ ডিলিট হয়েছে" : "মেসেজ পাওয়া যায়নি" };
 }
 
 /*******************************************************

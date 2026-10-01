@@ -1248,23 +1248,34 @@ async function loadMessagesSection(){
   loadMessagesList();
 }
 
+let msgListSeq = 0;
 async function loadMessagesList(){
+  const mySeq = ++msgListSeq;
   const table = document.getElementById("messagesTable");
-  table.innerHTML = "<thead><tr><th>ক্রম</th><th>মেসেজ</th><th>তারিখ ও সময়</th><th>স্ট্যাটাস</th></tr></thead><tbody></tbody>";
+  table.innerHTML = "<thead><tr><th>ক্রম</th><th>মেসেজ</th><th>তারিখ ও সময়</th><th>স্ট্যাটাস</th><th class='no-print'>একশন</th></tr></thead><tbody></tbody>";
   const tbody = table.querySelector("tbody");
-  tbody.innerHTML = emptyRowHtml(4, "লোড হচ্ছে...");
+  tbody.innerHTML = emptyRowHtml(5, "লোড হচ্ছে...");
   const res = await apiCall("listMessages", {});
-  if(!res.success){ tbody.innerHTML = emptyRowHtml(4, res.message); return; }
+  if(mySeq !== msgListSeq) return;   // নতুন লোড শুরু হয়ে গেছে — পুরনোটা বাদ
+  if(!res.success){ tbody.innerHTML = emptyRowHtml(5, res.message); return; }
   const list = (res.messages || []).slice().reverse(); // সবচেয়ে নতুন উপরে
-  if(list.length === 0){ tbody.innerHTML = emptyRowHtml(4, "এখনো কোনো মেসেজ পাঠানো হয়নি"); return; }
+  if(list.length === 0){ tbody.innerHTML = emptyRowHtml(5, "এখনো কোনো মেসেজ পাঠানো হয়নি"); return; }
   tbody.innerHTML = "";
   list.forEach((m, i) => {
     const d = m["তারিখ ও সময়"] ? new Date(m["তারিখ ও সময়"]) : null;
     const dt = d && !isNaN(d) ? d.toLocaleString("bn-BD", { day:"numeric", month:"short", year:"numeric", hour:"numeric", minute:"2-digit", hour12:true }) : "";
     const tr = document.createElement("tr");
-    tr.innerHTML = `<td>${i+1}</td><td class="msg-text-cell">${escMsgHtml(m["মেসেজ"])}</td><td>${escMsgHtml(dt)}</td><td>${escMsgHtml(m["স্ট্যাটাস"])}</td>`;
+    tr.innerHTML = `<td>${i+1}</td><td class="msg-text-cell">${escMsgHtml(m["মেসেজ"])}</td><td>${escMsgHtml(dt)}</td><td>${escMsgHtml(m["স্ট্যাটাস"])}</td>
+      <td class="no-print"><button class="btn small danger" onclick="deleteMessageRow('${escMsgHtml(m["MessageID"])}')">ডিলিট</button></td>`;
     tbody.appendChild(tr);
   });
+}
+
+async function deleteMessageRow(id){
+  if(!confirm("এই মেসেজটি তালিকা থেকে ডিলিট করবেন?")) return;
+  const res = await apiCall("deleteMessage", { messageId: id });
+  if(!res.success){ alert(res.message); return; }
+  loadMessagesList();
 }
 
 /* মেসেজ ফরম টগল — ক্লিকে খোলে, আবার ক্লিকে বন্ধ হয় */
@@ -1436,7 +1447,7 @@ async function sendBulkMessage(){
 
   let res;
   try {
-    res = await apiCall("sendCustomerMessage", { fromMobile, message, type, locations });
+    res = await apiCall("sendCustomerMessage", { fromMobile, message, type, locations, requestId: "R" + Date.now() + Math.random().toString(36).slice(2,8) });
   } finally {
     sendBtn.disabled = false;
   }
@@ -1444,10 +1455,10 @@ async function sendBulkMessage(){
   if(!res.success){ resultBox.className = "msg err"; resultBox.textContent = res.message; return; }
 
   const lines = [];
-  lines.push("মোট প্রাপক: " + res.total);
-  lines.push(res.smsEnabled ? ("SMS পাঠানো হয়েছে: " + res.smsSent + " (ব্যর্থ: " + res.smsFailed + ")") : "SMS: গেটওয়ে এখনো সেটআপ করা হয়নি");
+  lines.push("মোট প্রাপক: " + res.total + (res.invalid ? " (ভুল/অসম্পূর্ণ নম্বর বাদ: " + res.invalid + ")" : ""));
+  lines.push(res.smsEnabled ? ("SMS গেটওয়েতে জমা হয়েছে: " + res.smsSent + " (ব্যর্থ: " + res.smsFailed + ")") : "SMS: গেটওয়ে এখনো সেটআপ করা হয়নি");
   if(res.smsFailed > 0 && res.smsLastError){ lines.push("↳ SMS এরর বিস্তারিত: " + res.smsLastError); }
-  lines.push(res.waEnabled ? ("WhatsApp পাঠানো হয়েছে: " + res.waSent + " (ব্যর্থ: " + res.waFailed + ")") : "WhatsApp: এখনো সেটআপ করা হয়নি");
+  lines.push(res.waEnabled ? ("WhatsApp গেটওয়েতে জমা হয়েছে: " + res.waSent + " (ব্যর্থ: " + res.waFailed + ")") : "WhatsApp: এখনো সেটআপ করা হয়নি");
   if(res.waFailed > 0 && res.waLastError){ lines.push("↳ WhatsApp এরর বিস্তারিত: " + res.waLastError); }
   resultBox.className = "msg ok";
   resultBox.innerHTML = lines.join("<br>");
@@ -3860,7 +3871,7 @@ const NEW_CUSTOMER_MSG_TEXT = "৮নং আমিরাবাদ ইউনি�
 let newCusMsgTarget = null;
 
 function openNewCusMsgModal(customerId, name, mobile){
-  newCusMsgTarget = { customerId, name, mobile };
+  newCusMsgTarget = { customerId, name, mobile, reqId: "N" + Date.now() + Math.random().toString(36).slice(2,8) };
   document.getElementById("ncmName").textContent = name || "";
   document.getElementById("ncmMobile").textContent = mobile || "";
   document.getElementById("ncmPreview").textContent =
@@ -3879,23 +3890,32 @@ async function sendNewCustomerMessage(){
   if(!newCusMsgTarget) return;
   const r = document.getElementById("ncmResult");
   const btn = document.getElementById("ncmSendBtn");
+  if(btn.disabled) return;                 // ডাবল ক্লিক আটকাতে সবার আগে ডিসেবল
+  btn.disabled = true; r.className = "msg"; r.textContent = "পাঠানো হচ্ছে...";
+  const target = newCusMsgTarget;
   const st = await loadMessagingStatus();
   if(!st.smsReady && !st.waReady){
     r.className = "msg err"; r.textContent = "এখনো কোনো SMS/WhatsApp সেটআপ করা হয়নি। গ্রাহক → মেসেজ → মেসেজ সেটাপ থেকে সেটআপ করুন।";
+    btn.disabled = false;
     return;
   }
-  btn.disabled = true; r.className = "msg"; r.textContent = "পাঠানো হচ্ছে...";
   let res;
   try{
     res = await apiCall("sendCustomerMessage", {
       fromMobile: st.smsSenderId || "", message: NEW_CUSTOMER_MSG_TEXT,
-      type: "single", customerId: newCusMsgTarget.customerId
+      type: "single", customerId: target.customerId, requestId: target.reqId
     });
   } finally { btn.disabled = false; }
   if(!res.success){ r.className = "msg err"; r.textContent = res.message; return; }
+  if(res.total === 0){
+    r.className = "msg err";
+    r.textContent = "মেসেজ পাঠানো যায়নি — গ্রাহকের মোবাইল নম্বরটি সঠিক নয় (০১XXXXXXXXX আকারে ১১ ডিজিট হতে হবে)";
+    return;
+  }
   const parts = [];
-  if(res.smsEnabled) parts.push("SMS: " + (res.smsSent > 0 ? "পাঠানো হয়েছে" : "ব্যর্থ" + (res.smsLastError ? " — " + res.smsLastError : "")));
-  if(res.waEnabled) parts.push("WhatsApp: " + (res.waSent > 0 ? "পাঠানো হয়েছে" : "ব্যর্থ" + (res.waLastError ? " — " + res.waLastError : "")));
+  if(res.firstNumber) parts.push("নম্বর: +" + res.firstNumber);
+  if(res.smsEnabled) parts.push("SMS: " + (res.smsSent > 0 ? "গেটওয়েতে জমা হয়েছে (ফোন অনলাইন থাকলে পাঠিয়ে দেবে)" : "ব্যর্থ" + (res.smsLastError ? " — " + res.smsLastError : "")));
+  if(res.waEnabled) parts.push("WhatsApp: " + (res.waSent > 0 ? "গেটওয়েতে জমা হয়েছে" : "ব্যর্থ" + (res.waLastError ? " — " + res.waLastError : "")));
   const ok = res.smsSent > 0 || res.waSent > 0;
   r.className = "msg " + (ok ? "ok" : "err");
   r.innerHTML = parts.map(escMsgHtml).join("<br>");

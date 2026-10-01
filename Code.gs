@@ -664,6 +664,9 @@ function doPost(e) {
       case "listMessages":
         result = listMessages(data);
         break;
+      case "deleteMessage":
+        result = deleteMessage(data);
+        break;
 
       default:
         result = { success: false, message: "অজানা action: " + action };
