@@ -648,7 +648,8 @@
             <div class="field" style="grid-column:1/-1;">
               <label>SMS কীভাবে পাঠাবেন?</label>
               <select id="msgSmsProviderType" onchange="onSmsProviderTypeChange()">
-                <option value="textbee">নিজের ফোনের সিম দিয়ে (ফ্রি — textbee অ্যাপ)</option>
+                <option value="textbee">নিজের ফোনের সিম দিয়ে — textbee (APK ইনস্টল করতে হয়)</option>
+                <option value="traccar">নিজের ফোনের সিম দিয়ে — Traccar SMS Gateway (Play Store থেকে সরাসরি)</option>
                 <option value="url_template">পেইড SMS গেটওয়ে (BulkSMSBD, Alpha SMS ইত্যাদি)</option>
               </select>
             </div>
@@ -663,6 +664,24 @@
             </p>
             <div class="form-grid">
               <div class="field" style="grid-column:1/-1;"><label>textbee API Key</label><input id="msgSmsKey"></div>
+            </div>
+          </div>
+
+          <div id="msgTraccarHelp" style="display:none;">
+            <p style="font-size:0.82rem;color:var(--muted);">
+              <b>যা লাগবে:</b> একটা পুরনো/স্পেয়ার Android ফোন, তাতে সচল SIM (SMS প্যাকেজ/ব্যালেন্স সহ), ফোনটা সবসময় চালু ও
+              ইন্টারনেটে কানেক্টেড থাকতে হবে। Google Play Store থেকে <b>"Traccar SMS Gateway"</b> অ্যাপটা সার্চ করে সরাসরি
+              ইনস্টল করুন (কোনো APK লাগবে না)। অ্যাপ খুলে SMS পাঠানোর পারমিশন দিন, তারপর অ্যাপের সেটিংসে
+              <b>"Cloud" মোড চালু করুন</b> (Local/LAN মোড বেছে নেবেন না — আমাদের সিস্টেম ইন্টারনেট দিয়ে কাজ করে, আপনার
+              ফোনের একই WiFi-তে না)। Cloud মোডে একটা URL ও Token/API Key দেখাবে — সেগুলো নিচে বসান।
+              মেসেজ পাঠালে ঠিক ম্যানুয়ালি ফোন থেকে পাঠানোর মতোই ওই সিমের প্যাকেজ/ব্যালেন্স থেকে কাটবে।
+            </p>
+            <div class="form-grid">
+              <div class="field" style="grid-column:1/-1;">
+                <label>Traccar SMS Gateway URL</label>
+                <input id="msgTraccarUrl" placeholder="https://www.traccar.org/sms/">
+              </div>
+              <div class="field" style="grid-column:1/-1;"><label>Token / API Key</label><input id="msgTraccarToken"></div>
             </div>
           </div>
 
@@ -1175,7 +1194,7 @@ async function openMessageModal(){
   // নিজের ফোনের সিম (textbee) দিয়ে পাঠালে আলাদা Sender ID লাগে না —
   // ওই ক্ষেত্রে এই ফিল্ডটা লুকিয়ে রাখা হয়
   const fromField = document.getElementById("msgFromMobileField");
-  if(c.smsProviderType === "textbee"){
+  if(c.smsProviderType === "textbee" || c.smsProviderType === "traccar"){
     fromField.style.display = "none";
   } else {
     fromField.style.display = "block";
@@ -1215,6 +1234,7 @@ async function loadMessagingStatus(){
 function onSmsProviderTypeChange(){
   const type = document.getElementById("msgSmsProviderType").value;
   document.getElementById("msgTextbeeHelp").style.display = (type === "textbee") ? "block" : "none";
+  document.getElementById("msgTraccarHelp").style.display = (type === "traccar") ? "block" : "none";
   document.getElementById("msgUrlTemplateHelp").style.display = (type === "url_template") ? "block" : "none";
 }
 
@@ -1230,11 +1250,14 @@ async function toggleMsgSetupForm(){
     onSmsProviderTypeChange();
     if(type === "textbee"){
       document.getElementById("msgSmsKey").value = c.smsApiKey || "";
+    } else if(type === "traccar"){
+      document.getElementById("msgTraccarToken").value = c.smsApiKey || "";
     } else {
       document.getElementById("msgSmsKeyTemplate").value = c.smsApiKey || "";
     }
     document.getElementById("msgSmsUrlTemplate").value = c.smsGatewayUrlTemplate || "";
     document.getElementById("msgSmsSenderId").value = c.smsSenderId || "";
+    document.getElementById("msgTraccarUrl").value = c.smsTraccarUrl || "";
     document.getElementById("msgWaUrl").value = c.whatsappApiUrl || "";
     document.getElementById("msgWaToken").value = c.whatsappToken || "";
   }
@@ -1242,14 +1265,16 @@ async function toggleMsgSetupForm(){
 
 async function saveDealerMessagingConfig(){
   const type = document.getElementById("msgSmsProviderType").value;
-  const apiKey = (type === "textbee")
-    ? document.getElementById("msgSmsKey").value.trim()
-    : document.getElementById("msgSmsKeyTemplate").value.trim();
+  let apiKey = "";
+  if(type === "textbee") apiKey = document.getElementById("msgSmsKey").value.trim();
+  else if(type === "traccar") apiKey = document.getElementById("msgTraccarToken").value.trim();
+  else apiKey = document.getElementById("msgSmsKeyTemplate").value.trim();
   const data = {
     smsProviderType: type,
     smsGatewayUrlTemplate: document.getElementById("msgSmsUrlTemplate").value.trim(),
     smsApiKey: apiKey,
     smsSenderId: document.getElementById("msgSmsSenderId").value.trim(),
+    smsTraccarUrl: document.getElementById("msgTraccarUrl").value.trim(),
     whatsappApiUrl: document.getElementById("msgWaUrl").value.trim(),
     whatsappToken: document.getElementById("msgWaToken").value.trim()
   };
