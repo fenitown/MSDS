@@ -1342,7 +1342,9 @@ async function sendBulkMessage(){
   const lines = [];
   lines.push("মোট প্রাপক: " + res.total);
   lines.push(res.smsEnabled ? ("SMS পাঠানো হয়েছে: " + res.smsSent + " (ব্যর্থ: " + res.smsFailed + ")") : "SMS: গেটওয়ে এখনো সেটআপ করা হয়নি");
+  if(res.smsFailed > 0 && res.smsLastError){ lines.push("↳ SMS এরর বিস্তারিত: " + res.smsLastError); }
   lines.push(res.waEnabled ? ("WhatsApp পাঠানো হয়েছে: " + res.waSent + " (ব্যর্থ: " + res.waFailed + ")") : "WhatsApp: এখনো সেটআপ করা হয়নি");
+  if(res.waFailed > 0 && res.waLastError){ lines.push("↳ WhatsApp এরর বিস্তারিত: " + res.waLastError); }
   resultBox.className = "msg ok";
   resultBox.innerHTML = lines.join("<br>");
 }

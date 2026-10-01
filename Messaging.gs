@@ -261,20 +261,21 @@ function sendBulkToNumbers(config, fromMobile, message, numbers) {
   });
 
   let smsSent = 0, smsFailed = 0, waSent = 0, waFailed = 0;
+  let smsLastError = "", waLastError = "";
 
   if (smsEnabled) {
     if (providerType === "textbee") {
       const r = sendSmsViaTextbee(config, uniqueNumbers, message);
-      if (r.ok) smsSent = uniqueNumbers.length; else smsFailed = uniqueNumbers.length;
+      if (r.ok) { smsSent = uniqueNumbers.length; } else { smsFailed = uniqueNumbers.length; smsLastError = String(r.response || r.reason || "").substring(0, 300); }
     } else if (providerType === "traccar") {
       uniqueNumbers.forEach(function (num) {
         const r = sendSmsViaTraccar(config, num, message);
-        if (r.ok) smsSent++; else smsFailed++;
+        if (r.ok) smsSent++; else { smsFailed++; smsLastError = String(r.response || r.reason || "").substring(0, 300); }
       });
     } else {
       uniqueNumbers.forEach(function (num) {
         const r = sendSmsViaGateway(config, fromMobile, num, message);
-        if (r.ok) smsSent++; else smsFailed++;
+        if (r.ok) smsSent++; else { smsFailed++; smsLastError = String(r.response || r.reason || "").substring(0, 300); }
       });
     }
   }
@@ -282,14 +283,14 @@ function sendBulkToNumbers(config, fromMobile, message, numbers) {
   if (waEnabled) {
     uniqueNumbers.forEach(function (num) {
       const r2 = sendWhatsAppMessage(config, num, message);
-      if (r2.ok) waSent++; else waFailed++;
+      if (r2.ok) waSent++; else { waFailed++; waLastError = String(r2.response || r2.reason || "").substring(0, 300); }
     });
   }
 
   return {
     total: uniqueNumbers.length,
-    smsEnabled: smsEnabled, smsSent: smsSent, smsFailed: smsFailed,
-    waEnabled: waEnabled, waSent: waSent, waFailed: waFailed
+    smsEnabled: smsEnabled, smsSent: smsSent, smsFailed: smsFailed, smsLastError: smsLastError,
+    waEnabled: waEnabled, waSent: waSent, waFailed: waFailed, waLastError: waLastError
   };
 }
 
