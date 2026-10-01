@@ -145,7 +145,7 @@
   .pending-order-card .por-head{ display:flex; justify-content:space-between; font-weight:700; margin-bottom:6px; }
   .pending-order-card table{ width:100%; border-collapse:collapse; margin:6px 0; }
   .pending-order-card th, .pending-order-card td{ border:1px solid var(--line); padding:4px 6px; font-size:0.85rem; text-align:center; }
-  .pending-order-card th.cell-left, .pending-order-card td.cell-left{ text-align:left; }
+  .pending-order-card td.cell-left{ text-align:left; }
 
   nav#sideMenu{
     position:fixed; top:0; right:-280px; width:260px; height:100%;
@@ -195,7 +195,8 @@
   table{ width:100%; border-collapse:collapse; background:#fff; }
   table th, table td{ border:1px solid var(--line); padding:7px 8px; font-size:0.88rem; text-align:center; }
   table th{ background:#eef0e9; text-align:center; }
-  table td.cell-left, table th.cell-left{ text-align:left; }
+  table td.cell-left{ text-align:left; }
+  table th.cell-left{ text-align:center; } /* হেডার সবসময় সেন্টার */
   .table-wrap{ overflow-x:auto; margin-top:10px; }
   .table-wrap td.no-print{ white-space:nowrap; }
   .table-wrap td.no-print .btn{ display:inline-block; margin-right:5px; }
@@ -267,7 +268,20 @@
   .modal-box h3{ margin:0 0 12px; color:var(--teal-dark); }
   .modal-actions{ display:flex; gap:8px; justify-content:flex-end; margin-top:14px; }
 
+  /* বিক্রি টেবিলের মূল্য ইনপুট — বর্ডারবিহীন (স্ক্রিন ও প্রিন্ট দুটোতেই) */
+  input.price-input{ border:none !important; background:transparent !important; box-shadow:none !important;
+    width:80px; text-align:center; padding:2px 4px !important; color:inherit; opacity:1; }
+  input.price-input:focus{ background:var(--teal-soft) !important; outline:none; }
+  input.price-input::-webkit-outer-spin-button, input.price-input::-webkit-inner-spin-button{ -webkit-appearance:none; margin:0; }
+  input.price-input{ -moz-appearance:textfield; }
+
+  /* সাইড মেনু সাবমেনু */
+  nav#sideMenu .menu-sub{ background:rgba(0,0,0,0.18); }
+  nav#sideMenu button.menu-item.sub{ padding-left:38px; font-size:0.92rem; }
+  .msg-text-cell{ white-space:pre-wrap; text-align:left; }
+
   @media print{
+    input.price-input{ border:none !important; background:none !important; }
     header.topbar, nav#sideMenu, #menuOverlay, .no-print, .modal-overlay{ display:none !important; }
     body{ background:#fff; }
     main{ max-width:100%; }
@@ -352,41 +366,6 @@
 
   <div id="menuOverlay" onclick="toggleMenu()"></div>
   <nav id="sideMenu"><!-- role অনুযায়ী JS দিয়ে ভরা হবে --></nav>
-
-  <div class="modal-overlay" id="messageModalOverlay">
-    <div class="modal-box" style="max-width:480px;">
-      <h3 id="msgModalTitle">মেসেজ পাঠান</h3>
-      <div class="field" id="msgFromMobileField">
-        <label>Sender ID / মোবাইল নং (গেটওয়ে যেভাবে চায়)</label>
-        <input id="msgFromMobile" placeholder="যেমন: 01XXXXXXXXX">
-      </div>
-      <div class="field" id="msgTypeField">
-        <label>ধরন</label>
-        <select id="msgType" onchange="onMsgTypeChange()">
-          <option value="all">সকল গ্রাহক</option>
-          <option value="location">প্রাপ্তির স্থান তালিকা</option>
-        </select>
-      </div>
-      <div class="field" id="msgLocationField" style="display:none;">
-        <label>প্রাপ্তির স্থান সিলেক্ট করুন</label>
-        <div id="msgLocationChecks" style="max-height:140px;overflow-y:auto;border:1px solid #d8d2c2;border-radius:8px;padding:8px;"></div>
-      </div>
-      <div class="field">
-        <label>মেসেজ</label>
-        <textarea id="msgText" rows="4" style="width:100%;resize:vertical;" placeholder="শুধু মূল লেখাটা লিখুন" oninput="updateMsgPreview()"></textarea>
-      </div>
-      <p id="msgChannelNote" style="font-size:0.78rem;color:var(--muted);">
-        শুধু মূল লেখাটা লিখুন। প্রতিটি মেসেজের শুরুতে <b>"প্রিয় (গ্রাহকের নাম),"</b> এবং শেষে আপনার <b>নাম ও ঠিকানা</b> নিজে থেকেই বসে যাবে।
-        মেসেজটি SMS ও (সেটআপ থাকলে) WhatsApp — যাদের নাম্বারে চালু আছে তাদের কাছে যাবে।
-      </p>
-      <div id="msgPreviewBox" style="font-size:0.8rem;background:#f6f3ea;border:1px dashed #d8d2c2;border-radius:8px;padding:8px 10px;margin-bottom:8px;white-space:pre-wrap;"></div>
-      <div id="msgResult" class="msg"></div>
-      <div class="modal-actions">
-        <button class="btn secondary" onclick="closeMessageModal()">বাতিল</button>
-        <button class="btn" id="msgSendBtn" onclick="sendBulkMessage()">Send</button>
-      </div>
-    </div>
-  </div>
 
   <div class="modal-overlay" id="pendingOrdersModalOverlay">
     <div class="modal-box" style="max-width:640px;">
@@ -637,8 +616,38 @@
       <h2>গ্রাহক</h2>
       <div class="toolbar no-print">
         <button class="btn" id="cusFormToggleBtn" onclick="toggleCustomerForm()">+ গ্রাহক ফরম</button>
-        <button class="btn secondary" onclick="openMessageModal()">✉ মেসেজ</button>
-        <button class="btn secondary" id="msgSetupToggleBtn" style="display:none;" onclick="toggleMsgSetupForm()">⚙ মেসেজিং সেটাপ</button>
+      </div>
+      <div id="cusFormWrap" style="display:none;">
+      <fieldset class="no-print">
+        <legend id="cusFormLegend">নতুন গ্রাহক</legend>
+        <div class="form-grid">
+          <div class="field"><label>নাম</label><input id="cusNaam"></div>
+          <div class="field"><label>পিতার নাম</label><input id="cusPitarNaam"></div>
+          <div class="field"><label>মোবাইল নং</label><input id="cusMobile" maxlength="11"></div>
+          <div class="field"><label>NID/জন্মসনদ নং</label><input id="cusNid"></div>
+          <div class="field"><label>বাড়ির নাম</label><input id="cusBariNaam"></div>
+          <div class="field"><label>গ্রাম</label><input id="cusGram"></div>
+          <div class="field"><label>ওয়ার্ড নং</label><input id="cusWard"></div>
+          <div class="field"><label>ইউনিয়ন/পৌরসভা</label><input id="cusUnion"></div>
+          <div class="field"><label>প্রাপ্তির স্থান</label><input id="cusPraptirSthan"></div>
+          <div class="field"><label>কার্ড ফি</label><input id="cusCardFee" type="number" min="0"></div>
+        </div>
+        <div class="btn-row">
+          <button class="btn" id="cusSubmitBtn" onclick="submitCustomer()">গ্রাহক সংরক্ষণ করুন</button>
+          <button class="btn secondary" id="cusCancelBtn" style="display:none;" onclick="cancelCusEdit()">বাতিল</button>
+        </div>
+        <div id="cusMsg" class="msg"></div>
+      </fieldset>
+      </div>
+      <div class="toolbar no-print"><button class="btn secondary small" onclick="printCustomersListOfficial()">🖨 সব গ্রাহক প্রিন্ট করুন (A4 ল্যান্ডস্কেপ)</button></div>
+      <div class="table-wrap"><table id="customersTable"><thead></thead><tbody></tbody></table></div>
+    </section>
+
+    <section class="section" id="sec-messages">
+      <h2>মেসেজ</h2>
+      <div class="toolbar no-print">
+        <button class="btn" id="msgFormToggleBtn" onclick="toggleMsgForm()">✉ মেসেজ</button>
+        <button class="btn secondary" id="msgSetupToggleBtn" style="display:none;" onclick="toggleMsgSetupForm()">⚙ মেসেজ সেটাপ</button>
       </div>
       <div id="msgSetupWrap" style="display:none;">
         <fieldset class="no-print">
@@ -713,39 +722,51 @@
           <div id="msgCfgMsg" class="msg"></div>
         </fieldset>
       </div>
-      <div id="cusFormWrap" style="display:none;">
-      <fieldset class="no-print">
-        <legend id="cusFormLegend">নতুন গ্রাহক</legend>
-        <div class="form-grid">
-          <div class="field"><label>নাম</label><input id="cusNaam"></div>
-          <div class="field"><label>পিতার নাম</label><input id="cusPitarNaam"></div>
-          <div class="field"><label>মোবাইল নং</label><input id="cusMobile" maxlength="11"></div>
-          <div class="field"><label>NID/জন্মসনদ নং</label><input id="cusNid"></div>
-          <div class="field"><label>বাড়ির নাম</label><input id="cusBariNaam"></div>
-          <div class="field"><label>গ্রাম</label><input id="cusGram"></div>
-          <div class="field"><label>ওয়ার্ড নং</label><input id="cusWard"></div>
-          <div class="field"><label>ইউনিয়ন/পৌরসভা</label><input id="cusUnion"></div>
-          <div class="field"><label>প্রাপ্তির স্থান</label><input id="cusPraptirSthan"></div>
-          <div class="field"><label>কার্ড ফি</label><input id="cusCardFee" type="number" min="0"></div>
-        </div>
-        <div class="btn-row">
-          <button class="btn" id="cusSubmitBtn" onclick="submitCustomer()">গ্রাহক সংরক্ষণ করুন</button>
-          <button class="btn secondary" id="cusCancelBtn" style="display:none;" onclick="cancelCusEdit()">বাতিল</button>
-        </div>
-        <div id="cusMsg" class="msg"></div>
-      </fieldset>
+      <div id="msgFormWrap" style="display:none;">
+        <fieldset class="no-print">
+          <legend>গ্রাহকদের মেসেজ পাঠান</legend>
+          <div class="form-grid">
+            <div class="field" id="msgFromMobileField">
+              <label>Sender ID / মোবাইল নং (গেটওয়ে যেভাবে চায়)</label>
+              <input id="msgFromMobile" placeholder="যেমন: 01XXXXXXXXX">
+            </div>
+            <div class="field" id="msgTypeField">
+              <label>কাদের পাঠাবেন</label>
+              <select id="msgType" onchange="onMsgTypeChange()">
+                <option value="all">সকল গ্রাহক</option>
+                <option value="location">প্রাপ্তির স্থান ভিত্তিক</option>
+                <option value="ward">ওয়ার্ড ভিত্তিক</option>
+              </select>
+            </div>
+          </div>
+          <div class="field" id="msgLocationField" style="display:none;margin-top:8px;">
+            <label id="msgLocationLabel">প্রাপ্তির স্থান সিলেক্ট করুন</label>
+            <div id="msgLocationChecks" style="max-height:140px;overflow-y:auto;border:1px solid #d8d2c2;border-radius:8px;padding:8px;"></div>
+          </div>
+          <div class="field" style="margin-top:8px;">
+            <label>মেসেজ</label>
+            <textarea id="msgText" rows="4" style="width:100%;resize:vertical;" placeholder="শুধু মূল লেখাটা লিখুন" oninput="updateMsgPreview()"></textarea>
+          </div>
+          <p id="msgChannelNote" style="font-size:0.78rem;color:var(--muted);">
+            শুধু মূল লেখাটা লিখুন। প্রতিটি মেসেজের শুরুতে <b>"প্রিয় (গ্রাহকের নাম),"</b> এবং শেষে আপনার <b>নাম ও ঠিকানা</b> নিজে থেকেই বসে যাবে।
+            মেসেজটি SMS ও (সেটআপ থাকলে) WhatsApp — যাদের নাম্বারে চালু আছে তাদের কাছে যাবে।
+          </p>
+          <div id="msgPreviewBox" style="font-size:0.8rem;background:#f6f3ea;border:1px dashed #d8d2c2;border-radius:8px;padding:8px 10px;margin-bottom:8px;white-space:pre-wrap;"></div>
+          <div class="btn-row"><button class="btn" id="msgSendBtn" onclick="sendBulkMessage()">Send</button></div>
+          <div id="msgResult" class="msg"></div>
+        </fieldset>
       </div>
-      <div class="toolbar no-print"><button class="btn secondary small" onclick="printCustomersListOfficial()">🖨 সব গ্রাহক প্রিন্ট করুন</button></div>
-      <div class="table-wrap"><table id="customersTable"><thead></thead><tbody></tbody></table></div>
+      <h3 style="margin:18px 0 0;color:var(--teal-dark);font-size:1.05rem;">মেসেজ তালিকা</h3>
+      <div class="table-wrap"><table id="messagesTable"><thead></thead><tbody></tbody></table></div>
     </section>
 
     <section class="section" id="sec-sales">
       <h2>বিক্রি</h2>
       <div class="form-grid no-print">
         <div class="field"><label>প্যাকেজ সিলেক্ট করুন</label><select id="saleFilterPackage" onchange="loadSalesView()"></select></div>
-        <div class="field"><label>প্রাপ্তির স্থান</label><select id="saleFilterLocation" onchange="loadSalesView()"></select></div>
+        <div class="field"><label>প্রাপ্তির স্থান / ওয়ার্ড নং</label><select id="saleFilterLocation" onchange="loadSalesView()"></select></div>
       </div>
-      <div class="toolbar no-print"><button class="btn secondary small" onclick="window.print()">🖨 গ্রাহক তালিকা প্রিন্ট করুন</button></div>
+      <div class="toolbar no-print"><button class="btn secondary small" onclick="printSalesListOfficial()">🖨 গ্রাহক তালিকা প্রিন্ট করুন</button></div>
       <div class="table-wrap"><table id="salesTable"><thead></thead><tbody></tbody></table></div>
       <div id="salesMsg" class="msg"></div>
     </section>
@@ -944,7 +965,9 @@ function printSingleRecord(title, fields){
  * headers: টেবিল হেডার (center-align), rows: 2D array (data left-align)
  * extraFooterRows: টোটাল/সারাংশ সারি (ঐচ্ছিক, bold দেখাবে)
  *******************************************************/
-function printOfficialTable(title, subtitle, headers, rows, extraFooterRows, footerNote, leftAlignCols){
+function printOfficialTable(title, subtitle, headers, rows, extraFooterRows, footerNote, leftAlignCols, opts){
+  opts = opts || {};
+  const landscape = !!opts.landscape;
   const win = window.open("", "_blank", "width=900,height=700");
   const useCenterDefault = Array.isArray(leftAlignCols);
   const laCols = leftAlignCols || [];
@@ -959,9 +982,10 @@ function printOfficialTable(title, subtitle, headers, rows, extraFooterRows, foo
 
   win.document.write(`<html><head><meta charset="utf-8"><title>${title}</title>
     <style>
-      @page{ size:A4; margin:0.5in; }
+      @page{ size:${landscape ? 'A4 landscape' : 'A4'}; margin:0.5in; }
       html, body{ margin:0; padding:0; }
       body{ font-family:'Hind Siliguri',sans-serif; color:#1c2b28; }
+      ${landscape ? '.sheet{ width:271mm; } table{ font-size:11px; } th,td{ white-space:nowrap; font-size:inherit !important; padding:4px 6px !important; }' : ''}
       .letterhead{ text-align:center; border-bottom:3px solid #153f37; padding-bottom:10px; margin-bottom:14px; }
       .letterhead h1{ margin:0; color:#153f37; font-size:20px; }
       .letterhead p{ margin:4px 0 0; color:#b5502f; font-weight:600; font-size:12px; }
@@ -973,6 +997,7 @@ function printOfficialTable(title, subtitle, headers, rows, extraFooterRows, foo
       td{ text-align:left; }
       .doc-footer{ margin-top:26px; font-size:9px; color:#6b7570; text-align:center; }
     </style></head><body>
+    <div class="sheet">
     <div class="letterhead">
       <h1>মানবিক সহায়তা ডেইলি শপ</h1>
       <p>সাশ্রয়ী মূল্যে পণ্য বিক্রি সংস্থা</p>
@@ -981,7 +1006,10 @@ function printOfficialTable(title, subtitle, headers, rows, extraFooterRows, foo
     ${subtitle ? `<p class="doc-subtitle">${subtitle}</p>` : ''}
     <table><thead>${theadHtml}</thead><tbody>${tbodyHtml}${tfootHtml}</tbody></table>
     ${footerNote ? `<div class="doc-footer">${footerNote}</div>` : ''}
-    <script>window.onload=function(){window.print();}<\/script>
+    </div>
+    <script>window.onload=function(){
+      ${landscape ? "var sh=document.querySelector('.sheet'),t=document.querySelector('table'),fs=11;while(t.scrollWidth>sh.clientWidth&&fs>5){fs-=0.5;t.style.fontSize=fs+'px';}" : ''}
+      window.print();}<\/script>
     </body></html>`);
   win.document.close();
 }
@@ -1127,7 +1155,11 @@ function buildSideMenu(){
       ${state.role === 'Admin' ? `<button class="menu-item" onclick="showSection('dealerMgmt')">ডিলার</button>` : ``}
       <button class="menu-item" onclick="showSection('about')">আমাদের সম্পর্কে</button>
       <button class="menu-item" onclick="showSection('packages')">প্যাকেজ</button>
-      <button class="menu-item" onclick="showSection('customers')">গ্রাহক</button>
+      <button class="menu-item" id="custMenuParent" onclick="toggleSubMenu('custSubMenu', this)">গ্রাহক ▾</button>
+      <div class="menu-sub" id="custSubMenu" style="display:none;">
+        <button class="menu-item sub" onclick="showSection('customers')">গ্রাহক</button>
+        <button class="menu-item sub" onclick="showSection('messages')">মেসেজ</button>
+      </div>
       <button class="menu-item" onclick="showSection('salesInvoice')">অর্ডার ইনভয়েস</button>
       <button class="menu-item" onclick="showSection('sales')">বিক্রি</button>
       <button class="menu-item" onclick="showSection('expenseVoucher')">খরচ ভাউচার</button>
@@ -1135,6 +1167,13 @@ function buildSideMenu(){
       ${state.role === 'Admin' ? `` : ``}
       <button class="menu-item" onclick="doLogout()">লগআউট</button>`;
   }
+}
+
+function toggleSubMenu(id, btn){
+  const el = document.getElementById(id);
+  const show = el.style.display === "none";
+  el.style.display = show ? "block" : "none";
+  if(btn) btn.textContent = btn.textContent.replace(/[▾▴]/, show ? "▴" : "▾");
 }
 
 function toggleMenu(){
@@ -1172,8 +1211,57 @@ function showSiForm(){
  * শুধুমাত্র ডিলার সাইটে — ডিলার নিজের গ্রাহকদের মেসেজ পাঠাবে,
  * নিজের সেট করা SMS/WhatsApp API দিয়ে
  *************************************************************/
-async function openMessageModal(){
-  document.getElementById("msgModalTitle").textContent = "গ্রাহকদের মেসেজ পাঠান";
+function escMsgHtml(t){
+  return String(t==null?"":t).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+
+/* ওয়ার্ড লেবেল — শুধু সংখ্যা হলে "ওয়ার্ড-৩" আকারে, নাহলে যা লেখা আছে তাই */
+function wardLabel(w){
+  const t = String(w==null?"":w).trim();
+  return /^[0-9০-৯]+$/.test(t) ? ("ওয়ার্ড-" + t) : t;
+}
+function uniqueWards(customers){
+  const set = {};
+  customers.forEach(c => { const w = String(c["ওয়ার্ড নং"]==null?"":c["ওয়ার্ড নং"]).trim(); if(w) set[w] = true; });
+  return Object.keys(set).sort((a,b) => a.localeCompare(b, "bn", { numeric:true }));
+}
+
+async function loadMessagesSection(){
+  // গ্রাহক তালিকা (প্রাপ্তির স্থান/ওয়ার্ড বের করার জন্য) ক্যাশে আনা
+  const cres = await cachedApiCall("listCustomers", {}, 15000);
+  if(cres.success) window.__customersCache = cres.customers;
+  if(document.getElementById("msgFormWrap").style.display !== "none") onMsgTypeChange();
+  loadMessagesList();
+}
+
+async function loadMessagesList(){
+  const table = document.getElementById("messagesTable");
+  table.innerHTML = "<thead><tr><th>ক্রম</th><th>মেসেজ</th><th>তারিখ ও সময়</th><th>স্ট্যাটাস</th></tr></thead><tbody></tbody>";
+  const tbody = table.querySelector("tbody");
+  tbody.innerHTML = emptyRowHtml(4, "লোড হচ্ছে...");
+  const res = await apiCall("listMessages", {});
+  if(!res.success){ tbody.innerHTML = emptyRowHtml(4, res.message); return; }
+  const list = (res.messages || []).slice().reverse(); // সবচেয়ে নতুন উপরে
+  if(list.length === 0){ tbody.innerHTML = emptyRowHtml(4, "এখনো কোনো মেসেজ পাঠানো হয়নি"); return; }
+  tbody.innerHTML = "";
+  list.forEach((m, i) => {
+    const d = m["তারিখ ও সময়"] ? new Date(m["তারিখ ও সময়"]) : null;
+    const dt = d && !isNaN(d) ? d.toLocaleString("bn-BD", { day:"numeric", month:"short", year:"numeric", hour:"numeric", minute:"2-digit", hour12:true }) : "";
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td>${i+1}</td><td class="msg-text-cell">${escMsgHtml(m["মেসেজ"])}</td><td>${escMsgHtml(dt)}</td><td>${escMsgHtml(m["স্ট্যাটাস"])}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+/* মেসেজ ফরম টগল — ক্লিকে খোলে, আবার ক্লিকে বন্ধ হয় */
+async function toggleMsgForm(){
+  const wrap = document.getElementById("msgFormWrap");
+  const btn = document.getElementById("msgFormToggleBtn");
+  const show = wrap.style.display === "none";
+  wrap.style.display = show ? "block" : "none";
+  btn.textContent = show ? "✕ মেসেজ ফরম বন্ধ করুন" : "✉ মেসেজ";
+  if(!show) return;
+
   document.getElementById("msgFromMobile").value = "";
   document.getElementById("msgText").value = "";
   updateMsgPreview();
@@ -1181,11 +1269,8 @@ async function openMessageModal(){
   document.getElementById("msgResult").className = "msg";
   document.getElementById("msgType").value = "all";
   document.getElementById("msgLocationField").style.display = "none";
-  document.getElementById("messageModalOverlay").style.display = "flex";
 
   const c = await loadMessagingStatus();
-  // নিজের ফোনের সিম (Traccar) দিয়ে পাঠালে আলাদা Sender ID লাগে না —
-  // ওই ক্ষেত্রে এই ফিল্ডটা লুকিয়ে রাখা হয়
   const fromField = document.getElementById("msgFromMobileField");
   if(c.smsProviderType === "traccar"){
     fromField.style.display = "none";
@@ -1206,10 +1291,6 @@ function updateMsgPreview(){
   const main = document.getElementById("msgText").value.trim() || "(আপনার লেখা মেসেজ)";
   const dealer = state.dealerName || "(ডিলারের নাম)";
   box.textContent = "প্রিয় (গ্রাহকের নাম),\n" + main + "\n\n" + dealer + "\n(ডিলারের ঠিকানা)";
-}
-
-function closeMessageModal(){
-  document.getElementById("messageModalOverlay").style.display = "none";
 }
 
 /* ---------------- মেসেজিং সেটাপ (SMS/WhatsApp) — শুধু Admin ---------------- */
@@ -1243,6 +1324,7 @@ async function toggleMsgSetupForm(){
   const wrap = document.getElementById("msgSetupWrap");
   const show = wrap.style.display === "none";
   wrap.style.display = show ? "block" : "none";
+  document.getElementById("msgSetupToggleBtn").textContent = show ? "✕ সেটাপ বন্ধ করুন" : "⚙ মেসেজ সেটাপ";
   if(show && !msgSetupLoaded){
     msgSetupLoaded = true;
     const c = await loadDealerMsgConfig();
@@ -1292,17 +1374,24 @@ async function saveDealerMessagingConfig(){
 function onMsgTypeChange(){
   const type = document.getElementById("msgType").value;
   const locField = document.getElementById("msgLocationField");
-  if(type !== "location"){ locField.style.display = "none"; return; }
+  if(type === "all"){ locField.style.display = "none"; return; }
 
   locField.style.display = "block";
   const customers = window.__customersCache || [];
-  const locations = Array.from(new Set(customers.map(c => c["প্রাপ্তির স্থান"]).filter(Boolean)));
   const box = document.getElementById("msgLocationChecks");
-  if(locations.length === 0){
-    box.innerHTML = "<p style='color:var(--muted);font-size:0.85rem;margin:0;'>কোনো প্রাপ্তির স্থান পাওয়া যায়নি</p>";
+  let items = [];   // { value, label }
+  if(type === "location"){
+    document.getElementById("msgLocationLabel").textContent = "প্রাপ্তির স্থান সিলেক্ট করুন";
+    items = Array.from(new Set(customers.map(c => c["প্রাপ্তির স্থান"]).filter(Boolean))).map(l => ({ value:l, label:l }));
   } else {
-    box.innerHTML = `<div style="display:flex;flex-wrap:wrap;gap:4px 14px;">` + locations.map(loc =>
-      `<label style="display:inline-flex;align-items:center;gap:5px;font-size:0.88rem;white-space:nowrap;"><input type="checkbox" value="${loc}" class="msgLocChk" checked> ${loc}</label>`
+    document.getElementById("msgLocationLabel").textContent = "ওয়ার্ড নং সিলেক্ট করুন";
+    items = uniqueWards(customers).map(w => ({ value:w, label:wardLabel(w) }));
+  }
+  if(items.length === 0){
+    box.innerHTML = "<p style='color:var(--muted);font-size:0.85rem;margin:0;'>" + (type === "location" ? "কোনো প্রাপ্তির স্থান" : "কোনো ওয়ার্ড") + " পাওয়া যায়নি</p>";
+  } else {
+    box.innerHTML = `<div style="display:flex;flex-wrap:wrap;gap:4px 14px;">` + items.map(it =>
+      `<label style="display:inline-flex;align-items:center;gap:5px;font-size:0.88rem;white-space:nowrap;"><input type="checkbox" value="${escMsgHtml(it.value)}" class="msgLocChk" checked> ${escMsgHtml(it.label)}</label>`
     ).join("") + `</div>`;
   }
 }
@@ -1318,10 +1407,10 @@ async function sendBulkMessage(){
 
   const type = document.getElementById("msgType").value;
   let locations = [];
-  if(type === "location"){
+  if(type === "location" || type === "ward"){
     locations = Array.from(document.querySelectorAll(".msgLocChk:checked")).map(el => el.value);
     if(locations.length === 0){
-      resultBox.className = "msg err"; resultBox.textContent = "অন্তত একটি প্রাপ্তির স্থান সিলেক্ট করুন";
+      resultBox.className = "msg err"; resultBox.textContent = (type === "ward") ? "অন্তত একটি ওয়ার্ড সিলেক্ট করুন" : "অন্তত একটি প্রাপ্তির স্থান সিলেক্ট করুন";
       return;
     }
   }
@@ -1348,6 +1437,9 @@ async function sendBulkMessage(){
   if(res.waFailed > 0 && res.waLastError){ lines.push("↳ WhatsApp এরর বিস্তারিত: " + res.waLastError); }
   resultBox.className = "msg ok";
   resultBox.innerHTML = lines.join("<br>");
+  document.getElementById("msgText").value = "";
+  updateMsgPreview();
+  loadMessagesList();
 }
 
 function showSection(name){
@@ -1370,9 +1462,10 @@ function showSection(name){
   if(name === "dashboard") loadDashboard();
   if(name === "about") loadAboutView();
   if(name === "packages") loadDealerPackages();
-  if(name === "customers"){
-    loadCustomers();
+  if(name === "customers") loadCustomers();
+  if(name === "messages"){
     document.getElementById("msgSetupToggleBtn").style.display = (state.role === "Admin") ? "inline-block" : "none";
+    loadMessagesSection();
   }
   if(name === "sales") loadSalesSetup();
   if(name === "expenseVoucher") loadDealerExpenseVouchers();
@@ -1759,8 +1852,19 @@ function openDealerMgmt(){
     switchDealerMgmtTab("register", tabs.querySelector("button"));
   } else {
     tabs.style.display = "none";
-    renderMyDealerForm(box);
+    box.innerHTML = `
+      <div class="toolbar no-print"><button class="btn" id="dealerFormToggleBtn" onclick="toggleDealerForm()">+ ডিলার ফরম</button></div>
+      <div id="dealerFormWrap" style="display:none;"></div>`;
+    renderMyDealerForm(document.getElementById("dealerFormWrap"));
   }
+}
+
+function toggleDealerForm(){
+  const wrap = document.getElementById("dealerFormWrap");
+  const btn = document.getElementById("dealerFormToggleBtn");
+  const show = wrap.style.display === "none";
+  wrap.style.display = show ? "block" : "none";
+  btn.textContent = show ? "✕ ফরম বন্ধ করুন" : "+ ডিলার ফরম";
 }
 
 async function renderMyDealerForm(box){
@@ -3828,7 +3932,9 @@ function printCustomersListOfficial(){
     "গ্রাহক তালিকা",
     "ডিলার: " + (state.dealerName||"") + " — মোট গ্রাহক: " + customers.length,
     headers, rows, null,
-    "@Powered by: AM Shahed: 01605721296"
+    "@Powered by: AM Shahed: 01605721296",
+    [1,2,5,6],
+    { landscape:true }
   );
 }
 
@@ -3862,17 +3968,76 @@ function editCustomerRow(customerId){
 function printCustomerRowById(customerId){
   const c = (window.__customersCache||[]).find(x => x["CustomerID"] === customerId);
   if(!c) return;
-  printSingleRecord("গ্রাহক — " + c["নাম"], [
-    { label:"পিতার নাম", value:c["পিতার নাম"] },
-    { label:"মোবাইল নং", value:c["মোবাইল নং"] },
-    { label:"NID/জন্মসনদ নং", value:c["NID/জন্মসনদ নং"] },
-    { label:"বাড়ির নাম", value:c["বাড়ির নাম"] },
-    { label:"গ্রাম", value:c["গ্রাম"] },
-    { label:"ওয়ার্ড নং", value:c["ওয়ার্ড নং"] },
-    { label:"ইউনিয়ন/পৌরসভা", value:c["ইউনিয়ন/পৌরসভা"] },
-    { label:"প্রাপ্তির স্থান", value:c["প্রাপ্তির স্থান"] },
-    { label:"কার্ড ফি", value:c["কার্ড ফি"] }
-  ]);
+  printCustomerFormOfficial(c);
+}
+
+/*******************************************************
+ * গ্রাহক ভিত্তিক প্রিন্ট — প্রফেশনাল ফরম (A4 পোর্ট্রেট)
+ *******************************************************/
+function printCustomerFormOfficial(c){
+  const v = x => escMsgHtml(x==null?"":x) || "&nbsp;";
+  const d = c["তারিখ"] ? new Date(c["তারিখ"]) : null;
+  const regDate = d && !isNaN(d) ? d.toLocaleDateString("bn-BD") : "";
+  const printDate = new Date().toLocaleDateString("bn-BD");
+  const ward = c["ওয়ার্ড নং"] ? wardLabel(c["ওয়ার্ড নং"]) : "";
+  const win = window.open("", "_blank", "width=850,height=1000");
+  win.document.write(`<html><head><meta charset="utf-8"><title>গ্রাহক ফরম — ${escMsgHtml(c["নাম"])}</title>
+    <style>
+      @page{ size:A4; margin:0.5in; }
+      html, body{ margin:0; padding:0; }
+      body{ font-family:'Hind Siliguri',sans-serif; color:#1c2b28; font-size:13px; }
+      .letterhead{ text-align:center; border-bottom:3px solid #153f37; padding-bottom:10px; margin-bottom:6px; }
+      .letterhead h1{ margin:0; color:#153f37; font-size:22px; }
+      .letterhead p{ margin:4px 0 0; color:#b5502f; font-weight:600; font-size:13px; }
+      .letterhead .dealer{ margin-top:6px; font-size:12px; color:#333; font-weight:400; }
+      .form-title{ text-align:center; font-size:16px; font-weight:700; margin:12px 0 10px; text-decoration:underline; }
+      .meta{ display:flex; justify-content:space-between; font-size:12px; margin-bottom:6px; }
+      .section-title{ background:#153f37; color:#fff; font-weight:700; font-size:13px; padding:4px 10px; margin-top:14px; }
+      table.info{ width:100%; border-collapse:collapse; }
+      table.info td{ border:1px solid #888; padding:8px 10px; font-size:13px; height:20px; }
+      table.info td.label{ background:#eef0e9; font-weight:600; width:20%; text-align:left; }
+      table.info td.val{ width:30%; text-align:left; }
+      .declare{ margin-top:18px; font-size:12px; line-height:1.7; text-align:justify; }
+      .sign-row{ display:flex; justify-content:space-between; margin-top:70px; }
+      .sign-box{ text-align:center; width:30%; }
+      .sign-line{ border-top:1px solid #333; padding-top:4px; font-size:12px; }
+      .doc-footer{ margin-top:34px; font-size:9px; color:#6b7570; text-align:center; }
+    </style></head><body>
+    <div class="letterhead">
+      <h1>মানবিক সহায়তা ডেইলি শপ</h1>
+      <p>সাশ্রয়ী মূল্যে পণ্য বিক্রি সংস্থা</p>
+      <p class="dealer">ডিলার: ${escMsgHtml(state.dealerName||"")}${state.dealerMobile ? " | মোবাইল: " + escMsgHtml(state.dealerMobile) : ""}</p>
+    </div>
+    <div class="form-title">গ্রাহক নিবন্ধন ফরম</div>
+    <div class="meta"><span>গ্রাহক আইডি: <b>${escMsgHtml(c["CustomerID"])}</b></span><span>নিবন্ধনের তারিখ: <b>${escMsgHtml(regDate)}</b></span></div>
+
+    <div class="section-title">১. ব্যক্তিগত তথ্য</div>
+    <table class="info">
+      <tr><td class="label">গ্রাহকের নাম</td><td class="val">${v(c["নাম"])}</td><td class="label">পিতার নাম</td><td class="val">${v(c["পিতার নাম"])}</td></tr>
+      <tr><td class="label">মোবাইল নং</td><td class="val">${v(c["মোবাইল নং"])}</td><td class="label">NID/জন্মসনদ নং</td><td class="val">${v(c["NID/জন্মসনদ নং"])}</td></tr>
+    </table>
+
+    <div class="section-title">২. ঠিকানা</div>
+    <table class="info">
+      <tr><td class="label">বাড়ির নাম</td><td class="val">${v(c["বাড়ির নাম"])}</td><td class="label">গ্রাম</td><td class="val">${v(c["গ্রাম"])}</td></tr>
+      <tr><td class="label">ওয়ার্ড নং</td><td class="val">${v(ward)}</td><td class="label">ইউনিয়ন/পৌরসভা</td><td class="val">${v(c["ইউনিয়ন/পৌরসভা"])}</td></tr>
+    </table>
+
+    <div class="section-title">৩. প্রাপ্তি ও ফি সংক্রান্ত তথ্য</div>
+    <table class="info">
+      <tr><td class="label">প্রাপ্তির স্থান</td><td class="val">${v(c["প্রাপ্তির স্থান"])}</td><td class="label">কার্ড ফি (টাকা)</td><td class="val">${v(c["কার্ড ফি"]||0)}</td></tr>
+    </table>
+
+    <div class="declare">আমি এই মর্মে ঘোষণা করছি যে উপরে প্রদত্ত সকল তথ্য সত্য ও সঠিক। প্রতিষ্ঠানের নিয়মাবলি মেনে চলতে আমি সম্মত আছি।</div>
+
+    <div class="sign-row">
+      <div class="sign-box"><div class="sign-line">গ্রাহকের স্বাক্ষর ও তারিখ</div></div>
+      <div class="sign-box"><div class="sign-line">ডিলারের স্বাক্ষর ও তারিখ</div></div>
+    </div>
+    <div class="doc-footer">প্রিন্টের তারিখ: ${escMsgHtml(printDate)} — @Powered by: AM Shahed: 01605721296</div>
+    <script>window.onload=function(){window.print();}<\/script>
+    </body></html>`);
+  win.document.close();
 }
 
 async function deleteCustomerRow(id){
@@ -3897,8 +4062,11 @@ async function loadSalesSetup(){
     allPackagesCache.map(p => `<option value="${p['PackageID']}">${p['নাম']}</option>`).join("");
 
   const locations = [...new Set(allCustomersCache.map(c => c["প্রাপ্তির স্থান"]).filter(Boolean))];
+  const wards = uniqueWards(allCustomersCache);
   const locSel = document.getElementById("saleFilterLocation");
-  locSel.innerHTML = "<option value=''>-- সকল --</option>" + locations.map(l => `<option value="${l}">${l}</option>`).join("");
+  locSel.innerHTML = "<option value=''>-- সকল --</option>" +
+    (locations.length ? `<optgroup label="প্রাপ্তির স্থান">` + locations.map(l => `<option value="loc:${escMsgHtml(l)}">${escMsgHtml(l)}</option>`).join("") + `</optgroup>` : "") +
+    (wards.length ? `<optgroup label="ওয়ার্ড নং">` + wards.map(w => `<option value="ward:${escMsgHtml(w)}">${escMsgHtml(wardLabel(w))}</option>`).join("") + `</optgroup>` : "");
 
   renderSalesTable();
 }
@@ -3908,18 +4076,59 @@ async function loadSalesView(){
   renderSalesTable();
 }
 
-function renderSalesTable(){
+/* বর্তমান ফিল্টার (প্যাকেজ + প্রাপ্তির স্থান/ওয়ার্ড) অনুযায়ী গ্রাহক তালিকা */
+function getSalesViewData(){
   const pkgId = document.getElementById("saleFilterPackage").value;
-  const loc = document.getElementById("saleFilterLocation").value;
-  const table = document.getElementById("salesTable");
-
+  const sel = document.getElementById("saleFilterLocation").value;
   let customers = allCustomersCache;
-  if(loc) customers = customers.filter(c => c["প্রাপ্তির স্থান"] === loc);
-
+  let filterText = "";
+  if(sel.indexOf("loc:") === 0){
+    const loc = sel.slice(4);
+    customers = customers.filter(c => c["প্রাপ্তির স্থান"] === loc);
+    filterText = "প্রাপ্তির স্থান: " + loc;
+  } else if(sel.indexOf("ward:") === 0){
+    const w = sel.slice(5);
+    customers = customers.filter(c => String(c["ওয়ার্ড নং"]==null?"":c["ওয়ার্ড নং"]).trim() === w);
+    filterText = wardLabel(w);
+  }
   const pkg = allPackagesCache.find(p => p["PackageID"] === pkgId);
   const defaultPrice = pkg ? (pkg["সর্বমোট মূল্য"] || 0) : 0;
+  return { pkgId, pkg, customers, defaultPrice, filterText };
+}
 
-  table.innerHTML = "<thead><tr><th class='cell-left'>নাম</th><th class='cell-left'>পিতার নাম</th><th>মোবাইল</th><th>প্রাপ্তির স্থান</th><th>মূল্য</th><th>স্ট্যাটাস</th><th class='no-print'>একশন</th></tr></thead><tbody></tbody>";
+/* বিক্রি — গ্রাহক তালিকা প্রিন্ট (A4 ল্যান্ডস্কেপ, বর্তমান ফিল্টার অনুযায়ী) */
+function printSalesListOfficial(){
+  const view = getSalesViewData();
+  if(!view.pkgId){ alert("আগে প্যাকেজ সিলেক্ট করুন"); return; }
+  if(view.customers.length === 0){ alert("প্রিন্ট করার জন্য কোনো গ্রাহক নেই"); return; }
+  let total = 0;
+  const rows = view.customers.map((c, i) => {
+    const sale = allSalesCache.find(s => s["CustomerID"] === c["CustomerID"] && s["PackageID"] === view.pkgId && s["স্ট্যাটাস"] === "বিক্রিত");
+    const priceEl = document.getElementById("salePrice_" + c["CustomerID"]);
+    const price = priceEl ? priceEl.value : (sale && sale["মূল্য"] !== "" && sale["মূল্য"] !== undefined ? sale["মূল্য"] : view.defaultPrice);
+    total += Number(price) || 0;
+    return [i+1, c["নাম"]||"", c["পিতার নাম"]||"", c["মোবাইল নং"]||"", c["ওয়ার্ড নং"]||"", c["প্রাপ্তির স্থান"]||"", price, sale ? "বিক্রিত" : "—"];
+  });
+  printOfficialTable(
+    "বিক্রি — গ্রাহক তালিকা",
+    "প্যাকেজ: " + (view.pkg ? view.pkg["নাম"] : "") + (view.filterText ? " | " + view.filterText : "") + " | ডিলার: " + (state.dealerName||"") + " | মোট গ্রাহক: " + view.customers.length,
+    ["ক্রম","নাম","পিতার নাম","মোবাইল","ওয়ার্ড","প্রাপ্তির স্থান","মূল্য","স্ট্যাটাস"],
+    rows,
+    [["", "সাবটোটাল", "", "", "", "", total, ""]],
+    "@Powered by: AM Shahed: 01605721296",
+    [1,2,5],
+    { landscape:true }
+  );
+}
+
+function renderSalesTable(){
+  const pkgId = document.getElementById("saleFilterPackage").value;
+  const table = document.getElementById("salesTable");
+
+  const view = getSalesViewData();
+  const customers = view.customers, pkg = view.pkg, defaultPrice = view.defaultPrice;
+
+  table.innerHTML = "<thead><tr><th class='cell-left'>নাম</th><th class='cell-left'>পিতার নাম</th><th>মোবাইল</th><th>ওয়ার্ড</th><th>প্রাপ্তির স্থান</th><th>মূল্য</th><th>স্ট্যাটাস</th><th class='no-print'>একশন</th></tr></thead><tbody></tbody>";
   const tbody = table.querySelector("tbody");
   let subtotal = 0;
 
@@ -3931,8 +4140,8 @@ function renderSalesTable(){
     const priceInputId = "salePrice_" + c["CustomerID"];
     const tr = document.createElement("tr");
     tr.innerHTML = `
-      <td class="cell-left">${c["নাম"]}</td><td class="cell-left">${c["পিতার নাম"]||""}</td><td>${c["মোবাইল নং"]}</td><td>${c["প্রাপ্তির স্থান"]||""}</td>
-      <td><input type="number" id="${priceInputId}" value="${priceValue}" style="width:80px;" ${!pkgId?"disabled":""}
+      <td class="cell-left">${c["নাম"]}</td><td class="cell-left">${c["পিতার নাম"]||""}</td><td>${c["মোবাইল নং"]}</td><td>${c["ওয়ার্ড নং"]||""}</td><td>${c["প্রাপ্তির স্থান"]||""}</td>
+      <td><input type="number" class="price-input" id="${priceInputId}" value="${priceValue}" ${!pkgId?"disabled":""}
         ${sale ? `onchange="updateSalePriceHandler('${sale['SaleID']}', this.value)"` : ""}></td>
       <td>${sale ? "বিক্রিত" : "—"}</td>
       <td class="no-print">
@@ -3948,7 +4157,7 @@ function renderSalesTable(){
     const trFoot = document.createElement("tr");
     trFoot.style.fontWeight = "700";
     trFoot.style.background = "#eef0e9";
-    trFoot.innerHTML = `<td class="cell-left" colspan="4">সাবটোটাল</td><td>${subtotal}</td><td></td><td class="no-print"></td>`;
+    trFoot.innerHTML = `<td class="cell-left" colspan="5">সাবটোটাল</td><td>${subtotal}</td><td></td><td class="no-print"></td>`;
     tbody.appendChild(trFoot);
   }
 }

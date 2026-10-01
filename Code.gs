@@ -123,6 +123,11 @@ const DEALER_SHEETS_DEF = {
   // খরচ ভাউচার — প্রতিটি ডিলারের নিজস্ব খরচের হিসাব
   "ExpenseVoucher": [
     "VoucherID", "তারিখ", "বিবরণ", "পরিমাণ"
+  ],
+  // পাঠানো মেসেজের তালিকা (গ্রাহক → মেসেজ)
+  // স্ট্যাটাস: "সকল গ্রাহক" অথবা প্রাপ্তির স্থানের নাম/ওয়ার্ড নং
+  "Messages": [
+    "MessageID", "মেসেজ", "তারিখ ও সময়", "ধরন", "স্ট্যাটাস", "মোট প্রাপক"
   ]
 };
 
@@ -655,6 +660,9 @@ function doPost(e) {
         break;
       case "sendCustomerMessage":
         result = sendCustomerMessage(data);
+        break;
+      case "listMessages":
+        result = listMessages(data);
         break;
 
       default:

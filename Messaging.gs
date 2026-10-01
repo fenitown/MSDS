@@ -301,7 +301,7 @@ function sendBulkToRecipients(config, fromMobile, mainText, recipients, dealerIn
 /*******************************************************
  * ডিলার সাইট — নিজের গ্রাহকদের মেসেজ পাঠানো (Admin + প্রতিনিধি)
  * ডিলার নিজের সেট করা কনফিগ ব্যবহার করেই পাঠানো হয়
- * data: { token, fromMobile, message (শুধু মূল লেখা), type: "all"|"location", locations: [...] }
+ * data: { token, fromMobile, message (শুধু মূল লেখা), type: "all"|"location"|"ward", locations: [...] (প্রাপ্তির স্থানের নাম অথবা ওয়ার্ড নং) }
  * গ্রাহকের নাম এবং ডিলারের নাম/ঠিকানা সার্ভার নিজেই বসিয়ে দেয়
  *******************************************************/
 function sendCustomerMessage(data) {
@@ -325,11 +325,20 @@ function sendCustomerMessage(data) {
   const ss = getDealerSpreadsheet(dealerId);
   const customers = genericListRows(getSheet(ss, "Customers"));
 
+  // তিন ধরনের মেসেজ: সকল গ্রাহক / প্রাপ্তির স্থান ভিত্তিক / ওয়ার্ড ভিত্তিক
   let targeted = customers;
-  if (data.type === "location" && data.locations && data.locations.length) {
+  let statusText = "সকল গ্রাহক";
+  const picked = (data.locations || []).map(function (x) { return String(x).trim(); });
+  if (data.type === "location" && picked.length) {
     targeted = customers.filter(function (c) {
-      return data.locations.indexOf(c["প্রাপ্তির স্থান"]) !== -1;
+      return picked.indexOf(String(c["প্রাপ্তির স্থান"] || "").trim()) !== -1;
     });
+    statusText = picked.join(", ");
+  } else if (data.type === "ward" && picked.length) {
+    targeted = customers.filter(function (c) {
+      return picked.indexOf(String(c["ওয়ার্ড নং"] === undefined || c["ওয়ার্ড নং"] === null ? "" : c["ওয়ার্ড নং"]).trim()) !== -1;
+    });
+    statusText = "ওয়ার্ড: " + picked.join(", ");
   }
 
   const recipients = targeted.map(function (c) {
@@ -338,7 +347,46 @@ function sendCustomerMessage(data) {
   const dealerInfo = getDealerNameAndAddress(dealerId);
   const result = sendBulkToRecipients(config, data.fromMobile, String(data.message).trim(), recipients, dealerInfo);
 
+  // মেসেজ তালিকায় সংরক্ষণ (ব্যর্থ হলেও পাঠানোর ফলাফল আটকাবে না)
+  try {
+    const msgSheet = getMessagesSheet(ss);
+    const msgId = generateId(msgSheet, "MS");
+    genericAddRow(msgSheet, {
+      "MessageID": msgId,
+      "মেসেজ": String(data.message).trim(),
+      "তারিখ ও সময়": new Date(),
+      "ধরন": data.type === "location" ? "প্রাপ্তির স্থান" : (data.type === "ward" ? "ওয়ার্ড" : "সকল গ্রাহক"),
+      "স্ট্যাটাস": statusText,
+      "মোট প্রাপক": result.total
+    });
+  } catch (e) { /* লগ সংরক্ষণ ব্যর্থ হলে বাদ */ }
+
   return Object.assign({ success: true, message: "মেসেজ পাঠানো সম্পন্ন হয়েছে" }, result);
+}
+
+/*******************************************************
+ * "Messages" ট্যাব — আগের ডিলারদের শীটে না থাকলে নিজে তৈরি হবে
+ *******************************************************/
+function getMessagesSheet(ss) {
+  let sheet = ss.getSheetByName("Messages");
+  if (!sheet) {
+    ensureSheetsWithHeaders(ss, { "Messages": DEALER_SHEETS_DEF["Messages"] });
+    sheet = ss.getSheetByName("Messages");
+  }
+  return sheet;
+}
+
+/*******************************************************
+ * পাঠানো মেসেজের তালিকা (পুরনো → নতুন ক্রমে) — Admin + প্রতিনিধি
+ * data: { token }
+ *******************************************************/
+function listMessages(data) {
+  const perm = checkPermission(data.token, ["Admin", "প্রতিনিধি"]);
+  if (!perm.ok) return { success: false, message: perm.message };
+
+  const ss = getDealerSpreadsheet(perm.payload.dealerId);
+  const sheet = getMessagesSheet(ss);
+  return { success: true, messages: genericListRows(sheet) };
 }
 
 /*******************************************************
