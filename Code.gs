@@ -515,6 +515,14 @@ function doPost(e) {
         result = updateDealerFull(data);
         break;
 
+      // ---- ডিলার সাইট: ডিলার নিজের তথ্য দেখা/আপডেট (শুধু ডিলারের Admin) ----
+      case "getMyDealerInfo":
+        result = getMyDealerInfo(data);
+        break;
+      case "updateMyDealerFull":
+        result = updateMyDealerFull(data);
+        break;
+
       // ---- প্রতি ডিলারের নিজস্ব "সম্পর্কে" ----
       case "getAbout":
         result = getAbout(data);

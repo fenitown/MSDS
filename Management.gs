@@ -383,3 +383,178 @@ function updateDealerFull(data) {
   invalidateAgencyCaches();
   return { success: true, message: "ডিলারের সম্পূর্ণ তথ্য আপডেট হয়েছে" + photoWarning };
 }
+
+/*=========================================================
+ *  ডিলার সাইট — ডিলার নিজের তথ্য দেখা ও আপডেট করা
+ *  (ডিপু সাইটের "ডিলার" মেনুর মতোই কাজ করে, কিন্তু শুধু নিজের তথ্য)
+ *
+ *  নিরাপত্তা: dealerId সবসময় লগইন টোকেন থেকে নেওয়া হয়, ফ্রন্টএন্ডের
+ *  পাঠানো কোনো dealerId গ্রহণ করা হয় না — তাই একজন ডিলার অন্যজনের
+ *  তথ্য দেখতে/বদলাতে পারে না। স্ট্যাটাস, SpreadsheetID, DealerID বদলানো যায় না।
+ *=======================================================*/
+const SELF_DEALER_FIELDS = ["নাম", "পিতার নাম", "মোবাইল", "Gmail", "NID/জন্মসনদ", "ট্রেড লাইসেন্স নং", "ঠিকানা", "Facebook Link"];
+const SELF_NOMINEE_FIELDS = ["নমিনির নাম", "NID নং", "মোবাইল নং", "সম্পর্ক"];
+
+function checkDealerSelfPermission(token) {
+  const perm = checkPermission(token, ["Admin"]);
+  if (!perm.ok) return perm;
+  if (perm.payload.dealerId === AGENCY_ID) {
+    return { ok: false, message: "এই সুবিধা শুধু ডিলার সাইটের জন্য" };
+  }
+  return perm;
+}
+
+/*******************************************************
+ * লগইন করা ডিলারের Users শীটের রো খোঁজা (ইউজারনেম দিয়ে; না পেলে
+ * ঐ ডিলারের প্রথম Admin) — শীটের রো নম্বর ফেরত দেয়, না পেলে -1
+ *******************************************************/
+function findOwnUserRow(values, dealerId, username) {
+  const headers = values[0];
+  const idxDealerId = headers.indexOf("DealerID");
+  const idxUsername = headers.indexOf("ইউজারনেম");
+  const idxRole = headers.indexOf("রোল");
+  let fallback = -1;
+  for (let i = 1; i < values.length; i++) {
+    if (values[i][idxDealerId] !== dealerId) continue;
+    if (values[i][idxUsername] === username) return i + 1;
+    if (fallback === -1 && values[i][idxRole] === "Admin") fallback = i + 1;
+  }
+  return fallback;
+}
+
+/*******************************************************
+ * data: { token } — নিজের ডিলার তথ্য + নমিনি + লগইন তথ্য
+ *******************************************************/
+function getMyDealerInfo(data) {
+  const perm = checkDealerSelfPermission(data.token);
+  if (!perm.ok) return { success: false, message: perm.message };
+
+  const dealerId = perm.payload.dealerId;
+  const masterSS = getMasterSS();
+
+  const dealer = genericListRows(getSheet(masterSS, "Dealers")).find(function (d) {
+    return d["DealerID"] === dealerId;
+  });
+  if (!dealer) return { success: false, message: "ডিলার পাওয়া যায়নি" };
+  delete dealer["SpreadsheetID"]; // অভ্যন্তরীণ তথ্য ফ্রন্টএন্ডে পাঠানোর দরকার নেই
+
+  const nominee = genericListRows(getSheet(masterSS, "DealerNominee")).find(function (n) {
+    return n["DealerID"] === dealerId;
+  }) || null;
+
+  const usersSheet = getSheet(masterSS, "Users");
+  const values = usersSheet.getDataRange().getValues();
+  const rowNum = findOwnUserRow(values, dealerId, perm.payload.username);
+  let adminUser = null;
+  if (rowNum !== -1) {
+    adminUser = {};
+    values[0].forEach(function (h, idx) { adminUser[h] = values[rowNum - 1][idx]; });
+  }
+
+  return { success: true, dealer: dealer, nominee: nominee, adminUser: adminUser };
+}
+
+/*******************************************************
+ * data: {
+ *   token,
+ *   dealerFields: { নাম, পিতার নাম, মোবাইল, Gmail, NID/জন্মসনদ, ট্রেড লাইসেন্স নং, ঠিকানা, Facebook Link },
+ *   nomineeFields: { নমিনির নাম, NID নং, মোবাইল নং, সম্পর্ক },
+ *   adminUsername, adminPassword, adminName  (খালি থাকলে বদলাবে না),
+ *   dealerPhotoBase64, nomineePhotoBase64     (ঐচ্ছিক)
+ * }
+ * ইউজারনেম বদলালে নতুন টোকেন ফেরত আসে — ফ্রন্টএন্ডকে সেটা ব্যবহার করতে হবে
+ *******************************************************/
+function updateMyDealerFull(data) {
+  const perm = checkDealerSelfPermission(data.token);
+  if (!perm.ok) return { success: false, message: perm.message };
+
+  const dealerId = perm.payload.dealerId;
+  const masterSS = getMasterSS();
+  const dealersSheet = getSheet(masterSS, "Dealers");
+  const nomineeSheet = getSheet(masterSS, "DealerNominee");
+  const usersSheet = getSheet(masterSS, "Users");
+
+  // শুধু অনুমোদিত ফিল্ডগুলো নেওয়া হয়
+  const dealerFields = {};
+  const nomineeFields = {};
+  SELF_DEALER_FIELDS.forEach(function (k) {
+    if (data.dealerFields && data.dealerFields.hasOwnProperty(k)) dealerFields[k] = data.dealerFields[k];
+  });
+  SELF_NOMINEE_FIELDS.forEach(function (k) {
+    if (data.nomineeFields && data.nomineeFields.hasOwnProperty(k)) nomineeFields[k] = data.nomineeFields[k];
+  });
+
+  if (dealerFields.hasOwnProperty("নাম") && !String(dealerFields["নাম"]).trim()) {
+    return { success: false, message: "ডিলারের নাম খালি রাখা যাবে না" };
+  }
+
+  // ইউজারনেম ডুপ্লিকেট চেক (কিছু সেভ করার আগেই, যাতে আধা-সেভ না হয়)
+  const userValues = usersSheet.getDataRange().getValues();
+  const uHeaders = userValues[0];
+  const idxUsername = uHeaders.indexOf("ইউজারনেম");
+  const idxPassword = uHeaders.indexOf("পাসওয়ার্ড");
+  const idxName = uHeaders.indexOf("নাম");
+  const ownRow = findOwnUserRow(userValues, dealerId, perm.payload.username);
+  const newUsername = String(data.adminUsername || "").trim();
+
+  if (newUsername) {
+    for (let i = 1; i < userValues.length; i++) {
+      if (userValues[i][idxUsername] === newUsername && (i + 1) !== ownRow) {
+        return { success: false, message: "এই ইউজারনেম আগে থেকেই আছে, অন্য একটি দিন" };
+      }
+    }
+  }
+
+  let photoWarning = "";
+  let newDealerPhoto = "";
+  if (data.dealerPhotoBase64) {
+    const processed = processImageForStorage(data.dealerPhotoBase64);
+    if (processed === null) { photoWarning += " (⚠️ ডিলারের নতুন ছবি খুব বড়, সেভ হয়নি)"; }
+    else { dealerFields["ডিলারের ছবি(URL)"] = processed; newDealerPhoto = processed; }
+  }
+  if (data.nomineePhotoBase64) {
+    const processedN = processImageForStorage(data.nomineePhotoBase64);
+    if (processedN === null) { photoWarning += " (⚠️ নমিনির নতুন ছবি খুব বড়, সেভ হয়নি)"; }
+    else { nomineeFields["নমিনির ছবি(URL)"] = processedN; }
+  }
+
+  // ১. ডিলারের মূল তথ্য
+  const dealerOk = genericUpdateRow(dealersSheet, "DealerID", dealerId, dealerFields);
+  if (!dealerOk) return { success: false, message: "ডিলার পাওয়া যায়নি" };
+
+  // ২. নমিনি তথ্য (না থাকলে নতুন রো, থাকলে আপডেট)
+  if (Object.keys(nomineeFields).length > 0) {
+    if (genericFindRowIndex(nomineeSheet, "DealerID", dealerId) === -1) {
+      const row = { "NomineeID": generateId(nomineeSheet, "N"), "DealerID": dealerId };
+      Object.keys(nomineeFields).forEach(function (k) { row[k] = nomineeFields[k]; });
+      genericAddRow(nomineeSheet, row);
+    } else {
+      genericUpdateRow(nomineeSheet, "DealerID", dealerId, nomineeFields);
+    }
+  }
+
+  // ৩. লগইন তথ্য (দেওয়া থাকলে)
+  let newToken = "";
+  if (ownRow !== -1) {
+    if (newUsername) usersSheet.getRange(ownRow, idxUsername + 1).setValue(newUsername);
+    if (data.adminPassword) usersSheet.getRange(ownRow, idxPassword + 1).setValue(data.adminPassword);
+    if (data.adminName && idxName !== -1) usersSheet.getRange(ownRow, idxName + 1).setValue(data.adminName);
+
+    if (newUsername && newUsername !== perm.payload.username) {
+      newToken = createToken({
+        dealerId: dealerId,
+        role: perm.payload.role,
+        username: newUsername,
+        exp: perm.payload.exp
+      });
+    }
+  }
+
+  invalidateAgencyCaches();
+  return {
+    success: true,
+    message: "আপনার তথ্য আপডেট হয়েছে" + photoWarning,
+    token: newToken,
+    dealerPhotoUrl: newDealerPhoto
+  };
+}

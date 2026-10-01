@@ -18,26 +18,17 @@
  * SMS এর জন্য দুইটা অপশন আছে (ডিলার সেটাপ ফরম থেকে যেকোনো একটা
  * বেছে নেবে):
  *
- * === অপশন A: নিজের ফোনের সিম দিয়ে — textbee (APK সাইডলোড) ===
- * একটা পুরনো/স্পেয়ার Android ফোনে সিম ভরে (SMS প্যাকেজ/ব্যালেন্স
- * থাকতে হবে, ফোনটা সবসময় চালু ও ইন্টারনেটে কানেক্টেড থাকতে হবে)
- * https://textbee.dev থেকে অ্যাপ (APK) ইনস্টল করে সাইন-ইন করুন, SMS
- * পারমিশন দিন, ড্যাশবোর্ড থেকে API Key কপি করে সেটাপ ফরমে বসান।
- *
- * === অপশন B: নিজের ফোনের সিম দিয়ে — Traccar SMS Gateway (Play Store) ===
- * textbee এর APK ইনস্টল না হলে এটা সহজ বিকল্প — Google Play
- * Store থেকে সরাসরি "Traccar SMS Gateway" অ্যাপ ইনস্টল করা যায়,
- * কোনো সাইডলোডের ঝামেলা নেই। অ্যাপ খুলে SMS পারমিশন দিন, সেটিংসে
+ * === অপশন A: নিজের ফোনের সিম দিয়ে — Traccar SMS Gateway (Play Store) ===
+ * Google Play Store থেকে সরাসরি "Traccar SMS Gateway" অ্যাপ ইনস্টল করা
+ * যায়, কোনো সাইডলোডের ঝামেলা নেই। অ্যাপ খুলে SMS পারমিশন দিন, সেটিংসে
  * "Cloud" মোড চালু করুন (Local/LAN মোড Apps Script থেকে কাজ করবে
  * না, কারণ Apps Script গুগলের সার্ভারে চলে, আপনার ফোনের একই WiFi
  * নেটওয়ার্কে না) — তখন একটা URL ও Token পাবেন, সেটাপ ফরমে বসান।
- *
- * === অপশন A ও B — উভয় ক্ষেত্রেই ===
  * মেসেজ পাঠালে ঠিক ম্যানুয়ালি ওই ফোন থেকে পাঠানোর মতোই সেই সিমের
  * প্যাকেজ/ব্যালেন্স থেকে কাটবে — সম্পূর্ণ ফ্রি সফটওয়্যার, শুধু
  * ফোনের সিমের স্বাভাবিক SMS খরচ লাগবে।
  *
- * === অপশন C: পেইড SMS গেটওয়ে (BulkSMSBD ইত্যাদি) ===
+ * === অপশন B: পেইড SMS গেটওয়ে (BulkSMSBD ইত্যাদি) ===
  *    http://bulksmsbd.net/api/smsapi?api_key={api_key}&type=text&number={to}&senderid={from}&message={message}
  *    URL এর ভেতরে {api_key}, {from}, {to}, {message} — এই চারটি
  *    প্লেসহোল্ডার ঠিক এভাবেই থাকতে হবে, বাকিটা প্রতিটি গেটওয়ের
@@ -57,10 +48,28 @@
 
 const MESSAGING_CONFIG_KEYS = ["smsProviderType", "smsGatewayUrlTemplate", "smsApiKey", "smsSenderId", "smsTraccarUrl", "whatsappApiUrl", "whatsappToken"];
 // smsProviderType সম্ভাব্য মান:
+//  "traccar"      — নিজের Android ফোনের সিম দিয়ে (Traccar SMS Gateway অ্যাপ — Play Store
+//                   থেকে সরাসরি ইনস্টল করা যায়, APK সাইডলোডের ঝামেলা নেই)
 //  "url_template" — পেইড SMS গেটওয়ে (BulkSMSBD ইত্যাদি), URL টেমপ্লেট দিয়ে GET রিকোয়েস্ট
-//  "textbee"       — নিজের Android ফোনের সিম দিয়ে (textbee অ্যাপ — APK সাইডলোড করতে হয়)
-//  "traccar"       — নিজের Android ফোনের সিম দিয়ে (Traccar SMS Gateway অ্যাপ — Play Store
-//                    থেকে সরাসরি ইনস্টল করা যায়, APK সাইডলোডের ঝামেলা নেই)
+// (আগে textbee অপশন ছিল, এখন বাদ — পুরনো "textbee" সেভ করা থাকলে সেটা "traccar"
+//  হিসেবে ধরা হয়, এবং Traccar URL/Token না থাকলে "সেটআপ হয়নি" দেখাবে)
+
+/*******************************************************
+ * SMS প্রোভাইডারের ধরন ও প্রস্তুত আছে কিনা — একই লজিক সব জায়গায় ব্যবহার হয়
+ *******************************************************/
+function getSmsProviderType(config) {
+  return config.smsProviderType === "url_template" ? "url_template" : "traccar";
+}
+
+function isSmsReady(config) {
+  return getSmsProviderType(config) === "traccar"
+    ? !!(config.smsTraccarUrl && config.smsApiKey)
+    : !!config.smsGatewayUrlTemplate;
+}
+
+function isWhatsAppReady(config) {
+  return !!(config.whatsappApiUrl && config.whatsappToken);
+}
 
 /*******************************************************
  * ScriptProperties থেকে একটি নির্দিষ্ট ডিলারের মেসেজিং কনফিগ পড়া
@@ -87,7 +96,8 @@ function getDealerMessagingConfig(data) {
 
 /*******************************************************
  * ডিলার — নিজের মেসেজিং কনফিগ সংরক্ষণ (শুধু Admin)
- * data: { token, smsGatewayUrlTemplate, smsApiKey, whatsappApiUrl, whatsappToken }
+ * data: { token, smsProviderType, smsGatewayUrlTemplate, smsApiKey, smsSenderId,
+ *         smsTraccarUrl, whatsappApiUrl, whatsappToken }
  *******************************************************/
 function saveDealerMessagingConfig(data) {
   const perm = checkPermission(data.token, ["Admin"]);
@@ -106,26 +116,20 @@ function saveDealerMessagingConfig(data) {
  * "মেসেজ" ফরম খোলার সময় ব্যবহারের জন্য হালকা স্ট্যাটাস —
  * Admin ও প্রতিনিধি দুজনেই পড়তে পারবে (আসল API Key/Token
  * শেয়ার না করে শুধু দরকারি তথ্যটুকু দেওয়া হয়, যাতে মেসেজ ফরমে
- * ঠিকভাবে বোঝা যায় textbee/গেটওয়ে সেটআপ করা আছে কিনা)
+ * ঠিকভাবে বোঝা যায় গেটওয়ে সেটআপ করা আছে কিনা)
  *******************************************************/
 function getMessagingStatus(data) {
   const perm = checkPermission(data.token, ["Admin", "প্রতিনিধি"]);
   if (!perm.ok) return { success: false, message: perm.message };
 
   const config = getDealerMessagingConfigRaw(perm.payload.dealerId);
-  const providerType = config.smsProviderType || "textbee";
-  const smsReady =
-    providerType === "textbee" ? !!config.smsApiKey :
-    providerType === "traccar" ? !!(config.smsTraccarUrl && config.smsApiKey) :
-    !!config.smsGatewayUrlTemplate;
-  const waReady = !!(config.whatsappApiUrl && config.whatsappToken);
 
   return {
     success: true,
-    smsProviderType: providerType,
+    smsProviderType: getSmsProviderType(config),
     smsSenderId: config.smsSenderId || "",
-    smsReady: smsReady,
-    waReady: waReady
+    smsReady: isSmsReady(config),
+    waReady: isWhatsAppReady(config)
   };
 }
 
@@ -193,29 +197,6 @@ function sendWhatsAppMessage(config, toMobile, message) {
 }
 
 /*******************************************************
- * textbee (https://textbee.dev) — নিজের Android ফোনকে SMS
- * গেটওয়ে বানিয়ে সেই ফোনের সিম দিয়ে মেসেজ পাঠানো। একসাথে অনেক
- * নম্বরে (bulk) একটাই রিকোয়েস্টে পাঠানো যায়
- *******************************************************/
-function sendSmsViaTextbee(config, numbers, message) {
-  if (!config.smsApiKey) return { ok: false, skipped: true };
-  try {
-    const recipients = numbers.map(function (n) { return "+" + normalizeMobileBD(n); });
-    const resp = UrlFetchApp.fetch("https://api.textbee.dev/api/v1/gateway/send-sms", {
-      method: "post",
-      contentType: "application/json",
-      headers: { "x-api-key": config.smsApiKey },
-      payload: JSON.stringify({ recipients: recipients, message: message }),
-      muteHttpExceptions: true
-    });
-    const code = resp.getResponseCode();
-    return { ok: code >= 200 && code < 300, response: resp.getContentText() };
-  } catch (e) {
-    return { ok: false, reason: e.toString() };
-  }
-}
-
-/*******************************************************
  * Traccar SMS Gateway (Play Store অ্যাপ, cloud মোডে) — নিজের
  * Android ফোনকে SMS গেটওয়ে বানিয়ে সেই ফোনের সিম দিয়ে মেসেজ
  * পাঠানো। প্রতি নম্বরে আলাদা POST রিকোয়েস্ট লাগে (bulk সাপোর্ট নেই)
@@ -239,56 +220,79 @@ function sendSmsViaTraccar(config, toMobile, message) {
 }
 
 /*******************************************************
- * একাধিক নম্বরে (ডুপ্লিকেট/খালি বাদ দিয়ে) SMS + WhatsApp —
- * যেটা কনফিগার করা আছে সেটাই পাঠানো হবে, অন্যটা স্কিপ হবে।
- * smsProviderType অনুযায়ী SMS হয় textbee (নিজের ফোনের সিম, একটা
- * bulk কল) দিয়ে, নয়তো url_template (BulkSMSBD জাতীয় গেটওয়ে,
- * প্রতি নম্বরে আলাদা কল) দিয়ে পাঠানো হয়
+ * ডিলারের নাম ও ঠিকানা (Master "Dealers" ট্যাব থেকে) — মেসেজের নিচে অটো বসে
  *******************************************************/
-function sendBulkToNumbers(config, fromMobile, message, numbers) {
-  const providerType = config.smsProviderType || "textbee";
-  const smsEnabled =
-    providerType === "textbee" ? !!config.smsApiKey :
-    providerType === "traccar" ? !!(config.smsTraccarUrl && config.smsApiKey) :
-    !!config.smsGatewayUrlTemplate;
-  const waEnabled = !!(config.whatsappApiUrl && config.whatsappToken);
+function getDealerNameAndAddress(dealerId) {
+  const sheet = getSheet(getMasterSS(), "Dealers");
+  const rows = genericListRows(sheet);
+  for (let i = 0; i < rows.length; i++) {
+    if (rows[i]["DealerID"] === dealerId) {
+      return {
+        name: String(rows[i]["নাম"] || "").trim(),
+        address: String(rows[i]["ঠিকানা"] || "").trim()
+      };
+    }
+  }
+  return { name: "", address: "" };
+}
 
-  const uniqueNumbers = [];
+/*******************************************************
+ * চূড়ান্ত মেসেজ তৈরি — ডিলার শুধু মূল লেখাটা লেখেন, বাকিটা অটো বসে:
+ *
+ *   প্রিয় <গ্রাহকের নাম>,
+ *   <ডিলারের লেখা মূল মেসেজ>
+ *
+ *   <ডিলারের নাম>
+ *   <ডিলারের ঠিকানা>
+ *******************************************************/
+function composeCustomerMessage(customerName, mainText, dealerName, dealerAddress) {
+  const greeting = "প্রিয় " + (String(customerName || "").trim() || "গ্রাহক") + ",";
+  const signature = [dealerName, dealerAddress]
+    .map(function (s) { return String(s || "").trim(); })
+    .filter(function (s) { return s; })
+    .join("\n");
+  return greeting + "\n" + mainText + (signature ? "\n\n" + signature : "");
+}
+
+/*******************************************************
+ * একাধিক প্রাপককে (ডুপ্লিকেট/খালি নম্বর বাদ দিয়ে) SMS + WhatsApp —
+ * যেটা কনফিগার করা আছে সেটাই পাঠানো হবে, অন্যটা স্কিপ হবে।
+ * প্রতিটি গ্রাহকের নাম আলাদা বলে প্রতি নম্বরে আলাদা মেসেজ তৈরি হয়।
+ * recipients: [ { mobile, name }, ... ]
+ *******************************************************/
+function sendBulkToRecipients(config, fromMobile, mainText, recipients, dealerInfo) {
+  const providerType = getSmsProviderType(config);
+  const smsEnabled = isSmsReady(config);
+  const waEnabled = isWhatsAppReady(config);
+
+  const unique = [];
   const seen = {};
-  (numbers || []).forEach(function (n) {
-    const clean = String(n || "").trim();
-    if (clean && !seen[clean]) { seen[clean] = true; uniqueNumbers.push(clean); }
+  (recipients || []).forEach(function (r) {
+    const clean = String((r && r.mobile) || "").trim();
+    if (clean && !seen[clean]) { seen[clean] = true; unique.push({ mobile: clean, name: r.name }); }
   });
 
   let smsSent = 0, smsFailed = 0, waSent = 0, waFailed = 0;
   let smsLastError = "", waLastError = "";
 
-  if (smsEnabled) {
-    if (providerType === "textbee") {
-      const r = sendSmsViaTextbee(config, uniqueNumbers, message);
-      if (r.ok) { smsSent = uniqueNumbers.length; } else { smsFailed = uniqueNumbers.length; smsLastError = String(r.response || r.reason || "").substring(0, 300); }
-    } else if (providerType === "traccar") {
-      uniqueNumbers.forEach(function (num) {
-        const r = sendSmsViaTraccar(config, num, message);
-        if (r.ok) smsSent++; else { smsFailed++; smsLastError = String(r.response || r.reason || "").substring(0, 300); }
-      });
-    } else {
-      uniqueNumbers.forEach(function (num) {
-        const r = sendSmsViaGateway(config, fromMobile, num, message);
-        if (r.ok) smsSent++; else { smsFailed++; smsLastError = String(r.response || r.reason || "").substring(0, 300); }
-      });
-    }
-  }
+  unique.forEach(function (rcp) {
+    const text = composeCustomerMessage(rcp.name, mainText, dealerInfo.name, dealerInfo.address);
 
-  if (waEnabled) {
-    uniqueNumbers.forEach(function (num) {
-      const r2 = sendWhatsAppMessage(config, num, message);
+    if (smsEnabled) {
+      const r = (providerType === "traccar")
+        ? sendSmsViaTraccar(config, rcp.mobile, text)
+        : sendSmsViaGateway(config, fromMobile, rcp.mobile, text);
+      if (r.ok) smsSent++; else { smsFailed++; smsLastError = String(r.response || r.reason || "").substring(0, 300); }
+    }
+
+    if (waEnabled) {
+      const r2 = sendWhatsAppMessage(config, rcp.mobile, text);
       if (r2.ok) waSent++; else { waFailed++; waLastError = String(r2.response || r2.reason || "").substring(0, 300); }
-    });
-  }
+    }
+  });
 
   return {
-    total: uniqueNumbers.length,
+    total: unique.length,
     smsEnabled: smsEnabled, smsSent: smsSent, smsFailed: smsFailed, smsLastError: smsLastError,
     waEnabled: waEnabled, waSent: waSent, waFailed: waFailed, waLastError: waLastError
   };
@@ -297,26 +301,22 @@ function sendBulkToNumbers(config, fromMobile, message, numbers) {
 /*******************************************************
  * ডিলার সাইট — নিজের গ্রাহকদের মেসেজ পাঠানো (Admin + প্রতিনিধি)
  * ডিলার নিজের সেট করা কনফিগ ব্যবহার করেই পাঠানো হয়
- * data: { token, fromMobile, message, type: "all"|"location", locations: [...] }
+ * data: { token, fromMobile, message (শুধু মূল লেখা), type: "all"|"location", locations: [...] }
+ * গ্রাহকের নাম এবং ডিলারের নাম/ঠিকানা সার্ভার নিজেই বসিয়ে দেয়
  *******************************************************/
 function sendCustomerMessage(data) {
   const perm = checkPermission(data.token, ["Admin", "প্রতিনিধি"]);
   if (!perm.ok) return { success: false, message: perm.message };
 
-  if (!data.message) return { success: false, message: "মেসেজ লিখুন" };
+  if (!data.message || !String(data.message).trim()) return { success: false, message: "মেসেজ লিখুন" };
 
   const dealerId = perm.payload.dealerId;
   const config = getDealerMessagingConfigRaw(dealerId);
-  const providerType = config.smsProviderType || "textbee";
-  const smsReady =
-    providerType === "textbee" ? !!config.smsApiKey :
-    providerType === "traccar" ? !!(config.smsTraccarUrl && config.smsApiKey) :
-    !!config.smsGatewayUrlTemplate;
-  const waReady = !!(config.whatsappApiUrl && config.whatsappToken);
-  if (!smsReady && !waReady) {
+  const providerType = getSmsProviderType(config);
+  if (!isSmsReady(config) && !isWhatsAppReady(config)) {
     return { success: false, message: "এখনো কোনো SMS/WhatsApp সেটআপ করা হয়নি। গ্রাহক → মেসেজিং সেটাপ থেকে আগে সেটআপ করুন।" };
   }
-  // শুধু url_template (পেইড গেটওয়ে) মোডে Sender ID আবশ্যক — textbee/traccar এ
+  // শুধু url_template (পেইড গেটওয়ে) মোডে Sender ID আবশ্যক — traccar এ
   // ফোনের নিজের নম্বর স্বয়ংক্রিয়ভাবে ব্যবহৃত হয়, আলাদা করে লাগে না
   if (providerType === "url_template" && !data.fromMobile) {
     return { success: false, message: "Sender ID / মোবাইল নং দিন" };
@@ -332,8 +332,21 @@ function sendCustomerMessage(data) {
     });
   }
 
-  const numbers = targeted.map(function (c) { return c["মোবাইল নং"]; });
-  const result = sendBulkToNumbers(config, data.fromMobile, data.message, numbers);
+  const recipients = targeted.map(function (c) {
+    return { mobile: c["মোবাইল নং"], name: c["নাম"] };
+  });
+  const dealerInfo = getDealerNameAndAddress(dealerId);
+  const result = sendBulkToRecipients(config, data.fromMobile, String(data.message).trim(), recipients, dealerInfo);
 
   return Object.assign({ success: true, message: "মেসেজ পাঠানো সম্পন্ন হয়েছে" }, result);
+}
+
+/*******************************************************
+ * একবারের অনুমতি (UrlFetchApp / external_request) নেওয়ার জন্য —
+ * এডিটর থেকে একবার Run করলে "Connect to an external service"
+ * পারমিশন চাইবে। এরপর চাইলে এটা রেখে দিতে পারেন
+ *******************************************************/
+function authorizeExternalRequest() {
+  UrlFetchApp.fetch("https://www.google.com", { muteHttpExceptions: true });
+  Logger.log("অনুমতি সম্পন্ন");
 }

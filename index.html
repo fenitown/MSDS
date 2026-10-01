@@ -373,9 +373,13 @@
       </div>
       <div class="field">
         <label>মেসেজ</label>
-        <textarea id="msgText" rows="4" style="width:100%;resize:vertical;"></textarea>
+        <textarea id="msgText" rows="4" style="width:100%;resize:vertical;" placeholder="শুধু মূল লেখাটা লিখুন" oninput="updateMsgPreview()"></textarea>
       </div>
-      <p id="msgChannelNote" style="font-size:0.78rem;color:var(--muted);">মেসেজটি SMS ও (সেটআপ থাকলে) WhatsApp — যাদের নাম্বারে চালু আছে তাদের কাছে একসাথে যাবে।</p>
+      <p id="msgChannelNote" style="font-size:0.78rem;color:var(--muted);">
+        শুধু মূল লেখাটা লিখুন। প্রতিটি মেসেজের শুরুতে <b>"প্রিয় (গ্রাহকের নাম),"</b> এবং শেষে আপনার <b>নাম ও ঠিকানা</b> নিজে থেকেই বসে যাবে।
+        মেসেজটি SMS ও (সেটআপ থাকলে) WhatsApp — যাদের নাম্বারে চালু আছে তাদের কাছে যাবে।
+      </p>
+      <div id="msgPreviewBox" style="font-size:0.8rem;background:#f6f3ea;border:1px dashed #d8d2c2;border-radius:8px;padding:8px 10px;margin-bottom:8px;white-space:pre-wrap;"></div>
       <div id="msgResult" class="msg"></div>
       <div class="modal-actions">
         <button class="btn secondary" onclick="closeMessageModal()">বাতিল</button>
@@ -413,7 +417,7 @@
     <!-- ================= এজেন্সি: ডিলার (রেজিস্ট্রেশন + লিস্ট) ================= -->
     <section class="section" id="sec-dealerMgmt">
       <h2>ডিলার</h2>
-      <div class="tabs no-print">
+      <div class="tabs no-print" id="dealerMgmtTabs">
         <button class="active" onclick="switchDealerMgmtTab('register', this)">ডিলার রেজিস্ট্রেশন</button>
         <button onclick="switchDealerMgmtTab('dealerList', this)">ডিলার লিস্ট</button>
       </div>
@@ -648,22 +652,9 @@
             <div class="field" style="grid-column:1/-1;">
               <label>SMS কীভাবে পাঠাবেন?</label>
               <select id="msgSmsProviderType" onchange="onSmsProviderTypeChange()">
-                <option value="textbee">নিজের ফোনের সিম দিয়ে — textbee (APK ইনস্টল করতে হয়)</option>
                 <option value="traccar">নিজের ফোনের সিম দিয়ে — Traccar SMS Gateway (Play Store থেকে সরাসরি)</option>
                 <option value="url_template">পেইড SMS গেটওয়ে (BulkSMSBD, Alpha SMS ইত্যাদি)</option>
               </select>
-            </div>
-          </div>
-
-          <div id="msgTextbeeHelp" style="display:none;">
-            <p style="font-size:0.82rem;color:var(--muted);">
-              <b>যা লাগবে:</b> একটা পুরনো/স্পেয়ার Android ফোন, তাতে সচল SIM (SMS প্যাকেজ/ব্যালেন্স সহ), ফোনটা সবসময় চালু ও
-              ইন্টারনেটে কানেক্টেড থাকতে হবে। <a href="https://textbee.dev" target="_blank" rel="noopener">textbee.dev</a> থেকে
-              অ্যাপ ইনস্টল করে সাইন-ইন করুন, SMS পাঠানোর পারমিশন দিন, তারপর ড্যাশবোর্ড থেকে <b>API Key</b> কপি করে নিচে বসান।
-              মেসেজ পাঠালে ঠিক ম্যানুয়ালি ফোন থেকে পাঠানোর মতোই ওই সিমের প্যাকেজ/ব্যালেন্স থেকে কাটবে।
-            </p>
-            <div class="form-grid">
-              <div class="field" style="grid-column:1/-1;"><label>textbee API Key</label><input id="msgSmsKey"></div>
             </div>
           </div>
 
@@ -1133,6 +1124,7 @@ function buildSideMenu(){
   } else {
     nav.innerHTML = `
       <button class="menu-item" onclick="showSection('dashboard')">ড্যাশবোর্ড</button>
+      ${state.role === 'Admin' ? `<button class="menu-item" onclick="showSection('dealerMgmt')">ডিলার</button>` : ``}
       <button class="menu-item" onclick="showSection('about')">আমাদের সম্পর্কে</button>
       <button class="menu-item" onclick="showSection('packages')">প্যাকেজ</button>
       <button class="menu-item" onclick="showSection('customers')">গ্রাহক</button>
@@ -1184,6 +1176,7 @@ async function openMessageModal(){
   document.getElementById("msgModalTitle").textContent = "গ্রাহকদের মেসেজ পাঠান";
   document.getElementById("msgFromMobile").value = "";
   document.getElementById("msgText").value = "";
+  updateMsgPreview();
   document.getElementById("msgResult").innerHTML = "";
   document.getElementById("msgResult").className = "msg";
   document.getElementById("msgType").value = "all";
@@ -1191,10 +1184,10 @@ async function openMessageModal(){
   document.getElementById("messageModalOverlay").style.display = "flex";
 
   const c = await loadMessagingStatus();
-  // নিজের ফোনের সিম (textbee) দিয়ে পাঠালে আলাদা Sender ID লাগে না —
+  // নিজের ফোনের সিম (Traccar) দিয়ে পাঠালে আলাদা Sender ID লাগে না —
   // ওই ক্ষেত্রে এই ফিল্ডটা লুকিয়ে রাখা হয়
   const fromField = document.getElementById("msgFromMobileField");
-  if(c.smsProviderType === "textbee" || c.smsProviderType === "traccar"){
+  if(c.smsProviderType === "traccar"){
     fromField.style.display = "none";
   } else {
     fromField.style.display = "block";
@@ -1204,6 +1197,15 @@ async function openMessageModal(){
     document.getElementById("msgResult").className = "msg err";
     document.getElementById("msgResult").textContent = "এখনো কোনো SMS/WhatsApp সেটআপ করা হয়নি (Admin কে জানান)";
   }
+}
+
+/* মেসেজ কেমন দেখাবে তার প্রিভিউ — আসল নাম/ঠিকানা সার্ভার বসায়, এখানে শুধু নমুনা */
+function updateMsgPreview(){
+  const box = document.getElementById("msgPreviewBox");
+  if(!box) return;
+  const main = document.getElementById("msgText").value.trim() || "(আপনার লেখা মেসেজ)";
+  const dealer = state.dealerName || "(ডিলারের নাম)";
+  box.textContent = "প্রিয় (গ্রাহকের নাম),\n" + main + "\n\n" + dealer + "\n(ডিলারের ঠিকানা)";
 }
 
 function closeMessageModal(){
@@ -1227,13 +1229,12 @@ async function loadDealerMsgConfig(){
 async function loadMessagingStatus(){
   if(messagingStatusCache) return messagingStatusCache;
   const res = await apiCall("getMessagingStatus", {});
-  messagingStatusCache = res.success ? res : { smsProviderType:"textbee", smsSenderId:"", smsReady:false, waReady:false };
+  messagingStatusCache = res.success ? res : { smsProviderType:"traccar", smsSenderId:"", smsReady:false, waReady:false };
   return messagingStatusCache;
 }
 
 function onSmsProviderTypeChange(){
   const type = document.getElementById("msgSmsProviderType").value;
-  document.getElementById("msgTextbeeHelp").style.display = (type === "textbee") ? "block" : "none";
   document.getElementById("msgTraccarHelp").style.display = (type === "traccar") ? "block" : "none";
   document.getElementById("msgUrlTemplateHelp").style.display = (type === "url_template") ? "block" : "none";
 }
@@ -1245,13 +1246,14 @@ async function toggleMsgSetupForm(){
   if(show && !msgSetupLoaded){
     msgSetupLoaded = true;
     const c = await loadDealerMsgConfig();
-    const type = c.smsProviderType || "textbee";
+    // আগে textbee সেভ করা থাকলে সেটা এখন সমর্থিত নয় — Traccar ফরম দেখাবে
+    // এবং পুরনো textbee API Key বসানো হবে না (ডিলারকে নতুন করে সেটআপ দিতে হবে)
+    const wasTextbee = c.smsProviderType === "textbee";
+    const type = (c.smsProviderType === "url_template") ? "url_template" : "traccar";
     document.getElementById("msgSmsProviderType").value = type;
     onSmsProviderTypeChange();
-    if(type === "textbee"){
-      document.getElementById("msgSmsKey").value = c.smsApiKey || "";
-    } else if(type === "traccar"){
-      document.getElementById("msgTraccarToken").value = c.smsApiKey || "";
+    if(type === "traccar"){
+      document.getElementById("msgTraccarToken").value = wasTextbee ? "" : (c.smsApiKey || "");
     } else {
       document.getElementById("msgSmsKeyTemplate").value = c.smsApiKey || "";
     }
@@ -1266,8 +1268,7 @@ async function toggleMsgSetupForm(){
 async function saveDealerMessagingConfig(){
   const type = document.getElementById("msgSmsProviderType").value;
   let apiKey = "";
-  if(type === "textbee") apiKey = document.getElementById("msgSmsKey").value.trim();
-  else if(type === "traccar") apiKey = document.getElementById("msgTraccarToken").value.trim();
+  if(type === "traccar") apiKey = document.getElementById("msgTraccarToken").value.trim();
   else apiKey = document.getElementById("msgSmsKeyTemplate").value.trim();
   const data = {
     smsProviderType: type,
@@ -1357,7 +1358,7 @@ function showSection(name){
 
   if(name === "agencyDashboard") loadAgencyDashboard();
   if(name === "management") switchMgmtTab("agencyInfo", document.querySelector("#sec-management .tabs button"));
-  if(name === "dealerMgmt") switchDealerMgmtTab("register", document.querySelector("#sec-dealerMgmt .tabs button"));
+  if(name === "dealerMgmt") openDealerMgmt();
   if(name === "agencyPackages") loadAgencyPackages();
   if(name === "commission") loadCommissionSetup();
   if(name === "agencyExpense") loadAgencyExpenses();
@@ -1504,7 +1505,7 @@ function renderRegisterForm(box){
     </fieldset>
     <div class="btn-row">
       <button class="btn" id="registerSubmitBtn" onclick="submitRegister()">রেজিস্ট্রেশন সম্পন্ন করুন</button>
-      <button class="btn secondary" onclick="printRegistrationForm()">🖨 ফরম প্রিন্ট করুন</button>
+      <button class="btn secondary" id="registerPrintBtn" onclick="printRegistrationForm()">🖨 ফরম প্রিন্ট করুন</button>
       <button class="btn secondary" id="registerCancelBtn" style="display:none;" onclick="cancelDealerEdit()">বাতিল</button>
     </div>
     <div id="registerMsg" class="msg"></div>`;
@@ -1543,6 +1544,49 @@ async function submitRegister(){
 
   const dealerPhotoBase64 = await fileToBase64Compressed(document.getElementById("rDealerPhoto"));
   const nomineePhotoBase64 = await fileToBase64Compressed(document.getElementById("rNomPhoto"));
+
+  if(editingDealerId === "SELF"){
+    const selfData = {
+      dealerFields: {
+        "নাম": document.getElementById("rNaam").value.trim(),
+        "পিতার নাম": document.getElementById("rPitarNaam").value.trim(),
+        "মোবাইল": document.getElementById("rMobile").value.trim(),
+        "Gmail": document.getElementById("rGmail").value.trim(),
+        "NID/জন্মসনদ": document.getElementById("rNid").value.trim(),
+        "ট্রেড লাইসেন্স নং": document.getElementById("rTrade").value.trim(),
+        "ঠিকানা": document.getElementById("rThikana").value.trim(),
+        "Facebook Link": document.getElementById("rFacebook").value.trim()
+      },
+      nomineeFields: {
+        "নমিনির নাম": document.getElementById("rNomNaam").value.trim(),
+        "NID নং": document.getElementById("rNomNid").value.trim(),
+        "মোবাইল নং": document.getElementById("rNomMobile").value.trim(),
+        "সম্পর্ক": document.getElementById("rNomSomporko").value.trim()
+      },
+      adminUsername: document.getElementById("rAdminUser").value.trim(),
+      adminPassword: document.getElementById("rAdminPass").value,
+      adminName: document.getElementById("rAdminName").value.trim(),
+      dealerPhotoBase64: dealerPhotoBase64,
+      nomineePhotoBase64: nomineePhotoBase64
+    };
+    const selfRes = await apiCall("updateMyDealerFull", selfData);
+    if(selfRes.success){
+      // ইউজারনেম বদলালে সার্ভার নতুন টোকেন দেয়
+      if(selfRes.token) state.token = selfRes.token;
+      state.dealerName = selfData.dealerFields["নাম"] || state.dealerName;
+      state.dealerMobile = selfData.dealerFields["মোবাইল"];
+      state.dealerFacebookLink = selfData.dealerFields["Facebook Link"];
+      if(selfRes.dealerPhotoUrl) state.dealerPhotoUrl = selfRes.dealerPhotoUrl;
+      if(selfData.adminName) state.name = selfData.adminName;
+      clearCache();
+      loadFooterInfo();
+      await renderMyDealerForm(document.getElementById("dealerMgmtContent"));
+    }
+    const selfMsg = document.getElementById("registerMsg");
+    selfMsg.textContent = selfRes.message;
+    selfMsg.className = "msg " + (selfRes.success ? "ok" : "err");
+    return;
+  }
 
   if(editingDealerId){
     const data = {
@@ -1700,6 +1744,87 @@ async function editDealerRow(dealerId){
 function cancelDealerEdit(){
   editingDealerId = null;
   renderRegisterForm(document.getElementById("dealerMgmtContent"));
+}
+
+/*******************************************************
+ * "ডিলার" মেনু — ডিপু ও ডিলার দুই সাইটেই আছে
+ *  - ডিপু (AGENCY): রেজিস্ট্রেশন + ডিলার লিস্ট (আগের মতোই)
+ *  - ডিলার: একই ফরমে শুধু নিজের তথ্য দেখা ও আপডেট করা
+ *******************************************************/
+function openDealerMgmt(){
+  const tabs = document.getElementById("dealerMgmtTabs");
+  const box = document.getElementById("dealerMgmtContent");
+  if(state.dealerId === "AGENCY"){
+    tabs.style.display = "";
+    switchDealerMgmtTab("register", tabs.querySelector("button"));
+  } else {
+    tabs.style.display = "none";
+    renderMyDealerForm(box);
+  }
+}
+
+async function renderMyDealerForm(box){
+  renderRegisterForm(box);              // একই ফরম (editingDealerId এখানে null হয়)
+  editingDealerId = "SELF";
+  document.getElementById("registerFormLegend").textContent = "আমার তথ্য";
+  document.getElementById("registerSubmitBtn").textContent = "আপডেট করুন";
+  document.getElementById("registerCancelBtn").style.display = "none";
+  document.getElementById("registerPrintBtn").onclick = printMyDealerForm;
+
+  const msgBox = document.getElementById("registerMsg");
+  msgBox.textContent = "তথ্য লোড হচ্ছে..."; msgBox.className = "msg";
+
+  const res = await apiCall("getMyDealerInfo", {});
+  if(!res.success){ msgBox.textContent = res.message; msgBox.className = "msg err"; return; }
+  msgBox.textContent = ""; msgBox.className = "msg";
+
+  const d = res.dealer, n = res.nominee || {}, u = res.adminUser || {};
+  window.__myDealerInfo = res;
+
+  document.getElementById("rNaam").value = d["নাম"] || "";
+  document.getElementById("rPitarNaam").value = d["পিতার নাম"] || "";
+  document.getElementById("rMobile").value = d["মোবাইল"] || "";
+  document.getElementById("rGmail").value = d["Gmail"] || "";
+  document.getElementById("rNid").value = d["NID/জন্মসনদ"] || "";
+  document.getElementById("rTrade").value = d["ট্রেড লাইসেন্স নং"] || "";
+  document.getElementById("rThikana").value = d["ঠিকানা"] || "";
+  document.getElementById("rFacebook").value = d["Facebook Link"] || "";
+  if(d["ডিলারের ছবি(URL)"]){
+    document.getElementById("rDealerPhotoPreview").src = d["ডিলারের ছবি(URL)"];
+    document.getElementById("rDealerPhotoPreview").style.display = "block";
+    document.getElementById("rDealerPhotoPlaceholder").style.display = "none";
+  }
+
+  document.getElementById("rNomNaam").value = n["নমিনির নাম"] || "";
+  document.getElementById("rNomNid").value = n["NID নং"] || "";
+  document.getElementById("rNomMobile").value = n["মোবাইল নং"] || "";
+  document.getElementById("rNomSomporko").value = n["সম্পর্ক"] || "";
+  if(n["নমিনির ছবি(URL)"]){
+    document.getElementById("rNomPhotoPreview").src = n["নমিনির ছবি(URL)"];
+    document.getElementById("rNomPhotoPreview").style.display = "block";
+    document.getElementById("rNomPhotoPlaceholder").style.display = "none";
+  }
+
+  document.getElementById("rAdminUser").value = u["ইউজারনেম"] || "";
+  document.getElementById("rAdminPass").value = u["পাসওয়ার্ড"] || "";
+  document.getElementById("rAdminName").value = u["নাম"] || "";
+}
+
+/* নিজের ডিলার ফরম অফিসিয়াল ফরম্যাটে প্রিন্ট (সেভ করা তথ্য থেকে) */
+async function printMyDealerForm(){
+  const info = window.__myDealerInfo;
+  if(!info || !info.dealer) return;
+  const d = info.dealer, n = info.nominee || {};
+  const dealerPhotoSrc = (await fileToBase64Compressed(document.getElementById("rDealerPhoto"))) || d["ডিলারের ছবি(URL)"] || "";
+  const nomPhotoSrc = (await fileToBase64Compressed(document.getElementById("rNomPhoto"))) || n["নমিনির ছবি(URL)"] || "";
+  printOfficialDealerForm({
+    dealerId: d["DealerID"], status: d["স্ট্যাটাস"],
+    naam: d["নাম"], pitarNaam: d["পিতার নাম"], mobile: d["মোবাইল"], gmail: d["Gmail"],
+    nid: d["NID/জন্মসনদ"], trade: d["ট্রেড লাইসেন্স নং"], thikana: d["ঠিকানা"],
+    dealerPhotoSrc: dealerPhotoSrc,
+    nomNaam: n["নমিনির নাম"], nomNid: n["NID নং"], nomMobile: n["মোবাইল নং"], nomSomporko: n["সম্পর্ক"],
+    nomPhotoSrc: nomPhotoSrc
+  });
 }
 
 function printDealerRow(d){
