@@ -335,6 +335,20 @@
   </div>
 </div>
 
+<!-- ================= নতুন গ্রাহকের কাছে মেসেজ পাঠানোর পপআপ ================= -->
+<div class="modal-overlay" id="newCusMsgModal">
+  <div class="modal-box" style="max-width:440px;">
+    <h3>গ্রাহক সংরক্ষিত হয়েছে</h3>
+    <p style="font-size:0.9rem;margin:0 0 8px;"><b id="ncmName"></b> (<span id="ncmMobile"></span>) এর কাছে নিচের মেসেজটি পাঠাবেন?</p>
+    <div id="ncmPreview" style="font-size:0.82rem;background:#f6f3ea;border:1px dashed #d8d2c2;border-radius:8px;padding:8px 10px;white-space:pre-wrap;"></div>
+    <div id="ncmResult" class="msg"></div>
+    <div class="modal-actions">
+      <button class="btn secondary" id="ncmCancelBtn" onclick="closeNewCusMsgModal()">বাতিল</button>
+      <button class="btn" id="ncmSendBtn" onclick="sendNewCustomerMessage()">মেসেজ পাঠান</button>
+    </div>
+  </div>
+</div>
+
 <!-- ================= জেনেরিক এডিট মোডাল ================= -->
 <div class="modal-overlay" id="editModal">
   <div class="modal-box">
@@ -3842,6 +3856,53 @@ function printPackagesOfficial(packages, subtitle){
 }
 
 /* ================= ডিলার: গ্রাহক ================= */
+const NEW_CUSTOMER_MSG_TEXT = "৮নং আমিরাবাদ ইউনিয়ন মানবিক সহায়তা ডেইলি শপে আপনার আবেদনটি সফল হয়েছে। নিয়মিত তথ্য জানতে নাম্বারে যোগাযোগ করুন। এবং পন্য বিক্রির তারিখ, সময় ও স্থান এই নাম্বার থেকে মেসেজের মাধ্যমে জানিয়ে দেয়া হবে।\nধন্যবাদ!";
+let newCusMsgTarget = null;
+
+function openNewCusMsgModal(customerId, name, mobile){
+  newCusMsgTarget = { customerId, name, mobile };
+  document.getElementById("ncmName").textContent = name || "";
+  document.getElementById("ncmMobile").textContent = mobile || "";
+  document.getElementById("ncmPreview").textContent =
+    "প্রিয় " + (name || "গ্রাহক") + ",\n" + NEW_CUSTOMER_MSG_TEXT + "\n\n" + (state.dealerName || "(ডিলারের নাম)") + "\n(ডিলারের ঠিকানা)";
+  const r = document.getElementById("ncmResult"); r.textContent = ""; r.className = "msg";
+  document.getElementById("ncmSendBtn").disabled = false;
+  document.getElementById("ncmSendBtn").style.display = "";
+  document.getElementById("ncmCancelBtn").textContent = "বাতিল";
+  document.getElementById("newCusMsgModal").style.display = "flex";
+}
+function closeNewCusMsgModal(){
+  document.getElementById("newCusMsgModal").style.display = "none";
+  newCusMsgTarget = null;
+}
+async function sendNewCustomerMessage(){
+  if(!newCusMsgTarget) return;
+  const r = document.getElementById("ncmResult");
+  const btn = document.getElementById("ncmSendBtn");
+  const st = await loadMessagingStatus();
+  if(!st.smsReady && !st.waReady){
+    r.className = "msg err"; r.textContent = "এখনো কোনো SMS/WhatsApp সেটআপ করা হয়নি। গ্রাহক → মেসেজ → মেসেজ সেটাপ থেকে সেটআপ করুন।";
+    return;
+  }
+  btn.disabled = true; r.className = "msg"; r.textContent = "পাঠানো হচ্ছে...";
+  let res;
+  try{
+    res = await apiCall("sendCustomerMessage", {
+      fromMobile: st.smsSenderId || "", message: NEW_CUSTOMER_MSG_TEXT,
+      type: "single", customerId: newCusMsgTarget.customerId
+    });
+  } finally { btn.disabled = false; }
+  if(!res.success){ r.className = "msg err"; r.textContent = res.message; return; }
+  const parts = [];
+  if(res.smsEnabled) parts.push("SMS: " + (res.smsSent > 0 ? "পাঠানো হয়েছে" : "ব্যর্থ" + (res.smsLastError ? " — " + res.smsLastError : "")));
+  if(res.waEnabled) parts.push("WhatsApp: " + (res.waSent > 0 ? "পাঠানো হয়েছে" : "ব্যর্থ" + (res.waLastError ? " — " + res.waLastError : "")));
+  const ok = res.smsSent > 0 || res.waSent > 0;
+  r.className = "msg " + (ok ? "ok" : "err");
+  r.innerHTML = parts.map(escMsgHtml).join("<br>");
+  btn.style.display = "none";
+  document.getElementById("ncmCancelBtn").textContent = "বন্ধ করুন";
+}
+
 async function submitCustomer(){
   const data = {
     "নাম": document.getElementById("cusNaam").value.trim(),
@@ -3876,9 +3937,11 @@ async function submitCustomer(){
   msgBox.textContent = res.message;
   msgBox.className = "msg " + (res.success?"ok":"err");
   if(res.success){ clearCache();
+    const savedName = data["নাম"], savedMobile = data["mobile"];
     ["cusNaam","cusPitarNaam","cusMobile","cusNid","cusBariNaam","cusGram","cusWard","cusUnion","cusPraptirSthan","cusCardFee"]
       .forEach(id => document.getElementById(id).value = "");
     loadCustomers();
+    if(savedMobile) openNewCusMsgModal(res.customerId, savedName, savedMobile);
   }
 }
 
@@ -4116,8 +4179,7 @@ function printSalesListOfficial(){
     rows,
     [["", "সাবটোটাল", "", "", "", "", total, ""]],
     "@Powered by: AM Shahed: 01605721296",
-    [1,2,5],
-    { landscape:true }
+    [1,2,5]
   );
 }
 

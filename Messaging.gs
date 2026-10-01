@@ -301,7 +301,7 @@ function sendBulkToRecipients(config, fromMobile, mainText, recipients, dealerIn
 /*******************************************************
  * ডিলার সাইট — নিজের গ্রাহকদের মেসেজ পাঠানো (Admin + প্রতিনিধি)
  * ডিলার নিজের সেট করা কনফিগ ব্যবহার করেই পাঠানো হয়
- * data: { token, fromMobile, message (শুধু মূল লেখা), type: "all"|"location"|"ward", locations: [...] (প্রাপ্তির স্থানের নাম অথবা ওয়ার্ড নং) }
+ * data: { token, fromMobile, message (শুধু মূল লেখা), type: "all"|"location"|"ward"|"single" (single এ customerId লাগে), locations: [...] (প্রাপ্তির স্থানের নাম অথবা ওয়ার্ড নং) }
  * গ্রাহকের নাম এবং ডিলারের নাম/ঠিকানা সার্ভার নিজেই বসিয়ে দেয়
  *******************************************************/
 function sendCustomerMessage(data) {
@@ -334,6 +334,10 @@ function sendCustomerMessage(data) {
       return picked.indexOf(String(c["প্রাপ্তির স্থান"] || "").trim()) !== -1;
     });
     statusText = picked.join(", ");
+  } else if (data.type === "single" && data.customerId) {
+    // নতুন গ্রাহক সংরক্ষণের পর শুধু সেই একজনকে মেসেজ
+    targeted = customers.filter(function (c) { return c["CustomerID"] === data.customerId; });
+    statusText = targeted.length ? ("গ্রাহক: " + targeted[0]["নাম"]) : "গ্রাহক";
   } else if (data.type === "ward" && picked.length) {
     targeted = customers.filter(function (c) {
       return picked.indexOf(String(c["ওয়ার্ড নং"] === undefined || c["ওয়ার্ড নং"] === null ? "" : c["ওয়ার্ড নং"]).trim()) !== -1;
@@ -355,7 +359,7 @@ function sendCustomerMessage(data) {
       "MessageID": msgId,
       "মেসেজ": String(data.message).trim(),
       "তারিখ ও সময়": new Date(),
-      "ধরন": data.type === "location" ? "প্রাপ্তির স্থান" : (data.type === "ward" ? "ওয়ার্ড" : "সকল গ্রাহক"),
+      "ধরন": data.type === "location" ? "প্রাপ্তির স্থান" : (data.type === "ward" ? "ওয়ার্ড" : (data.type === "single" ? "একক গ্রাহক" : "সকল গ্রাহক")),
       "স্ট্যাটাস": statusText,
       "মোট প্রাপক": result.total
     });
